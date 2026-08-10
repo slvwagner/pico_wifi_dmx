@@ -71,6 +71,82 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
   });
 
+  test('Effects exposes synchronized browser and Pico play modes with Loop as the default', async ({ page }) => {
+    await expect(page.locator('#motionPlayMode')).toHaveValue('loop');
+    await expect(page.locator('#picoMotionMode')).toHaveValue('loop');
+    await expect(page.locator('#motionLoopCountField')).toBeHidden();
+    await expect(page.locator('#picoMotionLoopCountField')).toBeHidden();
+
+    await page.locator('#motionPlayMode').selectOption('loop_n');
+    await page.locator('#motionLoopCount').fill('4');
+    await expect(page.locator('#picoMotionMode')).toHaveValue('loop_n');
+    await expect(page.locator('#motionLoopCountField')).toBeVisible();
+    await expect(page.locator('#picoMotionLoopCountField')).toBeVisible();
+    await expect(page.locator('#picoMotionLoopCount')).toHaveValue('4');
+
+    const saved = await page.evaluate(() => ({
+      body: serializeMotionForPico(),
+      params: currentMotionEffectRecipe().params
+    }));
+    expect(saved.body).toContain('MODE loop_n');
+    expect(saved.body).toContain('LOOPS 4');
+    expect(saved.params.playMode).toBe('loop_n');
+    expect(saved.params.loopCount).toBe(4);
+  });
+
+  test('Browser Effect pause and resume preserve elapsed phase and Loop N stops after its cycles', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"ok":true}'
+    }));
+
+    const state = await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      motionFixtures[0].enabled = true;
+      document.getElementById('bpm').value = '60';
+      document.getElementById('motionPlayMode').value = 'loop_n';
+      document.getElementById('motionLoopCount').value = '2';
+      await startMotion();
+      startTime = performance.now() - 650;
+      pauseMotion();
+      const pausedElapsed = motionElapsedSeconds();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      resumeMotion();
+      const resumedElapsed = motionElapsedSeconds();
+      startTime = performance.now() - 2050;
+      tick();
+      return {
+        pausedElapsed,
+        resumedElapsed,
+        running,
+        paused: motionPaused,
+        button: document.getElementById('motionPauseResume').textContent,
+        status: document.getElementById('status').textContent
+      };
+    });
+
+    expect(state.pausedElapsed).toBeGreaterThan(0.5);
+    expect(Math.abs(state.resumedElapsed - state.pausedElapsed)).toBeLessThan(0.1);
+    expect(state.running).toBe(false);
+    expect(state.paused).toBe(false);
+    expect(state.button).toContain('Pause');
+    expect(state.status).toContain('Completed 2 loops');
+  });
+
+  test('Pico Effect slot tiles report Single and Loop N modes', async ({ page }) => {
+    const texts = await page.evaluate(() => {
+      renderMotionSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, type: 0, bpm: 60, mode: 0, loop_count: 1, target_count: 1 },
+        { slot: 1, loaded: true, active: true, paused: false, type: 1, bpm: 90, mode: 2, loop_count: 3, completed_loops: 1, target_count: 2 }
+      ], 1 << 1, 0);
+      return Array.from(document.querySelectorAll('#motionSlotStrip > div')).slice(0, 2).map(tile => tile.innerText);
+    });
+
+    expect(texts[0]).toContain('Mode Single');
+    expect(texts[1]).toContain('Mode Loop N (3x)');
+  });
+
   test('uploads one linked effect payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;

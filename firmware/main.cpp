@@ -1484,15 +1484,18 @@ static void build_motion_slots_response()
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"type\":%d,\"bpm\":%.2f,\"elapsed_s\":%.2f,\"target_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"type\":%d,\"mode\":%u,\"bpm\":%.2f,\"elapsed_s\":%.2f,\"loop_count\":%u,\"completed_loops\":%u,\"target_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
             info.active ? "true" : "false",
             info.paused ? "true" : "false",
             info.type,
+            (unsigned)info.mode,
             (double)info.bpm,
             (double)info.elapsed_s,
+            info.loop_count,
+            info.completed_loops,
             info.target_count);
     }
     snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");

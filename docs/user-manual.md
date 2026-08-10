@@ -1040,13 +1040,13 @@ Center values come from the current base buffer or from recalling a scene as the
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
-**BPM** controls the effect cycle speed. **Hz** is the browser preview update rate from 5 to 50 calculations/s; changing Hz affects browser smoothness and request load, not the autonomous Pico effect timing. **Start** begins browser preview and changes to **Stop** while it is running.
+**BPM** controls the effect cycle speed. One complete effect cycle lasts one beat at the selected BPM. **Mode** determines how many cycles play: **Single** stops after one cycle, **Loop** repeats continuously, and **Loop N** stops after the selected 1–999 cycles. **Hz** is the browser preview update rate from 5 to 50 calculations/s; changing Hz affects browser smoothness and request load, not the autonomous Pico effect timing. **Start** begins browser preview and changes to **Stop** while it is running. **Pause** freezes the current effect phase and changes to **Resume**; resuming continues from that phase instead of restarting the effect. While paused, **Restart** starts the effect again from its beginning.
 
 The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico effect slots, and the Pico reads the effect center from its base buffer while playing. Pan/Tilt profile mapping is included in the uploaded target: swapped axes use the swapped physical channels, and reversed axes invert the effect offset around the current base value.
 
 The Effects page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Effects and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens **Edit Tile** so palette names and visuals can be adjusted from Effects too. Effects recalls, imports, exports, and saves the shared palette JSON.
 
-The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. With the browser preview stopped and its button showing **Start**, clicking a saved effect only recalls the recipe. When the preview is already active and the button shows **Stop**, clicking another saved effect restarts the browser preview immediately with that recipe's saved timing and update rate, making it easy to audition several effects. Recall never uploads the recipe to a Pico slot. The small pencil opens **Edit Tile** for the effect name, background, and optional drawing/upload.
+The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, play mode, Loop N count, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. With the browser preview stopped and its button showing **Start**, clicking a saved effect only recalls the recipe. When the preview is already active and the button shows **Stop**, clicking another saved effect restarts the browser preview immediately with that recipe's saved timing and update rate, making it easy to audition several effects. Recall never uploads the recipe to a Pico slot. The small pencil opens **Edit Tile** for the effect name, background, and optional drawing/upload.
 
 ![Effects Edit Tile modal](screenshots/motion-edit-tile.png)
 
@@ -1065,11 +1065,12 @@ The Pico effect slot upload uses the same selected **Effect target** as the brow
 - If physical slot N is occupied on a required Pico, the page identifies that Pico and asks before replacing it. Choose **Cancel** to preserve all existing slots; no partial upload is performed before this decision.
 - Click a loaded slot once to select it for start, stop, or BPM changes.
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
-- **Pause/Resume** changes state without discarding the loaded slot, and **Set BPM** changes the selected slot's tempo without re-uploading its targets.
+- **Mode** selects **Single**, **Loop**, or **Loop N** for both browser preview and Pico upload. **Loops** appears for Loop N and sets its 1–999 cycle limit.
+- **Pause/Resume** freezes and continues the current Pico effect phase without discarding or restarting the loaded slot, and **Set BPM** changes the selected slot's tempo without re-uploading its targets.
 - **Stop Slot** stops only the selected logical effect; **Stop All** stops the relevant Pico Effects playback.
 - The small `x` clears the selected saved slot and physical slot N on every configured Pico after confirmation.
 - **Synchronize Saved Slots to Picos** preflights the fleet, reports the exact uploads and stale-slot clears, reloads every saved effect into its common slot number, and removes Pico slots absent from the controller application's saved slot state. Older differing-slot manifests must first be handled with **Normalize Legacy Slots**, which creates a backup and checks for conflicts.
-- Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
+- Slots store channel mappings, BPM, play mode, Loop N count, amplitude, spread, effect type, and target phase. Slot tiles identify Single and Loop N configurations and report their playback state. Slots do not store fixed center values.
 - The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
 - Up to 64 physical effect slots can be loaded on one Pico.
 
@@ -1093,11 +1094,11 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 ![Effects Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
-**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one **Amplitude** control.
+**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, play mode, Loop N count, amplitude, phase spread, phase-preserving browser pause/resume controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one **Amplitude** control.
 
 ![Effects toolbox](screenshots/motion-toolbox-effects.png)
 
-**Effects** stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, amplitude, spread, and phase offsets. It does not store fixed center values.
+**Effects** stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, play mode, Loop N count, amplitude, spread, and phase offsets. It does not store fixed center values.
 
 ![Effects Scenes toolbox](screenshots/motion-toolbox-scenes.png)
 
@@ -1117,7 +1118,7 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 2. Save or recall a scene.
 3. Open Effects.
 4. Select one **Effect target**.
-5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
+5. Set BPM, effect shape, play mode, optional Loop N count, amplitude, and spread in the **Effect Parameters** toolbox.
 6. Optionally recall a palette from the **Palettes** toolbox to set the center for the selected target.
 7. Optionally save or recall the recipe from the **Effects** toolbox.
 8. Click an empty Pico slot to upload the effect, then start the slot when you want autonomous playback without browser timing jitter.
@@ -1616,7 +1617,7 @@ In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mappi
 
 ![Show Run Pico Chaser Playback card](screenshots/show-run-card-chaser.png)
 
-The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a logical slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads every linked member payload before running it; starting a live-only single-Pico slot starts the already-loaded Pico slot without overwriting it. Linked effect tiles use the same universe/physical-slot notation as linked chases.
+The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a logical slot to see its read-only **Mode** and **Loops** settings, set **BPM**, then start, pause/resume, set BPM, or stop the slot. Each loaded tile identifies Loop, Single, or Loop N; finite-mode tiles also show completed cycles or loops reported by the firmware. Starting a mirrored slot reloads every linked member payload before running it; starting a live-only single-Pico slot starts the already-loaded Pico slot without overwriting it. Linked effect tiles use the same universe/physical-slot notation as linked chases.
 
 Loaded effect tiles have the same MIDI edit pencil and playback-action choices, including dedicated pause and resume buttons or one pause/resume toggle.
 

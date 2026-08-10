@@ -86,6 +86,21 @@ function heavyMotionDemoBody(slot = 0) {
   return lines.join('\n');
 }
 
+function finiteMotionDemoBody(channel, mode, loops = 1, bpm = 240) {
+  return [
+    'FX 1',
+    'TYPE 4',
+    `MODE ${mode}`,
+    `LOOPS ${loops}`,
+    `BPM ${bpm}`,
+    'AMP1 0.50',
+    'AMP2 0.00',
+    'SPREAD 0',
+    `TARGET scalar8 1 ${channel} 0 0 0 0 0 0`,
+    'END'
+  ].join('\n');
+}
+
 async function getSlots(request, kind) {
   const json = await getJson(request, kind === 'chaser' ? '/chaser/slots' : '/motion/slots');
   return json.slots || [];
@@ -369,6 +384,65 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     ).toBeGreaterThan(8);
 
     await getJson(request, '/motion/stop/' + slot);
+  });
+
+  test('Motion Single, Loop, and Loop N modes preserve pause phase and stop at their limits', async ({ request }) => {
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const slots = await getSlots(request, 'motion');
+    const preferredSlot = Number(hardware.motionSlot);
+    const slotInfo = slots.find(s => Number(s.slot) === preferredSlot && !s.loaded)
+      || slots.find(s => !s.loaded);
+    test.skip(!slotInfo, 'No empty Pico motion slot is available for the playback-mode test');
+    const slot = Number(slotInfo.slot);
+    const base = await getJson(request, '/dmx/base.json');
+    const originalValue = Number(base[channel - 1]) || 0;
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await postText(request, '/dmx/b', `${channel}:128`);
+
+    try {
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'single'));
+      let state = await waitForSlot(request, 'motion', slot, s => s.loaded && Number(s.mode) === 0);
+      expect(Number(state.loop_count)).toBe(1);
+      await getJson(request, '/motion/start/' + slot);
+      state = await waitForSlot(request, 'motion', slot, s => !s.active && Number(s.completed_loops) === 1);
+      expect(Number(state.elapsed_s)).toBeCloseTo(0.25, 1);
+
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'loop', 7));
+      state = await waitForSlot(request, 'motion', slot, s => s.loaded && Number(s.mode) === 1);
+      expect(Number(state.loop_count)).toBe(7);
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(650);
+      state = await waitForSlot(request, 'motion', slot, s => s.active && Number(s.completed_loops) >= 2);
+      expect(state.active).toBe(true);
+      await getJson(request, '/motion/stop/' + slot);
+
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'loop_n', 3));
+      state = await waitForSlot(
+        request,
+        'motion',
+        slot,
+        s => s.loaded && Number(s.mode) === 2 && Number(s.loop_count) === 3
+      );
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(350);
+      await getJson(request, '/motion/pause/' + slot);
+      const paused = await waitForSlot(request, 'motion', slot, s => s.paused);
+      await sleep(350);
+      const held = await waitForSlot(request, 'motion', slot, s => s.paused);
+      expect(Math.abs(Number(held.elapsed_s) - Number(paused.elapsed_s))).toBeLessThanOrEqual(0.02);
+      expect(Number(held.completed_loops)).toBe(Number(paused.completed_loops));
+
+      await getJson(request, '/motion/resume/' + slot);
+      await waitForSlot(request, 'motion', slot, s => s.active);
+      state = await waitForSlot(request, 'motion', slot, s => !s.active && Number(s.completed_loops) === 3);
+      expect(Number(state.elapsed_s)).toBeCloseTo(0.75, 1);
+    } finally {
+      await getJson(request, '/motion/stop/' + slot).catch(() => {});
+      await getJson(request, '/motion/clear/' + slot).catch(() => {});
+      await postText(request, '/dmx/b', `${channel}:${originalValue}`).catch(() => {});
+    }
   });
 
   test('Blackout lock suppresses running motion output on locked channels', async ({ request }) => {

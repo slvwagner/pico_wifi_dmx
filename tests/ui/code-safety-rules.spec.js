@@ -55,6 +55,20 @@ test.describe('Code safety regression rules', () => {
     expect(main).not.toContain('static char    post_buffer[POST_BUFFER_MAX]');
   });
 
+  test('Pico Effects firmware supports finite loops and reports their progress', () => {
+    const header = read('firmware/pico_motion.h');
+    const motion = read('firmware/pico_motion.cpp');
+    const main = read('firmware/main.cpp');
+
+    expect(header).toContain('MFX_MODE_SINGLE');
+    expect(header).toContain('MFX_MODE_LOOP_N');
+    expect(header).toContain('completed_loops');
+    expect(motion).toContain('strncmp(line, "MODE ", 5)');
+    expect(motion).toContain('strncmp(line, "LOOPS ", 6)');
+    expect(motion).toContain('sd->mode != MFX_MODE_LOOP && completed >= (float)limit');
+    expect(main).toContain('\\"loop_count\\":%u,\\"completed_loops\\":%u');
+  });
+
   test('JSON read-modify-write updates hold one exclusive transaction lock', () => {
     const store = read('api/json_store.php');
     for (const endpoint of ['api/chaser_setup.php', 'api/motion_setup.php', 'api/ui_state.php']) {

@@ -1697,6 +1697,33 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#motionControlRestore')).toHaveCount(0);
   });
 
+  test('shows Pico Effect mode, Loop N count, and completed-loop progress on Show Run', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredMotionSlots: Array(64).fill(null),
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 0,
+        active: slot === 0,
+        paused: false,
+        bpm: 90,
+        mode: slot === 0 ? 2 : 1,
+        loop_count: slot === 0 ? 4 : 1,
+        completed_loops: slot === 0 ? 2 : 0,
+        target_count: slot === 0 ? 3 : 0
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#motionControlMode')).toHaveValue('Loop N');
+    await expect(page.locator('#motionControlLoops')).toHaveValue('4');
+    await expect(page.locator('#motionControlLoops')).toBeDisabled();
+    await expect(page.locator('#motionSlots .playback-card').first()).toContainText('Loop N · 2/4 loops');
+  });
+
   test('loads Show Run layout and live controls from server UI state', async ({ page }) => {
     const calls = {
       pico: [],

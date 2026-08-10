@@ -20,6 +20,12 @@ typedef enum {
 } mfx_type_t;
 
 typedef enum {
+    MFX_MODE_SINGLE = 0,
+    MFX_MODE_LOOP,
+    MFX_MODE_LOOP_N,
+} mfx_mode_t;
+
+typedef enum {
     MFX_TARGET_SCALAR8   = 0,
     MFX_TARGET_SCALAR16  = 1,
     MFX_TARGET_PANTILT8  = 2,
@@ -53,8 +59,11 @@ typedef struct {
     bool     active;
     bool     paused;
     int      type;
+    mfx_mode_t mode;
     float    bpm;
     float    elapsed_s;
+    uint16_t loop_count;
+    uint16_t completed_loops;
     uint16_t target_count;
 } mfx_slot_info_t;
 

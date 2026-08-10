@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-21">
-<script src="assets/dmx-common.js?v=1.2.1-24"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
+<script src="assets/dmx-common.js?v=1.3.0-24"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -202,9 +202,9 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=1.2.1">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.2.1#show-run" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.3.0#show-run" target="_blank">Manual</a>
     <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
     <button id="editLayoutBtn" type="button">Edit</button>
   </div>
@@ -406,6 +406,8 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div class="pico-control-strip">
         <label>Slot<input id="motionControlSlot" type="number" min="0" max="63" step="1" value="0"></label>
         <label>BPM<input id="motionControlBpm" type="number" min="1" max="600" step="1" value="30"></label>
+        <label>Mode<select id="motionControlMode" disabled><option>Single</option><option selected>Loop</option><option>Loop N</option></select></label>
+        <label>Loops<input id="motionControlLoops" type="number" min="1" max="999" step="1" value="1" disabled></label>
         <button id="motionControlStart" class="primary">Start Slot</button>
         <button id="motionControlPauseResume">Pause</button>
         <button id="motionControlSetBpm">Set BPM</button>
@@ -3509,10 +3511,14 @@ function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
 }
 function parseMotionPicoSlotPayload(body,slot=0){
   if(!body)return null;
-  const info={slot,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0};
+  const info={slot,loaded:true,source:'mirror',bpm:30,mode:1,loop_count:1,completed_loops:0,target_count:0,fixture_count:0};
   String(body).split(/\r?\n/).forEach(line=>{
     const trimmed=line.trim();
     if(trimmed.startsWith('BPM '))info.bpm=Math.max(1,Math.min(600,parseFloat(trimmed.slice(4))||30));
+    else if(trimmed.startsWith('MODE ')){
+      const mode=trimmed.slice(5).trim();
+      info.mode=mode==='single'||mode==='once'?0:mode==='loop_n'||mode==='loopn'?2:1;
+    }else if(trimmed.startsWith('LOOPS '))info.loop_count=Math.max(1,Math.min(999,parseInt(trimmed.slice(6),10)||1));
     else if(trimmed.startsWith('TARGET '))info.target_count++;
   });
   return info;
@@ -3521,7 +3527,7 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(64,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
-    const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0}:null);
+    const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,mode:1,loop_count:1,completed_loops:0,target_count:0,fixture_count:0}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
     const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
     if(!live&&!mirror&&!playback)return null;
@@ -3538,13 +3544,30 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
       active:!!live?.active,
-      paused:!!live?.paused
+      paused:!!live?.paused,
+      mode:live?.mode??mirror?.mode??1,
+      loop_count:live?.loop_count??mirror?.loop_count??1,
+      completed_loops:live?.completed_loops??mirror?.completed_loops??0
     };
   });
 }
 function chaserModeLabel(mode){
   mode=Number(mode)||0;
   return mode===0?'Single':mode===2?'Loop N':mode===3?'Ping Pong':'Loop';
+}
+function motionModeLabel(mode){
+  mode=Number(mode);
+  return mode===0?'Single':mode===2?'Loop N':'Loop';
+}
+function motionModeMeta(item){
+  const label=motionModeLabel(item?.mode);
+  const completed=Math.max(0,parseInt(item?.completed_loops,10)||0);
+  if(Number(item?.mode)===0)return `${label} · ${Math.min(1,completed)}/1 cycle`;
+  if(Number(item?.mode)===2){
+    const loops=Math.max(1,Math.min(999,parseInt(item?.loop_count,10)||1));
+    return `${label} · ${Math.min(loops,completed)}/${loops} loops`;
+  }
+  return label;
 }
 function updateChaserPauseResumeButton(){
   const btn=document.getElementById('chaserControlPauseResume');
@@ -3582,6 +3605,10 @@ function selectMotionSlot(slot){
   const slotData=motionSlots[motionSelectedSlot]||null;
   const bpm=document.getElementById('motionControlBpm');
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
+  const mode=document.getElementById('motionControlMode');
+  if(mode&&slotData)mode.value=motionModeLabel(slotData.mode);
+  const loops=document.getElementById('motionControlLoops');
+  if(loops&&slotData)loops.value=Math.max(1,Math.min(999,parseInt(slotData.loop_count,10)||1));
   updateMotionPauseResumeButton();
 }
 function playbackSlotsForType(type){
@@ -3640,7 +3667,7 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
       :'';
     const meta=type==='chaser'&&item
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`
-      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
+      :item?`${Math.round(Number(item.bpm)||30)} BPM · ${motionModeMeta(item)}${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
     const running=!!(item?.active||item?.paused);
     const actionLabel=running?'Stop':'Start';

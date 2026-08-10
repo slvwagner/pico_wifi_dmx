@@ -987,7 +987,7 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `MINOR` introduces a new backward-compatible feature set.
 - `PATCH` contains compatible fixes and smaller improvements.
 
-The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.2.1`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.3.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
 
 After merging a release into `main`, preview and create the next version branch with:
 
@@ -1006,7 +1006,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=1.2.1-11` is a browser-cache revision within application version `1.2.1`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=1.3.0-1` is a browser-cache revision within application version `1.3.0`; `-1` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
@@ -1014,7 +1014,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "1.2.1",
+  "appVersion": "1.3.0",
   "schemaVersion": 1
 }
 ```
@@ -1214,6 +1214,8 @@ The firmware HTTP layer also isolates overlapping network requests. Each POST up
 
 The Chaser and Effects browser playback engines connect directly to the show's primary Pico HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request. Two browser tabs can run simultaneously (for example, Chaser on dimmer channels and Effects on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it does not own. Browser playback and the Chaser/Effects live editor previews are currently primary-output workflows; use autonomous linked Pico playback when one chase or effect must span several DMX Outputs.
 
+Effects playback supports **Single**, **Loop**, and **Loop N**. One complete effect cycle lasts one beat at the configured BPM. Single stops after one cycle, Loop runs continuously, and Loop N stops after the selected 1–999 cycles. Browser Effects can be paused and resumed without restarting their phase. Saved Effects preserve the mode and loop count, and uploading an Effect to a Pico slot sends the same settings to autonomous firmware playback. Show Run displays the selected Pico Effect slot's mode and Loop N count, while its playback tiles show finite-loop progress reported by the firmware.
+
 ### Pico Autonomous Playback
 
 Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. Logical slot N always uses physical slot N on each involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
@@ -1286,7 +1288,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 
 ### Pico Effects
 
-Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents the same 64 slots as fleet-wide logical slots: logical slot N uses physical slot N on every involved Pico. Upload asks before replacing occupied slot N; cancellation leaves every existing slot unchanged.
+Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, play mode, loop count, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents the same 64 slots as fleet-wide logical slots: logical slot N uses physical slot N on every involved Pico. Upload asks before replacing occupied slot N; cancellation leaves every existing slot unchanged.
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
@@ -1299,7 +1301,7 @@ Each Pico provides **64 physical effect slots** that can be loaded and played si
 | `/motion/stop/<N>` | GET | Stop slot N only |
 | `/motion/bpm/<N>/<bpm_x10>` | GET | Set BPM for slot N live (e.g. `/motion/bpm/0/1200` = 120.0 BPM) |
 | `/motion/status` | GET | `{"ok":true,"active_mask":N,"loaded_mask":N,"elapsed_s":F}` |
-| `/motion/slots` | GET | Array of per-slot info: `{"ok":true,"slots":[{"slot":N,"loaded":bool,"active":bool,"type":N,"bpm":F,"target_count":N},…]}` |
+| `/motion/slots` | GET | Array of per-slot info including `mode`, `loop_count`, and `completed_loops`: `{"ok":true,"slots":[{"slot":N,"loaded":bool,"active":bool,"type":N,"bpm":F,"mode":N,"loop_count":N,"completed_loops":N,"target_count":N},…]}` |
 
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
@@ -1309,12 +1311,17 @@ Effects text protocol (POST body):
 FX 1
 TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing|4=sine|5=pulse>
 BPM <float>
+MODE <single|loop|loop_n>
+LOOPS <1–999>
 AMP1 <0.0–1.0>
 AMP2 <0.0–1.0>
 SPREAD <degrees>
 TARGET <scalar8|scalar16|pantilt8|pantilt16> <enabled> <ch1> <fine1> <ch2> <fine2> <phase_deg> [reverse1] [reverse2]
 END
 ```
+
+`LOOPS` is used by `loop_n`; normal `loop` repeats indefinitely. Older Effects
+payloads without `MODE` or `LOOPS` remain compatible and default to Loop.
 
 The `TARGET` line contains DMX channel positions only. It does not store fixed center values. Instead, the effect center is read from the **scene base buffer** (`dmx_base_frame`) at tick time — see [Scene Base Buffer](#scene-base-buffer) below. Pan/tilt targets use both axes; scalar targets use `ch1`/`fine1` and ignore `ch2`/`fine2`. The optional `reverse1` and `reverse2` flags are `0` or `1`; they invert the motion offset for target axis 1 and target axis 2 while keeping the current base value as the center. Older slot payloads without these flags remain valid.
 

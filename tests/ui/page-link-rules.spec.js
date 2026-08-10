@@ -2,15 +2,15 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
-  { path: '', manualHref: 'user-manual.html?v=1.2.1#fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=1.2.1#show-run', manualText: 'Show Run' },
-  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=1.2.1#midi-controller-card', manualText: 'MIDI Emulator' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=1.2.1#chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=1.2.1#effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=1.2.1#gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html?v=1.2.1#pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=1.2.1#dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
-  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=1.2.1#room-plane', manualText: 'Room Plane' }
+  { path: '', manualHref: 'user-manual.html?v=1.3.0#fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=1.3.0#show-run', manualText: 'Show Run' },
+  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=1.3.0#midi-controller-card', manualText: 'MIDI Emulator' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=1.3.0#chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=1.3.0#effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=1.3.0#gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=1.3.0#pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=1.3.0#dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=1.3.0#room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {
@@ -21,12 +21,12 @@ test.describe('Page link rules', () => {
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'DMX Controller');
     await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'DMX Controller');
     await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
-    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/favicon.ico?v=1.2.1');
-    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'assets/app-icon-180.png?v=1.2.1');
-    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', 'assets/manifest.webmanifest?v=1.2.1');
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/favicon.ico?v=1.3.0');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'assets/app-icon-180.png?v=1.3.0');
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', 'assets/manifest.webmanifest?v=1.3.0');
 
     const manifest = await page.evaluate(async () => {
-      const response = await fetch('assets/manifest.webmanifest?v=1.2.1');
+      const response = await fetch('assets/manifest.webmanifest?v=1.3.0');
       return response.json();
     });
     expect(manifest).toMatchObject({

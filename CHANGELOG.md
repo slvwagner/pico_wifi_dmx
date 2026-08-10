@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 - Unreleased
+
+Changed:
+
+- Added **Single**, **Loop**, and **Loop N** playback modes to browser and
+  autonomous Pico Effects. The configurable Loop N count is stored with saved
+  Effects and uploaded slot data, and Pico slot tiles report their configured
+  mode and completed-loop progress. Show Run reads the same information into
+  its Pico Effects controls and playback tiles.
+- Added phase-preserving pause and resume to browser Effects playback. Finite
+  Single and Loop N playback now stops automatically after the selected number
+  of complete BPM-timed effect cycles.
+
 ## 1.2.1 - Unreleased
 
 Changed:

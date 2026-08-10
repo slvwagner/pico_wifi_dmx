@@ -16,6 +16,7 @@ typedef struct {
     bool          active;
     bool          paused;
     mfx_type_t    type;
+    mfx_mode_t    mode;
     float         bpm;
     float         amp1;
     float         amp2;
@@ -23,6 +24,8 @@ typedef struct {
     uint32_t      start_us;
     uint32_t      paused_elapsed_us;
     float         last_elapsed_s;
+    uint16_t      loop_count;
+    uint16_t      completed_loops;
     uint16_t      target_count;
     mfx_target_t  targets[MFX_MAX_TARGETS];
 } mfx_slot_data_t;
@@ -76,6 +79,8 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     tmp.bpm  = 30.0f;
     tmp.amp1 = 0.2f;
     tmp.amp2 = 0.15f;
+    tmp.mode = MFX_MODE_LOOP;
+    tmp.loop_count = 1;
 
     const char *p = body;
     const char *end = body + len;
@@ -95,6 +100,17 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
 
         if (strncmp(line, "TYPE ", 5) == 0) {
             tmp.type = (mfx_type_t)atoi(line + 5);
+        } else if (strncmp(line, "MODE ", 5) == 0) {
+            const char *mode = line + 5;
+            if (strcmp(mode, "single") == 0 || strcmp(mode, "once") == 0)
+                tmp.mode = MFX_MODE_SINGLE;
+            else if (strcmp(mode, "loop_n") == 0 || strcmp(mode, "loopn") == 0)
+                tmp.mode = MFX_MODE_LOOP_N;
+            else
+                tmp.mode = MFX_MODE_LOOP;
+        } else if (strncmp(line, "LOOPS ", 6) == 0) {
+            int loops = atoi(line + 6);
+            tmp.loop_count = (uint16_t)(loops < 1 ? 1 : (loops > 999 ? 999 : loops));
         } else if (strncmp(line, "BPM ", 4) == 0) {
             tmp.bpm = strtof(line + 4, NULL);
         } else if (strncmp(line, "AMP1 ", 5) == 0) {
@@ -131,6 +147,8 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     }
 
     if (tmp.target_count == 0) return false;
+    if (tmp.bpm < 0.1f) tmp.bpm = 0.1f;
+    if (tmp.bpm > 600.0f) tmp.bpm = 600.0f;
     tmp.loaded = true;
 
     mutex_enter_blocking(&mfx_lock);
@@ -138,6 +156,7 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     tmp.paused = false;
     tmp.start_us = 0;
     tmp.paused_elapsed_us = 0;
+    tmp.completed_loops = 0;
     memcpy(&slot_data[slot], &tmp, sizeof(mfx_slot_data_t));
     mutex_exit(&mfx_lock);
     return true;
@@ -150,6 +169,8 @@ void mfx_start(uint8_t slot)
     if (slot_data[slot].loaded) {
         slot_data[slot].start_us = 0;
         slot_data[slot].paused_elapsed_us = 0;
+        slot_data[slot].last_elapsed_s = 0.0f;
+        slot_data[slot].completed_loops = 0;
         slot_data[slot].paused = false;
         slot_data[slot].active = true;
     }
@@ -204,6 +225,8 @@ void mfx_stop(void)
         slot_data[i].paused = false;
         slot_data[i].start_us = 0;
         slot_data[i].paused_elapsed_us = 0;
+        slot_data[i].last_elapsed_s = 0.0f;
+        slot_data[i].completed_loops = 0;
     }
     mutex_exit(&mfx_lock);
 }
@@ -216,6 +239,8 @@ void mfx_stop_slot(uint8_t slot)
     slot_data[slot].paused = false;
     slot_data[slot].start_us = 0;
     slot_data[slot].paused_elapsed_us = 0;
+    slot_data[slot].last_elapsed_s = 0.0f;
+    slot_data[slot].completed_loops = 0;
     mutex_exit(&mfx_lock);
 }
 
@@ -304,6 +329,16 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         float elapsed_s = sd->paused
             ? (float)sd->paused_elapsed_us / 1e6f
             : (float)((uint32_t)(now_us - sd->start_us)) / 1e6f;
+        float completed = elapsed_s * sd->bpm / 60.0f;
+        uint16_t limit = sd->mode == MFX_MODE_SINGLE ? 1u : sd->loop_count;
+        if (sd->mode != MFX_MODE_LOOP && completed >= (float)limit) {
+            sd->completed_loops = limit;
+            elapsed_s = (float)limit * 60.0f / sd->bpm;
+            sd->active = false;
+            sd->paused = false;
+        } else {
+            sd->completed_loops = completed >= 65535.0f ? 65535u : (uint16_t)completed;
+        }
         sd->last_elapsed_s = elapsed_s;
 
         mfx_snap_t *sn = &snaps[active_count++];
@@ -393,8 +428,11 @@ void mfx_get_slot_info(uint8_t slot, mfx_slot_info_t *out)
     out->active = slot_data[slot].active;
     out->paused = slot_data[slot].paused;
     out->type = (int)slot_data[slot].type;
+    out->mode = slot_data[slot].mode;
     out->bpm = slot_data[slot].bpm;
     out->elapsed_s = slot_data[slot].last_elapsed_s;
+    out->loop_count = slot_data[slot].loop_count;
+    out->completed_loops = slot_data[slot].completed_loops;
     out->target_count = slot_data[slot].target_count;
     mutex_exit(&mfx_lock);
 }
