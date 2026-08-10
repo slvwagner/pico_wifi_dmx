@@ -1490,7 +1490,6 @@ The **Room Plane** toolbox contains the measured A/B/C points and the current ta
 | A, B, C X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
 | Target X/Y | Numeric target position in the plane. |
 | Reset calibration | Marks all working fixture A/B/C calibration points as missing and deselects the active saved Plane without changing any saved Plane tile. |
-| Demo values | Loads the small built-in demo plane and demo fixtures. |
 
 The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.
 

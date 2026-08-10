@@ -380,6 +380,7 @@ test.describe('Room Plane rules', () => {
   test('reset calibration marks fixtures incomplete', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
+    await expect(page.locator('#resetDemo')).toHaveCount(0);
     await page.locator('#resetCalibration').click();
 
     await expect(page.locator('tbody tr').first()).toContainText('Missing A, B, C');

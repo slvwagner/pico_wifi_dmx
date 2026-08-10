@@ -4,6 +4,10 @@
 
 Changed:
 
+- Removed the legacy Room Plane **Demo values** button so a user cannot
+  accidentally replace the working room definition and fixture list with
+  demonstration data. The internal first-run fallback remains available when
+  no saved Room Plane setup exists.
 - Reworked the Room Plane **Add patched fixtures** modal for touch use. Patched
   moving lights are now selected by tapping large Controller-style fixture
   cards with an accent selected state and live selected count instead of

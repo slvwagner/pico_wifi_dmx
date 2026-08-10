@@ -1534,7 +1534,6 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <tr><td>A, B, C X/Y/Z</td><td>Known physical points in the room. Use one consistent unit, for example meters.</td></tr>
 <tr><td>Target X/Y</td><td>Numeric target position in the plane.</td></tr>
 <tr><td>Reset calibration</td><td>Marks all working fixture A/B/C calibration points as missing and deselects the active saved Plane without changing any saved Plane tile.</td></tr>
-<tr><td>Demo values</td><td>Loads the small built-in demo plane and demo fixtures.</td></tr>
 </tbody>
 </table>
 <p>The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.</p>
@@ -1731,6 +1730,12 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>release information has one maintained source.</p>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>
+<ul>
+<li>Removed the legacy Room Plane <strong>Demo values</strong> button so a user cannot</li>
+</ul>
+<p>  accidentally replace the working room definition and fixture list with</p>
+<p>  demonstration data. The internal first-run fallback remains available when</p>
+<p>  no saved Room Plane setup exists.</p>
 <ul>
 <li>Reworked the Room Plane <strong>Add patched fixtures</strong> modal for touch use. Patched</li>
 </ul>

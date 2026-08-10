@@ -188,7 +188,6 @@ canvas{display:none}
         <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
         <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
         <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
-        <button id="resetDemo">Demo values</button>
       </div>
     </div>
   </div>
@@ -2121,7 +2120,6 @@ function setPlanePanMode(enabled){
   pad.classList.toggle('pan-mode',planePanMode);
 }
 document.getElementById('panPlaneView').onclick=()=>setPlanePanMode(!planePanMode);
-document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0,z:0};points[1]={id:'B',x:5,y:0,z:0};points[2]={id:'C',x:0,y:3,z:0};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';editingFixtureIndex=null;demoFixtures();syncTables();scheduleRoomPlaneAutosave();};
 document.getElementById('addFixture').onclick=()=>openAddPatchedFixturesModal();
 document.getElementById('confirmAddPatchedFixtures').onclick=confirmAddPatchedFixtures;
 document.getElementById('closeAddPatchedFixtures').onclick=closeAddPatchedFixturesModal;
