@@ -714,6 +714,8 @@ const midiContinuousQueue=new Map();
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
 let liveTimerVisualInterval=null;
+let playbackStatePollTimer=null;
+let playbackStatePollBusy=false;
 const hiddenCardBin=document.createElement('div');
 hiddenCardBin.hidden=true;
 document.body.appendChild(hiddenCardBin);
@@ -3868,6 +3870,71 @@ function updatePlaybackSlotState(type,slot,patch){
   if(type==='chaser'&&Number(index)===Number(chaserSelectedSlot))updateChaserPauseResumeButton();
   if(type==='motion'&&Number(index)===Number(motionSelectedSlot))updateMotionPauseResumeButton();
   drawPlaybackForType(type);
+  updateShowPlaybackStatePolling();
+}
+function showPlaybackStateTargets(){
+  return ['chaser','motion'].flatMap(type=>playbackSlotsForType(type)
+    .filter(slot=>slot&&(slot.active||slot.paused))
+    .map(slot=>({type,slot:Number(slot.slot),slotData:slot})));
+}
+async function readShowPlaybackSlotState(type,logicalSlot,slotData){
+  const linkedMembers=Array.isArray(slotData?.playback?.members)?slotData.playback.members:[];
+  const members=linkedMembers.length?linkedMembers:[{baseUrl:endpoint(),slot:logicalSlot}];
+  const unique=new Map();
+  members.forEach(member=>{
+    const root=String(member.baseUrl||'').replace(/\/+$/,'');
+    const physicalSlot=Math.max(0,parseInt(member.slot,10)||0);
+    if(root)unique.set(root+'|'+physicalSlot,{root,slot:physicalSlot});
+  });
+  if(!unique.size)return null;
+  const samples=await Promise.all([...unique.values()].map(async member=>{
+    try{
+      const response=await fetch(member.root+'/'+type+'/slots',{cache:'no-store'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||!data?.ok||!Array.isArray(data.slots))return null;
+      return data.slots[member.slot]||null;
+    }catch(_){return null;}
+  }));
+  if(samples.some(sample=>!sample))return null;
+  const completed=samples.map(sample=>Number(sample.completed_loops)).filter(Number.isFinite);
+  return{
+    active:samples.some(sample=>!!sample.active),
+    paused:samples.some(sample=>!!sample.paused),
+    ...(completed.length?{completed_loops:Math.min(...completed)}:{})
+  };
+}
+async function pollShowPlaybackState(){
+  if(playbackStatePollBusy)return;
+  const targets=showPlaybackStateTargets();
+  if(!targets.length){updateShowPlaybackStatePolling();return;}
+  playbackStatePollBusy=true;
+  const changedTypes=new Set();
+  try{
+    for(const target of targets){
+      const state=await readShowPlaybackSlotState(target.type,target.slot,target.slotData);
+      if(!state)continue;
+      const wasRunning=!!(target.slotData.active||target.slotData.paused);
+      const changed=target.slotData.active!==state.active||target.slotData.paused!==state.paused||
+        (state.completed_loops!==undefined&&Number(target.slotData.completed_loops)!==Number(state.completed_loops));
+      if(!changed)continue;
+      Object.assign(target.slotData,state);
+      changedTypes.add(target.type);
+      if(wasRunning&&!state.active&&!state.paused&&[0,2].includes(Number(target.slotData.mode))){
+        setStatus((target.type==='motion'?'Effect':'Chaser')+' slot '+target.slot+' completed');
+      }
+    }
+    changedTypes.forEach(type=>drawPlaybackForType(type));
+    if(changedTypes.has('chaser'))updateChaserPauseResumeButton();
+    if(changedTypes.has('motion'))updateMotionPauseResumeButton();
+  }finally{
+    playbackStatePollBusy=false;
+    updateShowPlaybackStatePolling();
+  }
+}
+function updateShowPlaybackStatePolling(){
+  const needed=showPlaybackStateTargets().length>0;
+  if(needed&&!playbackStatePollTimer)playbackStatePollTimer=setInterval(pollShowPlaybackState,750);
+  else if(!needed&&playbackStatePollTimer){clearInterval(playbackStatePollTimer);playbackStatePollTimer=null;}
 }
 function renderPlaybackSlots(){
   renderChaserPlayback();
@@ -4281,6 +4348,7 @@ async function stopPico(type){
   if(type==='chaser')updateChaserPauseResumeButton();
   if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
+  updateShowPlaybackStatePolling();
 }
 async function commandShowPlaybackSlot(type,slot,action,suffix=''){
   const slotData=playbackSlotsForType(type)[slot]||null;
@@ -4466,6 +4534,7 @@ async function loadShow(options={}){
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
+  updateShowPlaybackStatePolling();
   loadMidiStatus({silent:true});
   let appliedMasters=false;
   let masterApplyError=null;

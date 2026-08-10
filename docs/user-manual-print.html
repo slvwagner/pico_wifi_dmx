@@ -1573,6 +1573,24 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Center values come from the current base buffer or from recalling a scene as the effect center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show <strong>Pan amp</strong> and <strong>Tilt amp</strong>. Pan Swing shows only <strong>Pan amp</strong>. Tilt Swing shows only <strong>Tilt amp</strong>. Scalar effects show one <strong>Amplitude</strong> slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.</p>
 <p>The <strong>Effect</strong> dropdown is target-aware. It only shows effects that make sense for the selected <strong>Effect target</strong>.</p>
 <p><strong>BPM</strong> controls the effect cycle speed. One complete effect cycle lasts one beat at the selected BPM. <strong>Mode</strong> determines how many cycles play: <strong>Single</strong> stops after one cycle, <strong>Loop</strong> repeats continuously, and <strong>Loop N</strong> stops after the selected 1–999 cycles. <strong>Hz</strong> is the browser preview update rate from 5 to 50 calculations/s; changing Hz affects browser smoothness and request load, not the autonomous Pico effect timing. <strong>Start</strong> begins browser preview and changes to <strong>Stop</strong> while it is running. <strong>Pause</strong> freezes the current effect phase and changes to <strong>Resume</strong>; resuming continues from that phase instead of restarting the effect. While paused, <strong>Restart</strong> starts the effect again from its beginning.</p>
+<h5 id="autonomous-pico-effect-smoothness">Autonomous Pico Effect Smoothness</h5>
+<p>An autonomous Pico-slot effect is calculated every 10 ms (100 calculations/s). The configured 43 Hz DMX output sends a new frame approximately every 23.26 ms, so the fixture receives about 43 effect positions per second. A 16-bit Pan/Tilt target has 65,536 possible values on each axis, with a smallest numerical change of one 16-bit unit, but 16-bit resolution does not increase the number of positions sent per second.</p>
+<p>For one complete BPM-timed effect cycle:</p>
+<ul>
+<li>Pico calculations per cycle = <code>6000 / BPM</code>
+</li><li>Positions transmitted over DMX per cycle = approximately <code>2580 / BPM</code>
+</li></ul>
+<table>
+<thead><tr><th>BPM</th><th>Pico calculations per cycle</th><th>Approximate DMX positions per cycle</th></tr></thead><tbody>
+<tr><td>10</td><td>600</td><td>258</td></tr>
+<tr><td>30</td><td>200</td><td>86</td></tr>
+<tr><td>60</td><td>100</td><td>43</td></tr>
+<tr><td>120</td><td>50</td><td>21–22</td></tr>
+<tr><td>300</td><td>20</td><td>8–9</td></tr>
+<tr><td>600</td><td>10</td><td>4–5</td></tr>
+</tbody>
+</table>
+<p>At the maximum supported 600 BPM, the Pico therefore calculates only 10 positions per cycle and approximately 4–5 reach the fixture as DMX frames. Large Pan/Tilt amplitudes can make those steps visible. For smoother 16-bit movement, use about 60 BPM or less when practical; at 60 BPM, approximately 43 positions are transmitted during each cycle. The exact 16-bit value change between positions also depends on the selected effect shape and Pan/Tilt amplitude.</p>
 <p>The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico effect slots, and the Pico reads the effect center from its base buffer while playing. Pan/Tilt profile mapping is included in the uploaded target: swapped axes use the swapped physical channels, and reversed axes invert the effect offset around the current base value.</p>
 <p>The Effects page also includes the shared <strong>Palettes</strong> toolbox. Clicking a palette recalls any values that are compatible with Effects and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens <strong>Edit Tile</strong> so palette names and visuals can be adjusted from Effects too. Effects recalls, imports, exports, and saves the shared palette JSON.</p>
 <p>The <strong>Effects</strong> toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, play mode, Loop N count, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. With the browser preview stopped and its button showing <strong>Start</strong>, clicking a saved effect only recalls the recipe. When the preview is already active and the button shows <strong>Stop</strong>, clicking another saved effect restarts the browser preview immediately with that recipe&#39;s saved timing and update rate, making it easy to audition several effects. Recall never uploads the recipe to a Pico slot. The small pencil opens <strong>Edit Tile</strong> for the effect name, background, and optional drawing/upload.</p>
@@ -2202,14 +2220,20 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <h3 id="1-3-0-unreleased">1.3.0 - Unreleased</h3>
 <p>Changed:</p>
 <ul>
-<li>Added <strong>Single</strong>, <strong>Loop</strong>, and <strong>Loop N</strong> playback modes to browser and autonomous Pico Effects. The configurable Loop N count is stored with saved Effects and uploaded slot data, and Pico slot tiles report their configured mode and completed-loop progress. Show Run reads the same information into its Pico Effects controls and playback tiles.
+<li>Moved Show Run <strong>Edit</strong> into the Show Sidebar header and added the same collapse/expand control used by the Controller toolbox rail. The sidebar now remains available even when it contains no cards, exits layout editing when collapsed, and shares its saved collapsed state with the other toolbox pages.
+</li><li>Pico Chaser and Effects playback manifests now retain the saved tile name, color, and icon. Their Pico slot strips and the Show Run playback cards show the same identification, while older slots without visual metadata continue to use their existing generic labels.
+</li><li>Added <strong>Single</strong>, <strong>Loop</strong>, and <strong>Loop N</strong> playback modes to browser and autonomous Pico Effects. The configurable Loop N count is stored with saved Effects and uploaded slot data, and Pico slot tiles report their configured mode and completed-loop progress. Show Run reads the same information into its Pico Effects controls and playback tiles.
 </li><li>Added phase-preserving pause and resume to browser Effects playback. Finite Single and Loop N playback now stops automatically after the selected number of complete BPM-timed effect cycles.
 </li><li>Updated GPIO Control to give Effects slots the same physical-button controls as Chaser slots, including pause, resume, and pause/resume toggle. Effects mappings now support all 64 slots and show the slot mode, finite-loop progress, BPM, target count, and playback state read back from the Pico.
 </li><li>Added a configurable Show Run sidebar for operator-critical cards. It uses the same fixed, independently scrolling visual rail and shared width as the Controller toolboxes, keeps cards in a single column, supports 1–12 visible rows, and lets cards move between the sidebar and main matrix in Edit mode. Sidebar rows and card order are stored with the existing Show Run UI state.
+</li><li>Documented autonomous Pico Effects interpolation and DMX output timing, including the number of calculated and transmitted positions per BPM-timed cycle and practical guidance for smooth 16-bit Pan/Tilt movement.
 </li></ul>
 <p>Fixed:</p>
 <ul>
-<li>Fixed autonomous Pico Effects in Single and Loop N modes leaving their last generated DMX values frozen after reporting playback complete. Finite Effects now stop after the configured cycles and release their channels back to the current base values; channels still used by another Effect remain under Effects control.
+<li>Fixed Show Run keeping Pico Effects tiles in the <strong>Stop</strong> state after a Single or Loop N effect completed autonomously. While playback is active or paused, Show Run now follows the live state of every linked Pico slot and returns the tile to <strong>Start</strong> once all participating Picos have stopped.
+</li><li>Fixed fixture-to-target guide lines in every Recall Plane modal when its whiteboard changes size or aspect ratio. Controller, Chaser, Effects, and Show Run now use the same pixel-correct line renderer and redraw whenever their Plane canvas is resized.
+</li><li>Fixed VS Code losing the Pico executable target whenever CMake Tools was reloaded. The workspace now configures CMake on open without waiting on Pico-extension command substitutions, and the malformed Cortex-Debug launch configuration has been corrected.
+</li><li>Fixed autonomous Pico Effects in Single and Loop N modes leaving their last generated DMX values frozen after reporting playback complete. Finite Effects now stop after the configured cycles and release their channels back to the current base values; channels still used by another Effect remain under Effects control.
 </li></ul>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>

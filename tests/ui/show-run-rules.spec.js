@@ -1760,6 +1760,39 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#motionSlots .playback-card').first()).toContainText('Loop N · 2/4 loops');
   });
 
+  test('returns a completed Pico Loop N effect tile to Start automatically', async ({ page }) => {
+    const payload = 'FX 1\nBPM 120\nMODE loop_n\nLOOPS 1\nTARGET scalar8 1 1 0 255\nEND';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredMotionSlots: Array.from({ length: 64 }, (_, slot) => slot === 4 ? payload : null),
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 4,
+        active: false,
+        paused: false,
+        bpm: 120,
+        mode: slot === 4 ? 2 : 1,
+        loop_count: 1,
+        completed_loops: 0,
+        target_count: slot === 4 ? 1 : 0
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const toggle = page.locator('[data-motion-toggle="4"]');
+    await toggle.click();
+    await expect(toggle).toHaveText('Stop');
+    calls.liveMotionSlots[4].completed_loops = 1;
+    calls.liveMotionSlots[4].active = false;
+    await expect(toggle).toHaveText('Start', { timeout: 3000 });
+
+    await toggle.click();
+    await expect.poll(() => calls.pico.filter(call => call.url === 'http://pico.test/motion/start/4').length).toBe(2);
+  });
+
   test('loads Show Run layout and live controls from server UI state', async ({ page }) => {
     const calls = {
       pico: [],

@@ -30,9 +30,16 @@ Changed:
   Controller toolboxes, keeps cards in a single column, supports 1–12 visible
   rows, and lets cards move between the sidebar and main matrix in Edit mode.
   Sidebar rows and card order are stored with the existing Show Run UI state.
+- Documented autonomous Pico Effects interpolation and DMX output timing,
+  including the number of calculated and transmitted positions per BPM-timed
+  cycle and practical guidance for smooth 16-bit Pan/Tilt movement.
 
 Fixed:
 
+- Fixed Show Run keeping Pico Effects tiles in the **Stop** state after a
+  Single or Loop N effect completed autonomously. While playback is active or
+  paused, Show Run now follows the live state of every linked Pico slot and
+  returns the tile to **Start** once all participating Picos have stopped.
 - Fixed fixture-to-target guide lines in every Recall Plane modal when its
   whiteboard changes size or aspect ratio. Controller, Chaser, Effects, and
   Show Run now use the same pixel-correct line renderer and redraw whenever

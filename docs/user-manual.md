@@ -1042,6 +1042,26 @@ The **Effect** dropdown is target-aware. It only shows effects that make sense f
 
 **BPM** controls the effect cycle speed. One complete effect cycle lasts one beat at the selected BPM. **Mode** determines how many cycles play: **Single** stops after one cycle, **Loop** repeats continuously, and **Loop N** stops after the selected 1–999 cycles. **Hz** is the browser preview update rate from 5 to 50 calculations/s; changing Hz affects browser smoothness and request load, not the autonomous Pico effect timing. **Start** begins browser preview and changes to **Stop** while it is running. **Pause** freezes the current effect phase and changes to **Resume**; resuming continues from that phase instead of restarting the effect. While paused, **Restart** starts the effect again from its beginning.
 
+##### Autonomous Pico Effect Smoothness
+
+An autonomous Pico-slot effect is calculated every 10 ms (100 calculations/s). The configured 43 Hz DMX output sends a new frame approximately every 23.26 ms, so the fixture receives about 43 effect positions per second. A 16-bit Pan/Tilt target has 65,536 possible values on each axis, with a smallest numerical change of one 16-bit unit, but 16-bit resolution does not increase the number of positions sent per second.
+
+For one complete BPM-timed effect cycle:
+
+- Pico calculations per cycle = `6000 / BPM`
+- Positions transmitted over DMX per cycle = approximately `2580 / BPM`
+
+| BPM | Pico calculations per cycle | Approximate DMX positions per cycle |
+| ---: | ---: | ---: |
+| 10 | 600 | 258 |
+| 30 | 200 | 86 |
+| 60 | 100 | 43 |
+| 120 | 50 | 21–22 |
+| 300 | 20 | 8–9 |
+| 600 | 10 | 4–5 |
+
+At the maximum supported 600 BPM, the Pico therefore calculates only 10 positions per cycle and approximately 4–5 reach the fixture as DMX frames. Large Pan/Tilt amplitudes can make those steps visible. For smoother 16-bit movement, use about 60 BPM or less when practical; at 60 BPM, approximately 43 positions are transmitted during each cycle. The exact 16-bit value change between positions also depends on the selected effect shape and Pan/Tilt amplitude.
+
 The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico effect slots, and the Pico reads the effect center from its base buffer while playing. Pan/Tilt profile mapping is included in the uploaded target: swapped axes use the swapped physical channels, and reversed axes invert the effect offset around the current base value.
 
 The Effects page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Effects and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens **Edit Tile** so palette names and visuals can be adjusted from Effects too. Effects recalls, imports, exports, and saves the shared palette JSON.
