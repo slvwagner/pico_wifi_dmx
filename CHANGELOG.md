@@ -24,6 +24,10 @@ Changed:
 
 Fixed:
 
+- Fixed VS Code losing the Pico executable target whenever CMake Tools was
+  reloaded. The workspace now configures CMake on open without waiting on
+  Pico-extension command substitutions, and the malformed Cortex-Debug launch
+  configuration has been corrected.
 - Fixed autonomous Pico Effects in Single and Loop N modes leaving their last
   generated DMX values frozen after reporting playback complete. Finite
   Effects now stop after the configured cycles and release their channels back

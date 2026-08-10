@@ -1,17 +1,16 @@
-# New Features
+# New features
 
-## Nameing and icon for each pico slot
+## Names and icons for Pico slots
 
-Right now it is not so simple to know what is stroed in a pico slot. Chaser and
-Effects have the seme problem. So we need to extend the solt tiles with the icon
-and also with the given name. We need to do that in the show page as well
-because there we actually need it.
+It is currently difficult to identify what is stored in a Pico slot. Extend the
+Chaser and Effects Pico slot tiles to show the saved name and icon. Show the same
+information on the Show Run page, where operators need to identify slots quickly.
 
 # Bugs
 
-## Pico Effects Playback:
-Running a  Effect in loop N mode should automatically stop after execution
+## Plane recall rendering
 
-## The recall Plane: 
-White board has the same render bug as in planes. The fixture rendering lines are not correct according to the size of the modal.
-We did correct it anywhere else?
+The whiteboard in the Recall Plane modal has the same responsive rendering bug
+previously fixed on the Planes page. Fixture guide lines do not follow the modal
+size correctly. Check every page that provides the Recall Plane modal and apply
+the shared coordinate/rendering fix consistently.

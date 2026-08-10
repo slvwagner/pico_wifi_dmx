@@ -6,6 +6,17 @@ const root = path.join(__dirname, '..', '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test.describe('Code safety regression rules', () => {
+  test('VS Code configures CMake targets after its extension state is reloaded', () => {
+    const settings = read('.vscode/settings.json');
+    const launch = read('.vscode/launch.json');
+    const kits = read('.vscode/cmake-kits.json');
+
+    expect(settings).toMatch(/"cmake\.configureOnOpen"\s*:\s*true/);
+    expect(launch).not.toMatch(/^\s*\d+\s+"name":/m);
+    expect(launch).toContain('"name": "Pico Debug (Cortex-Debug)"');
+    expect(kits).not.toContain('${command:raspberry-pi-pico.');
+  });
+
   test('all application pages use one shared cache version for common JavaScript and CSS assets', async () => {
     const webRoot = path.join(root, 'web');
     const pages = fs.readdirSync(webRoot)
