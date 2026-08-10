@@ -299,7 +299,7 @@ async function installFakeComputerMidi(page) {
 }
 
 test.describe('Show Run page', () => {
-  test('toggles browser fullscreen from the sticky Show Run header', async ({ page }) => {
+  test('toggles browser fullscreen from the Show Sidebar beside Edit', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await page.addInitScript(() => {
       let fullscreenElement = null;
@@ -327,18 +327,34 @@ test.describe('Show Run page', () => {
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    const button = page.locator('#fullscreenBtn');
+    const sidebar = page.locator('#showSidebar');
+    const button = sidebar.locator('#fullscreenBtn');
+    const edit = sidebar.locator('#editLayoutBtn');
     await expect(button).toBeVisible();
-    await expect(button).toHaveText('Full Screen');
+    await expect(page.locator('header #fullscreenBtn')).toHaveCount(0);
+    await expect(button).toHaveText('Fullscreen');
     await expect(button).toHaveAttribute('aria-pressed', 'false');
+    const sizes = await page.evaluate(() => {
+      const editRect = document.getElementById('editLayoutBtn').getBoundingClientRect();
+      const fullscreenRect = document.getElementById('fullscreenBtn').getBoundingClientRect();
+      return {
+        editWidth: editRect.width,
+        editHeight: editRect.height,
+        fullscreenWidth: fullscreenRect.width,
+        fullscreenHeight: fullscreenRect.height
+      };
+    });
+    expect(sizes.fullscreenWidth).toBe(sizes.editWidth);
+    expect(sizes.fullscreenHeight).toBe(sizes.editHeight);
+    expect(await edit.evaluate(element => element.nextElementSibling?.id)).toBe('fullscreenBtn');
 
     await button.click();
-    await expect(button).toHaveText('Exit Full Screen');
+    await expect(button).toHaveText('Exit');
     await expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.__fullscreenRequests)).toBe(1);
 
     await button.click();
-    await expect(button).toHaveText('Full Screen');
+    await expect(button).toHaveText('Fullscreen');
     await expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(await page.evaluate(() => window.__fullscreenExits)).toBe(1);
   });
@@ -2552,7 +2568,7 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('keeps Edit and collapse controls in the Show Sidebar header', async ({ page }) => {
+  test('keeps Edit, Fullscreen, and collapse controls in the Show Sidebar header', async ({ page }) => {
     const calls = {
       pico: [],
       liveValues: [],
@@ -2565,10 +2581,12 @@ test.describe('Show Run page', () => {
 
     const sidebar = page.locator('#showSidebar');
     const edit = sidebar.locator('#editLayoutBtn');
+    const fullscreen = sidebar.locator('#fullscreenBtn');
     const toggle = sidebar.locator('#showSidebarToggle');
     await expect(sidebar).toBeVisible();
     await expect(page.locator('header #editLayoutBtn')).toHaveCount(0);
     await expect(edit).toHaveText('Edit');
+    await expect(fullscreen).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     await edit.click();
@@ -2579,11 +2597,13 @@ test.describe('Show Run page', () => {
     await expect(page.locator('body')).not.toHaveClass(/layout-editing/);
     await expect(sidebar).toHaveCSS('width', '48px');
     await expect(edit).toBeHidden();
+    await expect(fullscreen).toBeHidden();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     await toggle.click();
     await expect(page.locator('body')).not.toHaveClass(/toolbox-rail-collapsed/);
     await expect(edit).toBeVisible();
+    await expect(fullscreen).toBeVisible();
     expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailCollapsed === true)).toBe(true);
   });
 

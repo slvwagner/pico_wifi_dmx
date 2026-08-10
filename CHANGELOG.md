@@ -40,6 +40,9 @@ Changed:
   Pulse. Direction ranges from negative-only through the existing symmetric
   pulse to positive-only, while position offset shifts both pulse levels around
   the current Pan/Tilt center. Both values are saved and uploaded to Pico slots.
+- Moved the Show Run Fullscreen control from the page navigation into the Show
+  Sidebar header directly beside Edit. Both action buttons now use matching
+  dimensions and collapse together with the sidebar.
 
 Fixed:
 

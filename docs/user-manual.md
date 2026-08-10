@@ -1518,7 +1518,7 @@ Use Show Run to recall prepared groups, fixtures, scenes, palettes, Pixel Matric
 
 Show Run's movable cards are the operator tools: **Master**, **Groups**, **Fixtures**, **Scenes**, **Palettes**, **Pixel Matrices**, **Planes**, **Pico Chaser**, **Pico Effects**, **MIDI Controller**, and **Live Controls**. Layout editing decides which cards are visible and whether they appear in the main page or the Show sidebar; normal operation uses the cards only to recall and adjust the prepared show.
 
-The fixed Show sidebar uses the same visual language and saved width as the Controller toolbox rail. It scrolls independently from the main Show page, so frequently used cards remain available while the main cards are scrolled. On a narrow portrait display, including an iPad, it becomes a separately scrolling rail at the bottom of the screen.
+The fixed Show sidebar uses the same visual language and saved width as the Controller toolbox rail. It scrolls independently from the main Show page, so frequently used cards remain available while the main cards are scrolled. The **Fullscreen** button sits directly beside **Edit**, uses the same button size, and collapses with the sidebar controls. On a narrow portrait display, including an iPad, the sidebar becomes a separately scrolling rail at the bottom of the screen.
 
 ![Show Run sidebar](screenshots/show-run-sidebar.png)
 
@@ -1528,7 +1528,7 @@ Open it from the **Show** navigation link or directly:
 http://localhost/dmx/dmx_show.html
 ```
 
-On supported PC and iPad browsers, use **Full Screen** in the sticky header to give the operator controls the maximum available screen area. The same button changes to **Exit Full Screen** while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser's own display controls in that case.
+On supported PC and iPad browsers, use **Fullscreen** beside **Edit** in the Show sidebar to give the operator controls the maximum available screen area. The same button changes to **Exit** while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser's own display controls in that case.
 
 #### Run Show Run as an iPad web app
 
@@ -1540,7 +1540,7 @@ The iPad Fullscreen API displays a system message and allows a downward swipe to
 4. Tap **Add**.
 5. Return to the Home Screen and open Show Run using the new icon instead of opening it from a Safari tab.
 
-The Home Screen version uses an app-like window without Safari's normal toolbar. Do not tap the page's **Full Screen** button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.
+The Home Screen version uses an app-like window without Safari's normal toolbar. Do not tap the page's **Fullscreen** button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.
 
 If you prefer the Home Screen app to open on the Fixture Controller, open `http://<XAMPP-host-or-IP>/dmx/` before using **Add to Home Screen**. The installed app is named **DMX Controller** and uses the blue XAMPP icon; open **Show** from its navigation when you are ready to operate the show. If an older Home Screen icon still says **DMX Fixture Controller Prototype** or shows a page-preview tile, remove that icon and add the Controller page again so iPadOS reads the new name and icon metadata.
 

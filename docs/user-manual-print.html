@@ -1883,11 +1883,11 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>Use Show Run to recall prepared groups, fixtures, scenes, palettes, Pixel Matrices, planes, chaser slots, and effect slots; operate master and live controls; and use MIDI mappings without exposing the programming editors during normal operation.</p>
 <h4 id="show-run-tools-and-toolboxes">Show Run Tools and Toolboxes</h4>
 <p>Show Run&#39;s movable cards are the operator tools: <strong>Master</strong>, <strong>Groups</strong>, <strong>Fixtures</strong>, <strong>Scenes</strong>, <strong>Palettes</strong>, <strong>Pixel Matrices</strong>, <strong>Planes</strong>, <strong>Pico Chaser</strong>, <strong>Pico Effects</strong>, <strong>MIDI Controller</strong>, and <strong>Live Controls</strong>. Layout editing decides which cards are visible and whether they appear in the main page or the Show sidebar; normal operation uses the cards only to recall and adjust the prepared show.</p>
-<p>The fixed Show sidebar uses the same visual language and saved width as the Controller toolbox rail. It scrolls independently from the main Show page, so frequently used cards remain available while the main cards are scrolled. On a narrow portrait display, including an iPad, it becomes a separately scrolling rail at the bottom of the screen.</p>
+<p>The fixed Show sidebar uses the same visual language and saved width as the Controller toolbox rail. It scrolls independently from the main Show page, so frequently used cards remain available while the main cards are scrolled. The <strong>Fullscreen</strong> button sits directly beside <strong>Edit</strong>, uses the same button size, and collapses with the sidebar controls. On a narrow portrait display, including an iPad, the sidebar becomes a separately scrolling rail at the bottom of the screen.</p>
 <p><img src="screenshots/show-run-sidebar.png" alt="Show Run sidebar" style="--manual-image-width: 20.8333%" data-native-width="300"></p>
 <p>Open it from the <strong>Show</strong> navigation link or directly:</p>
 <pre><code>http://localhost/dmx/dmx_show.html</code></pre>
-<p>On supported PC and iPad browsers, use <strong>Full Screen</strong> in the sticky header to give the operator controls the maximum available screen area. The same button changes to <strong>Exit Full Screen</strong> while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser&#39;s own display controls in that case.</p>
+<p>On supported PC and iPad browsers, use <strong>Fullscreen</strong> beside <strong>Edit</strong> in the Show sidebar to give the operator controls the maximum available screen area. The same button changes to <strong>Exit</strong> while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser&#39;s own display controls in that case.</p>
 <h4 id="run-show-run-as-an-ipad-web-app">Run Show Run as an iPad web app</h4>
 <p>The iPad Fullscreen API displays a system message and allows a downward swipe to exit fullscreen. For show operation without that fullscreen prompt, install the Show Run page on the iPad Home Screen and open it as a web app:</p>
 <ol>
@@ -1897,7 +1897,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Tap <strong>Add</strong>.</li>
 <li>Return to the Home Screen and open Show Run using the new icon instead of opening it from a Safari tab.</li>
 </ol>
-<p>The Home Screen version uses an app-like window without Safari&#39;s normal toolbar. Do not tap the page&#39;s <strong>Full Screen</strong> button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.</p>
+<p>The Home Screen version uses an app-like window without Safari&#39;s normal toolbar. Do not tap the page&#39;s <strong>Fullscreen</strong> button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.</p>
 <p>If you prefer the Home Screen app to open on the Fixture Controller, open <code>http://&lt;XAMPP-host-or-IP&gt;/dmx/</code> before using <strong>Add to Home Screen</strong>. The installed app is named <strong>DMX Controller</strong> and uses the blue XAMPP icon; open <strong>Show</strong> from its navigation when you are ready to operate the show. If an older Home Screen icon still says <strong>DMX Fixture Controller Prototype</strong> or shows a page-preview tile, remove that icon and add the Controller page again so iPadOS reads the new name and icon metadata.</p>
 <p>To prevent an operator from accidentally leaving the Show Run web app, you can additionally use iPad <strong>Guided Access</strong>:</p>
 <ol>
@@ -2230,6 +2230,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li><li>Documented autonomous Pico Effects interpolation and DMX output timing, including the number of calculated and transmitted positions per BPM-timed cycle and practical guidance for smooth 16-bit Pan/Tilt movement.
 </li><li>Added Pan Pulse and Tilt Pulse effects for Pan/Tilt targets. Existing Pan Swing and Tilt Swing effects are now labelled Pan Sine Wave and Tilt Sine Wave while retaining their saved-effect and Pico-slot compatibility.
 </li><li>Added continuous position-offset and direction controls to Pan Pulse and Tilt Pulse. Direction ranges from negative-only through the existing symmetric pulse to positive-only, while position offset shifts both pulse levels around the current Pan/Tilt center. Both values are saved and uploaded to Pico slots.
+</li><li>Moved the Show Run Fullscreen control from the page navigation into the Show Sidebar header directly beside Edit. Both action buttons now use matching dimensions and collapse together with the sidebar.
 </li></ul>
 <p>Fixed:</p>
 <ul>

@@ -74,6 +74,7 @@ body.show-sidebar-active.toolbox-rail-collapsed>header,body.show-sidebar-active.
 body.layout-editing .show-sidebar-controls{display:flex}
 .show-sidebar-controls label{display:flex;align-items:center;gap:5px}
 .show-sidebar-controls select{width:68px;min-height:44px;padding:6px 7px}
+.show-sidebar-action{width:84px;min-width:84px}
 .sidebar-card-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;min-height:0;align-content:start;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch}
 .sidebar-card-grid.card-move-mode .panel{position:relative}
 .sidebar-card-grid.card-move-mode .panel-head{cursor:grab}
@@ -230,7 +231,6 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
     <a class="nav" href="user-manual.html?v=1.3.0#show-run" target="_blank">Manual</a>
-    <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions"></div>
@@ -473,7 +473,8 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <div class="show-sidebar-controls">
           <label>Rows<select id="sidebarRows"></select></label>
         </div>
-        <button id="editLayoutBtn" class="toolbox-rail-edit" type="button" title="Edit Show Run layout" aria-pressed="false">Edit</button>
+        <button id="editLayoutBtn" class="toolbox-rail-edit show-sidebar-action" type="button" title="Edit Show Run layout" aria-pressed="false">Edit</button>
+        <button id="fullscreenBtn" class="toolbox-rail-edit show-sidebar-action" type="button" title="Enter fullscreen" aria-pressed="false" hidden>Fullscreen</button>
         <button id="showSidebarToggle" class="toolbox-rail-toggle" type="button" title="Hide Show Sidebar" aria-expanded="true">›</button>
       </div>
     </div>
@@ -4770,7 +4771,8 @@ function updateFullscreenButton(){
   btn.hidden=!supported;
   btn.classList.toggle('active',active);
   btn.setAttribute('aria-pressed',active?'true':'false');
-  btn.textContent=active?'Exit Full Screen':'Full Screen';
+  btn.textContent=active?'Exit':'Fullscreen';
+  btn.title=active?'Exit fullscreen':'Enter fullscreen';
 }
 async function toggleFullscreen(){
   try{
