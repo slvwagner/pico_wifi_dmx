@@ -484,11 +484,13 @@ test.describe('Code safety regression rules', () => {
 
   test('release firmware builds use an isolated explicit Ninja generator', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
+    const gitignore = read('.gitignore');
 
     expect(releaseScript).toContain('[string]$BuildDir = "build-release"');
     expect(releaseScript).toContain('$ninjaExe = Resolve-CommandPath "ninja"');
     expect(releaseScript).toContain('-G "Ninja"');
     expect(releaseScript).toContain('"-DCMAKE_MAKE_PROGRAM=$ninjaExe"');
+    expect(gitignore).toContain('build-release/');
   });
 
   test('release preparation runs real Pico tests after the isolated UI suite', () => {
