@@ -66,6 +66,8 @@ test.describe('Code safety regression rules', () => {
     expect(motion).toContain('strncmp(line, "MODE ", 5)');
     expect(motion).toContain('strncmp(line, "LOOPS ", 6)');
     expect(motion).toContain('sd->mode != MFX_MODE_LOOP && completed >= (float)limit');
+    expect(motion).toContain('if (!active_touch && previously_touched[ch])');
+    expect(motion).toContain('scratch[ch] = dmx_engine_get_base_channel(ch);');
     expect(main).toContain('\\"loop_count\\":%u,\\"completed_loops\\":%u');
   });
 

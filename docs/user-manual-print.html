@@ -1609,6 +1609,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY pad for absolute center placement and relative nudge rows for movement from the current values. The modal no longer exposes separate absolute Pan/Tilt sliders. Use <strong>Pan coarse relative</strong>, <strong>Pan fine relative</strong>, <strong>Tilt coarse relative</strong>, and <strong>Tilt fine relative</strong> for 16-bit moving lights when you want to move one fixture or a selected group without forcing every fixture to the same absolute value. Relative nudges keep each fixture offset from its own current center, then preview the changed center values on the primary show output.</p>
 <p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Effects Parameters toolbox" style="--manual-image-width: 30%" data-native-width="432"></p>
 <p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, play mode, Loop N count, amplitude, phase spread, phase-preserving browser pause/resume controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one <strong>Amplitude</strong> control.</p>
+<p><strong>Single</strong> runs one complete BPM-timed cycle, <strong>Loop</strong> runs until stopped, and <strong>Loop N</strong> runs the selected number of complete cycles. When autonomous Single or Loop N playback completes, the Pico stops the slot and returns channels no longer used by another Effect to their current scene/base values. This prevents the last generated position or level from remaining frozen after the finite Effect has ended.</p>
 <p><img src="screenshots/motion-toolbox-effects.png" alt="Effects toolbox" style="--manual-image-width: 30%" data-native-width="432"></p>
 <p><strong>Effects</strong> stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, play mode, Loop N count, amplitude, spread, and phase offsets. It does not store fixed center values.</p>
 <p><img src="screenshots/motion-toolbox-scenes.png" alt="Effects Scenes toolbox" style="--manual-image-width: 30%" data-native-width="432"></p>
@@ -2205,6 +2206,10 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li><li>Added phase-preserving pause and resume to browser Effects playback. Finite Single and Loop N playback now stops automatically after the selected number of complete BPM-timed effect cycles.
 </li><li>Updated GPIO Control to give Effects slots the same physical-button controls as Chaser slots, including pause, resume, and pause/resume toggle. Effects mappings now support all 64 slots and show the slot mode, finite-loop progress, BPM, target count, and playback state read back from the Pico.
 </li><li>Added a configurable Show Run sidebar for operator-critical cards. It uses the same fixed, independently scrolling visual rail and shared width as the Controller toolboxes, keeps cards in a single column, supports 1–12 visible rows, and lets cards move between the sidebar and main matrix in Edit mode. Sidebar rows and card order are stored with the existing Show Run UI state.
+</li></ul>
+<p>Fixed:</p>
+<ul>
+<li>Fixed autonomous Pico Effects in Single and Loop N modes leaving their last generated DMX values frozen after reporting playback complete. Finite Effects now stop after the configured cycles and release their channels back to the current base values; channels still used by another Effect remain under Effects control.
 </li></ul>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>

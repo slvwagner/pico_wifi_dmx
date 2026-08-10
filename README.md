@@ -1216,6 +1216,8 @@ The Chaser and Effects browser playback engines connect directly to the show's p
 
 Effects playback supports **Single**, **Loop**, and **Loop N**. One complete effect cycle lasts one beat at the configured BPM. Single stops after one cycle, Loop runs continuously, and Loop N stops after the selected 1–999 cycles. Browser Effects can be paused and resumed without restarting their phase. Saved Effects preserve the mode and loop count, and uploading an Effect to a Pico slot sends the same settings to autonomous firmware playback. Show Run displays the selected Pico Effect slot's mode and Loop N count, while its playback tiles show finite-loop progress reported by the firmware.
 
+When autonomous Single or Loop N playback finishes, the Pico marks the slot as stopped and releases every channel that is no longer used by another running Effect. The output then returns to the current scene/base value instead of holding the final generated point of the effect.
+
 ### Pico Autonomous Playback
 
 Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. Logical slot N always uses physical slot N on each involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.

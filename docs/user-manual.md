@@ -1096,6 +1096,8 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 **Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, play mode, Loop N count, amplitude, phase spread, phase-preserving browser pause/resume controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one **Amplitude** control.
 
+**Single** runs one complete BPM-timed cycle, **Loop** runs until stopped, and **Loop N** runs the selected number of complete cycles. When autonomous Single or Loop N playback completes, the Pico stops the slot and returns channels no longer used by another Effect to their current scene/base values. This prevents the last generated position or level from remaining frozen after the finite Effect has ended.
+
 ![Effects toolbox](screenshots/motion-toolbox-effects.png)
 
 **Effects** stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, play mode, Loop N count, amplitude, spread, and phase offsets. It does not store fixed center values.

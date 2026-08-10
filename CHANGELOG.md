@@ -22,6 +22,14 @@ Changed:
   rows, and lets cards move between the sidebar and main matrix in Edit mode.
   Sidebar rows and card order are stored with the existing Show Run UI state.
 
+Fixed:
+
+- Fixed autonomous Pico Effects in Single and Loop N modes leaving their last
+  generated DMX values frozen after reporting playback complete. Finite
+  Effects now stop after the configured cycles and release their channels back
+  to the current base values; channels still used by another Effect remain
+  under Effects control.
+
 ## 1.2.1 - Unreleased
 
 Changed:

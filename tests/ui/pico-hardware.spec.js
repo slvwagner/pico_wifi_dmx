@@ -119,7 +119,9 @@ function heavyMotionDemoBody(slot = 0) {
 function finiteMotionDemoBody(channel, mode, loops = 1, bpm = 240) {
   return [
     'FX 1',
-    'TYPE 4',
+    // Circle ends at its positive peak, so this catches a stopped effect
+    // leaving its last generated value frozen instead of releasing the channel.
+    'TYPE 0',
     `MODE ${mode}`,
     `LOOPS ${loops}`,
     `BPM ${bpm}`,
@@ -499,6 +501,10 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
       await waitForSlot(request, 'motion', slot, s => s.active);
       state = await waitForSlot(request, 'motion', slot, s => !s.active && Number(s.completed_loops) === 3);
       expect(Number(state.elapsed_s)).toBeCloseTo(0.75, 1);
+      await expect.poll(
+        () => readOutputValue(request, channel),
+        { timeout: 1000, intervals: [50, 100] }
+      ).toBe(128);
     } finally {
       await getJson(request, '/motion/stop/' + slot).catch(() => {});
       await getJson(request, '/motion/clear/' + slot).catch(() => {});

@@ -41,11 +41,13 @@ typedef struct {
 static mfx_slot_data_t slot_data[MFX_MAX_SLOTS];
 static mfx_snap_t snaps[MFX_MAX_SLOTS];
 static mutex_t mfx_lock;
+static bool previously_touched[513];
 
 void mfx_init(void)
 {
     mutex_init(&mfx_lock);
     memset(slot_data, 0, sizeof(slot_data));
+    memset(previously_touched, 0, sizeof(previously_touched));
     slot_data[0].bpm  = 30.0f;
     slot_data[0].amp1 = 0.2f;
     slot_data[0].amp2 = 0.15f;
@@ -356,8 +358,6 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
     }
     mutex_exit(&mfx_lock);
 
-    if (active_count == 0) return;
-
     for (int si = 0; si < active_count; si++) {
         mfx_snap_t *sn = &snaps[si];
         float angle = sn->elapsed_s * (sn->bpm / 60.0f) * (2.0f * MFX_PI);
@@ -397,6 +397,20 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             }
             ti++;
         }
+    }
+
+    /* Release channels after the final effect using them stops. The output
+     * buffer otherwise keeps the last generated value even though the slot's
+     * active flag is already clear. Keep retrying while a blackout lock owns
+     * the channel so its current lock value is not replaced prematurely. */
+    for (uint16_t ch = 1; ch <= 512; ch++) {
+        bool active_touch = touched[ch];
+        if (!active_touch && previously_touched[ch]) {
+            scratch[ch] = dmx_engine_get_base_channel(ch);
+            touched[ch] = true;
+        }
+        previously_touched[ch] = active_touch ||
+            (previously_touched[ch] && dmx_engine_channel_is_blackout_locked(ch));
     }
 }
 
