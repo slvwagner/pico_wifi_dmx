@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
-<script src="assets/dmx-common.js?v=1.2.1-23"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-21">
+<script src="assets/dmx-common.js?v=1.2.1-24"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -873,7 +873,10 @@ function showGroupControlHtml(row){
     control:c,key:row.key,value,label:showGroupControlLabel(c),scopeText:row.targets.length+' matching fixture'+(row.targets.length===1?'':'s')+' · source '+sourceName,escape:esc,
     relativeStepValue:(part,kind,step,max)=>showGroupRelativeStepStore.value(row.key,part,kind,step,max),
     attributes:(role,detail={})=>{
-      if(role==='control')return `data-show-group-control="${key}"`;
+      if(role==='control'){
+        const merged=showMergeCompatibleGroupControls&&new Set(row.targets.map(item=>DmxCommon.fixtureGroupEditNativeSignature(item.control))).size>1;
+        return `data-show-group-control="${key}"${merged?' data-group-edit-merged="true"':''}`;
+      }
       if(role==='xy')return `data-show-group-xy="${key}"`;
       if(role==='readout')return c.type==='panTilt16'||c.type==='panTilt8'?`data-show-group-xy-readout="${key}"`:(c.type==='wheel'?`data-show-group-wheel-readout="${key}"`:`data-show-group-readout="${key}:value"`);
       if(role==='partReadout')return `data-show-group-readout="${key}:${detail.part}"`;

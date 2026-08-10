@@ -1824,6 +1824,11 @@
       .replace(/\s+/g,' ');
   }
 
+  function fixtureGroupEditNativeSignature(control){
+    const parts=fixtureGroupEditParts(control).map(part=>part.part+':'+part.max).join('|');
+    return String(control?.type||'slider8')+':'+fixtureGroupEditNormalizedLabel(control)+':'+parts;
+  }
+
   function fixtureGroupEditCompatibilityKey(control){
     if(fixtureGroupEditIsScalar(control))return'compatible:scalar:'+fixtureGroupEditNormalizedLabel(control);
     if(control?.type==='panTilt8'||control?.type==='panTilt16')return'compatible:panTilt';
@@ -4665,6 +4670,7 @@
     fixtureGroupEditIsScalar,
     fixtureGroupEditIsColor,
     fixtureGroupEditNormalizedLabel,
+    fixtureGroupEditNativeSignature,
     fixtureGroupEditCompatibilityKey,
     fixtureGroupEditValueMax,
     fixtureGroupEditRepresentative,

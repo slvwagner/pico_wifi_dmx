@@ -12,7 +12,9 @@ Changed:
   well. RGB, RGBW, RGBWA, CMY, and CMYK controls share a common RGB editor with
   additive/subtractive conversion while fixture-specific white, amber, and key
   channels remain unchanged. Ambiguous duplicate functions within one fixture
-  are excluded from merging.
+  are excluded from merging. Controls that actually combine different native
+  definitions are highlighted with the same green background as the active
+  **Merge Controls** button.
 - Removed the dedicated Room Plane target-nudge section. Operators can still
   position the target by dragging it or entering Target X/Y directly.
 - Expanded Room Plane **Reset calibration** into **Reset plane and

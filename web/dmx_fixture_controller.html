@@ -12,8 +12,8 @@
 <link rel="icon" href="assets/favicon.ico?v=1.2.1">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.2.1">
 <link rel="manifest" href="assets/manifest.webmanifest?v=1.2.1">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
-<script src="assets/dmx-common.js?v=1.2.1-23"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-21">
+<script src="assets/dmx-common.js?v=1.2.1-24"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -4441,6 +4441,17 @@ function preferGroupEditControl(current,candidate){
 function groupEditRepresentative(c){
   return DmxCommon.fixtureGroupEditRepresentative(c,mergeCompatibleGroupControls);
 }
+function isMergedGroupControl(c){
+  if(!mergeCompatibleGroupControls)return false;
+  const key=groupEditKey(c);
+  const signatures=new Set();
+  [...selectedFixtureIds].forEach(id=>{
+    const fixture=fixtures.find(item=>item.id===id);if(!fixture)return;
+    const control=findMatchingControl(fixture,key);
+    if(control&&isGroupControlInScope(fixture,control))signatures.add(DmxCommon.fixtureGroupEditNativeSignature(control));
+  });
+  return signatures.size>1;
+}
 const fanOut=DmxCommon.createFanOutController({
   state:fanState,
   controlsFor:f=>fixtureProfile(f)?.controls||[],
@@ -4665,6 +4676,7 @@ function renderGroupControl(c){
     control:c,key,value:getGroupValue(c),scopeText:groupControlScopeText(c),escape:escHtml,
     relativeStepValue:(part,kind,step,max)=>groupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
+      if(role==='control')return isMergedGroupControl(c)?'data-group-edit-merged="true"':'';
       if(role==='xy')return `data-gxy="${safeKey}"`;
       if(role==='readout')return `data-gc-readout="${safeKey}"`;
       if(role==='partReadout')return `data-gc-part="${safeKey}" data-part="${detail.part}"`;

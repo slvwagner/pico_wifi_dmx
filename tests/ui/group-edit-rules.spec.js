@@ -91,6 +91,8 @@ test.describe('Cross-page Group Edit contract', () => {
     await page.locator('#groupModal #mergeGroupControls').click();
     await expect(page.locator('#groupModal #mergeGroupControls')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#groupModalBody .control h3')).toHaveText(['Dimmer', 'Pan/Tilt', 'RGB', 'Focus']);
+    await expect(page.locator('#groupModalBody .control[data-group-edit-merged="true"]')).toHaveCount(4);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('#groupModalBody .control[data-group-edit-merged="true"]')).backgroundColor === getComputedStyle(document.getElementById('mergeGroupControls')).backgroundColor)).toBe(true);
 
     const dimmer = page.locator('#groupModalBody .control').filter({ has: page.locator('h3', { hasText: 'Dimmer' }) });
     await dimmer.locator('input[type="range"]:not([data-byte-part])').fill('32768');
@@ -185,6 +187,8 @@ test.describe('Cross-page Group Edit contract', () => {
     await page.locator('#showMergeGroupControls').click();
     await expect(page.locator('#showMergeGroupControls')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Dimmer', 'Pan / Tilt', 'RGB', 'Focus']);
+    await expect(page.locator('#showGroupModalBody .control[data-group-edit-merged="true"]')).toHaveCount(4);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('#showGroupModalBody .control[data-group-edit-merged="true"]')).backgroundColor === getComputedStyle(document.getElementById('showMergeGroupControls')).backgroundColor)).toBe(true);
 
     expect(await page.evaluate(() => showGroupEditControls().map(row => ({
       key: row.key,
