@@ -70,7 +70,7 @@ Core features:
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
 - **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Controller and Show Run recall pictures across the fixtures' assigned DMX Outputs. Chaser can capture pictures as animated steps, preview them on the primary output, and split an autonomous upload into linked Pico payloads.
-- **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
+- **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with a three-point minimum and optional per-fixture accuracy points, saved plane definitions that preserve every point and its calibration, localized triangle interpolation, group selection, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
 
 ### Playback and live operation
 
@@ -1517,7 +1517,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `motion_setup.php` | `data/motion_setup.json` | Effects browser setup, saved effect recipes, and saved Pico slot payloads |
 | `gpio_setup.php` | `data/gpio_setup.json` | Selected DMX Output and independent GPIO/ADC mapping configuration for every output |
-| `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane A/B/C points, target/view state, saved planes, fixture mount positions, and fixture calibration |
+| `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane calibration points, target/view state, saved planes, fixture mount positions, and per-point fixture calibration |
 | `fixture_library.php` | `data/fixture_library.json` | Single active fixture library catalog, initialized and refreshed from the bundled OFL catalog |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control/MIDI mapping configuration |
 

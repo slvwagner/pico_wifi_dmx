@@ -12,8 +12,8 @@
 <link rel="icon" href="assets/favicon.ico?v=1.2.1">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.2.1">
 <link rel="manifest" href="assets/manifest.webmanifest?v=1.2.1">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
-<script src="assets/dmx-common.js?v=1.2.1-18"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
+<script src="assets/dmx-common.js?v=1.2.1-22"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -6432,21 +6432,10 @@ function normalizeControllerRoomPlaneSetup(data){
   };
 }
 function controllerPlaneWeights(plane,target=plane.target){
-  const [a,b,c]=plane.points;
-  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-  return {valid:true,wA,wB,wC:1-wA-wB};
+  return DmxCommon.roomPlaneWeights(plane,target);
 }
 function controllerPlaneInterpolateFixture(plane,fixture,weights){
-  if(!weights.valid)return null;
-  const ids=plane.points.map(point=>point.id);
-  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
-  return {
-    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
-  };
+  return DmxCommon.roomPlaneInterpolateFixture(plane,fixture,weights);
 }
 function controllerPlaneAutoBounds(plane){
   const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
@@ -6614,13 +6603,16 @@ function renderControllerPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=controllerPlaneBounds(plane);
   const screens=plane.points.map(point=>controllerPlaneToScreen(point,bounds,rect));
+  const weights=controllerPlaneWeights(plane);
+  const activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean);
+  const triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('controllerPlaneTriangle');
-  triangle.style.setProperty('--ax',screens[0].x+'%');
-  triangle.style.setProperty('--ay',screens[0].y+'%');
-  triangle.style.setProperty('--bx',screens[1].x+'%');
-  triangle.style.setProperty('--by',screens[1].y+'%');
-  triangle.style.setProperty('--cx',screens[2].x+'%');
-  triangle.style.setProperty('--cy',screens[2].y+'%');
+  triangle.style.setProperty('--ax',triangleScreens[0].x+'%');
+  triangle.style.setProperty('--ay',triangleScreens[0].y+'%');
+  triangle.style.setProperty('--bx',triangleScreens[1].x+'%');
+  triangle.style.setProperty('--by',triangleScreens[1].y+'%');
+  triangle.style.setProperty('--cx',triangleScreens[2].x+'%');
+  triangle.style.setProperty('--cy',triangleScreens[2].y+'%');
   screens.forEach((screen,index)=>{
     const el=document.createElement('div');
     el.className='controller-plane-point';
@@ -6651,7 +6643,7 @@ function renderControllerPlaneModal(){
   const selected=controllerPlaneSelectedIds();
   const weights=controllerPlaneWeights(plane);
   document.getElementById('controllerPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   const list=document.getElementById('controllerPlaneFixtures');
   list.innerHTML=plane.fixtures.map(fixture=>{
     const selectedClass=selected.has(String(fixture.id))?' selected':'';
@@ -6730,7 +6722,7 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   if(!plane)return {applied:0,errors:['No plane selected']};
   const weights=controllerPlaneWeights(plane);
   if(!weights.valid){
-    const message='Cannot send plane because A/B/C are invalid';
+    const message='Cannot send plane because it needs at least three non-collinear points';
     if(manual)setStatus(message,true);
     return {applied:0,errors:[message]};
   }
@@ -6749,7 +6741,7 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
     if(!planeFixture){errors.push(currentFixture.name+': not saved in plane');continue;}
     if(!control){errors.push(currentFixture.name+': no Pan/Tilt control');continue;}
     const out=controllerPlaneInterpolateFixture(plane,planeFixture,weights);
-    if(!out){errors.push(currentFixture.name+': calibration incomplete');continue;}
+    if(!out){errors.push(currentFixture.name+': fewer than three usable calibration points');continue;}
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     updateControlDisplay(currentFixture,control);

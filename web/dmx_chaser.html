@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
-<script src="assets/dmx-common.js?v=1.2.1-18"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
+<script src="assets/dmx-common.js?v=1.2.1-22"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -3724,8 +3724,9 @@ function renderChaserPlanePreview(){
   const plane=activeChaserPlane,pad=document.getElementById('chaserPlanePad');if(!plane||!pad)return;
   pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
   const selected=chaserPlaneSelectedIds(),rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(plane),screens=plane.points.map(point=>chaserPlaneToScreen(point,bounds,rect));
+  const weights=DmxCommon.roomPlaneWeights(plane),activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean),triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('chaserPlaneTriangle');
-  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  [['--ax',triangleScreens[0].x],['--ay',triangleScreens[0].y],['--bx',triangleScreens[1].x],['--by',triangleScreens[1].y],['--cx',triangleScreens[2].x],['--cy',triangleScreens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
   screens.forEach((screen,index)=>{const point=document.createElement('div');point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);});
   const targetScreen=chaserPlaneToScreen(plane.target,bounds,rect),target=document.getElementById('chaserPlaneTarget');target.style.left=targetScreen.x+'%';target.style.top=targetScreen.y+'%';
   plane.fixtures.forEach((fixture,index)=>{const screen=chaserPlaneToScreen(fixture,bounds,rect),point=document.createElement('div');point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);chaserPlaneDrawLine(pad,screen,targetScreen);});
@@ -3734,7 +3735,7 @@ function renderChaserPlaneModal(){
   const plane=activeChaserPlane;if(!plane)return;
   const selected=chaserPlaneSelectedIds(),weights=DmxCommon.roomPlaneWeights(plane);
   document.getElementById('chaserPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   document.getElementById('chaserPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{const isSelected=selected.has(String(fixture.id)),isPatched=(setup.fixtures||[]).some(item=>String(item.id)===String(fixture.id));const status=isSelected?(isPatched?'selected':'not patched'):(isPatched?'available':'not patched');return '<div class="controller-plane-fixture-row'+(isSelected?' selected':'')+'"><strong>'+DmxCommon.escapeHtml(fixture.name)+'</strong><span class="small">'+status+'</span></div>';}).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
   renderChaserPlanePreview();
 }

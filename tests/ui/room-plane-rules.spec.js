@@ -178,6 +178,94 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#insideReadout')).toHaveText('Inside plane: yes');
   });
 
+  test('keeps edit and delete controls visible on every occupied Plane tile', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const occupiedTiles = page.locator('#planeLibrary [data-recall-plane]');
+    await expect(occupiedTiles).not.toHaveCount(0);
+    await expect(page.locator('#planeLibrary [data-visual-plane]')).toHaveCount(await occupiedTiles.count());
+    await expect(page.locator('#planeLibrary [data-del-plane]')).toHaveCount(await occupiedTiles.count());
+    await expect(page.locator('#planeLibrary [data-visual-plane]').first()).toBeVisible();
+    await expect(page.locator('#planeLibrary [data-del-plane]').first()).toBeVisible();
+  });
+
+  test('uses every calibration point available to each fixture while keeping three-point fixtures usable', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const result = await page.evaluate(() => {
+      const plane = DmxCommon.normalizeRoomPlane({
+        id: 'variable_points',
+        name: 'Variable points',
+        points: [
+          { id: 'A', x: 0, y: 0 },
+          { id: 'B', x: 10, y: 0 },
+          { id: 'C', x: 0, y: 10 },
+          { id: 'D', x: 10, y: 10 },
+          { id: 'E', x: 5, y: 5 }
+        ],
+        target: { x: 5, y: 5 },
+        fixtures: []
+      }, 0);
+      const basicFixture = {
+        cal: {
+          A: { calibrated: true, pan: 0, tilt: 0 },
+          B: { calibrated: true, pan: 100, tilt: 200 },
+          C: { calibrated: true, pan: 200, tilt: 100 }
+        }
+      };
+      const detailedFixture = {
+        cal: {
+          ...basicFixture.cal,
+          D: { calibrated: true, pan: 300, tilt: 300 },
+          E: { calibrated: true, pan: 240, tilt: 180 }
+        }
+      };
+      const weights = DmxCommon.roomPlaneWeights(plane);
+      return {
+        pointCount: plane.points.length,
+        basic: DmxCommon.roomPlaneInterpolateFixture(plane, basicFixture, weights),
+        detailed: DmxCommon.roomPlaneInterpolateFixture(plane, detailedFixture, weights)
+      };
+    });
+
+    expect(result.pointCount).toBe(5);
+    expect(result.basic).toMatchObject({ pan: 150, tilt: 150 });
+    expect(result.detailed).toMatchObject({ pan: 240, tilt: 180 });
+  });
+
+  test('adds and removes optional calibration points at the current target without invalidating three-point fixtures', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#targetX').fill('2');
+    await page.locator('#targetY').fill('2');
+    await page.locator('#addCalibrationPoint').click();
+
+    await expect(page.locator('#planePointInputs')).toContainText('D');
+    await expect(page.locator('#fixtureHeaderRow')).toContainText('D pan');
+    await expect(page.locator('#fixtureRows .cal-state').first()).toContainText('3 points');
+    await expect.poll(() => page.evaluate(() => ({
+      points: points.map(point => ({ ...point })),
+      calibrated: fixtures.map(fixture => fixture.cal.D?.calibrated)
+    }))).toEqual({
+      points: [
+        { id: 'A', x: 0, y: 0, z: 0 },
+        { id: 'B', x: 5, y: 0, z: 0 },
+        { id: 'C', x: 0, y: 3, z: 0 },
+        { id: 'D', x: 2, y: 2, z: 0 }
+      ],
+      calibrated: [false, false]
+    });
+
+    await page.locator('#addCalibrationPoint').click();
+    await expect(page.locator('#status')).toContainText('already calibration point D');
+    await expect.poll(() => page.evaluate(() => points.length)).toBe(4);
+
+    await page.locator('[data-remove-point="3"]').click();
+    await expect(page.locator('#planePointInputs')).not.toContainText('D');
+    await expect(page.locator('[data-remove-point]')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => points.length)).toBe(3);
+  });
+
   test('updates calculated pan and tilt when the target moves', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -604,6 +692,77 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#status')).toContainText('Recalled plane Front truss');
   });
 
+  test('stores and recalls additional points and their fixture calibration in a Plane tile', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#targetX').fill('2');
+    await page.locator('#targetY').fill('2');
+    await page.locator('#addCalibrationPoint').click();
+    await page.locator('input[data-fixture="0"][data-point="D"][data-axis="pan"]').fill('12345');
+    await page.locator('input[data-fixture="0"][data-point="D"][data-axis="tilt"]').fill('54321');
+
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await page.locator('#planeVisualName').fill('Four-point plane');
+    await page.locator('#planeVisualSave').click();
+    const savedId = await page.evaluate(() => String(activePlaneId));
+
+    await page.locator('[data-recall-plane="default"]').dispatchEvent('click');
+    await expect(page.locator('#planePointInputs')).not.toContainText('D');
+    await page.locator(`[data-recall-plane="${savedId}"]`).dispatchEvent('click');
+
+    await expect(page.locator('#planePointInputs')).toContainText('D');
+    await expect.poll(() => page.evaluate(() => ({
+      point: points.find(point => point.id === 'D'),
+      calibration: fixtures[0]?.cal?.D
+    }))).toEqual({
+      point: { id: 'D', x: 2, y: 2, z: 0 },
+      calibration: { pan: 12345, tilt: 54321, calibrated: true }
+    });
+  });
+
+  test('keeps the Planes toolbox anchored on iPad when recalled planes have different point counts', async ({ page }) => {
+    const makePoints = count => Array.from({ length: count }, (_, index) => ({
+      id: String.fromCharCode(65 + index),
+      x: 1 + (index % 3) * 1.5,
+      y: 1 + Math.floor(index / 3) * 1.2,
+      z: 0
+    }));
+    const setup = {
+      activePlaneId: 'three-points',
+      planeCols: 3,
+      planeRows: 3,
+      planes: [
+        { id: 'three-points', name: 'Three points', slot: 0, points: makePoints(3), fixtures: [], target: { x: 2, y: 2, z: 0 } },
+        { id: 'nine-points', name: 'Nine points', slot: 1, points: makePoints(9), fixtures: [], target: { x: 2, y: 2, z: 0 } }
+      ]
+    };
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, setup })
+      });
+    });
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const scrollHost = page.locator('#roomPlaneToolboxRail .toolbox-rail-scroll');
+    const recalledTile = page.locator('[data-recall-plane="nine-points"]');
+    await scrollHost.evaluate((element, tileElement) => {
+      element.style.overflowAnchor = 'none';
+      element.scrollTop += tileElement.getBoundingClientRect().top - element.getBoundingClientRect().top - 35;
+    }, await recalledTile.elementHandle());
+    const before = await recalledTile.evaluate(element => element.getBoundingClientRect().top);
+
+    await recalledTile.dispatchEvent('click');
+    await expect(page.locator('#planeName')).toHaveValue('Nine points');
+    await page.waitForTimeout(50);
+
+    const after = await page.locator('[data-recall-plane="nine-points"]').evaluate(element => element.getBoundingClientRect().top);
+    expect(Math.abs(after - before)).toBeLessThan(2);
+  });
+
   test('allows partial calibration saves and warns which fixtures and points are unusable', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -925,6 +1084,12 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-ptd-action="store-B"]')).toHaveText('Store B');
     await expect(page.locator('[data-ptd-action="recall-C"]')).toHaveText('Recall C');
     await expect(page.locator('[data-ptd-action="store-C"]')).toHaveText('Store C');
+    const recallActions = page.locator('[data-ptd-action-group="recall"]');
+    const storeActions = page.locator('[data-ptd-action-group="store"]');
+    await expect(recallActions).toContainText('Recall A');
+    await expect(storeActions).toContainText('Store A');
+    await expect(page.locator('[data-ptd-action-group="recall"] + [data-ptd-action-group="store"]')).toHaveCount(1);
+    await expect.poll(() => storeActions.evaluate(element => getComputedStyle(element).borderTopWidth)).not.toBe('0px');
 
     await page.locator('[data-ptd-action="store-B"]').click();
     await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="pan"]')).toHaveValue('49158');
@@ -932,9 +1097,12 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-ptd-action="store-B"]')).toHaveText('Stored B');
     await expect(page.locator('#status')).toContainText('Stored Spot 1 calibration point B');
 
-    await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.25);
+    await pad.scrollIntoViewIfNeeded();
+    const dragBox = await pad.boundingBox();
+    expect(dragBox).toBeTruthy();
+    await page.mouse.move(dragBox.x + dragBox.width * 0.75, dragBox.y + dragBox.height * 0.25);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.8, { steps: 8 });
+    await page.mouse.move(dragBox.x + dragBox.width * 0.2, dragBox.y + dragBox.height * 0.8, { steps: 8 });
     await page.mouse.up();
 
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('13107');
@@ -945,6 +1113,89 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
     await expect(page.locator('[data-ptd-position-readout]')).toHaveText('Pan 49158 · Tilt 49151');
     await expect(page.locator('#status')).toContainText('Recalled Spot 1 calibration point B');
+  });
+
+  test('scrolls all calibration actions into reach in an iPad-sized fixture modal', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    for (let index = 0; index < 6; index++) {
+      await page.locator('#targetX').fill(String(1 + index * 0.4));
+      await page.locator('#targetY').fill(String(1.2 + index * 0.2));
+      await page.locator('#addCalibrationPoint').click();
+    }
+    await page.locator('[data-edit-fixture="0"]').click();
+
+    const body = page.locator('#commonPanTiltDimmerModal .modal-body');
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    const metrics = await body.evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }));
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+
+    await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(page.locator('[data-ptd-action="store-I"]')).toBeInViewport();
+  });
+
+  test('locks modal scrolling while an iPad Pan/Tilt gesture is active', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    for (let index = 0; index < 6; index++) {
+      await page.locator('#targetX').fill(String(1 + index * 0.4));
+      await page.locator('#targetY').fill(String(1.2 + index * 0.2));
+      await page.locator('#addCalibrationPoint').click();
+    }
+    await page.locator('[data-edit-fixture="0"]').click();
+
+    const body = page.locator('#commonPanTiltDimmerModal .modal-body');
+    const pad = page.locator('[data-ptd-xy]');
+    await body.evaluate(element => { element.scrollTop = 120; });
+    const initialScrollTop = await body.evaluate(element => element.scrollTop);
+
+    await pad.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      element.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.25,
+        clientY: rect.top + rect.height * 0.25
+      }));
+    });
+
+    await expect(body).toHaveClass(/ptd-pad-editing/);
+    await expect(body).toHaveCSS('overflow-y', 'hidden');
+    expect(await body.evaluate(element => element.scrollTop)).toBe(initialScrollTop);
+
+    await pad.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      element.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.75,
+        clientY: rect.top + rect.height * 0.75
+      }));
+      element.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.75,
+        clientY: rect.top + rect.height * 0.75
+      }));
+    });
+
+    await expect(body).not.toHaveClass(/ptd-pad-editing/);
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    expect(await body.evaluate(element => element.scrollTop)).toBe(initialScrollTop);
   });
 
   test('loads patched moving lights and sends modal movement to DMX channels', async ({ page }) => {

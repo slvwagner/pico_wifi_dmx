@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
-<script src="assets/dmx-common.js?v=1.2.1-18"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
+<script src="assets/dmx-common.js?v=1.2.1-22"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -2735,8 +2735,9 @@ function renderMotionPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=motionPlaneBounds(plane);
   const screens=plane.points.map(point=>motionPlaneToScreen(point,bounds,rect));
+  const weights=DmxCommon.roomPlaneWeights(plane),activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean),triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('motionPlaneTriangle');
-  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  [['--ax',triangleScreens[0].x],['--ay',triangleScreens[0].y],['--bx',triangleScreens[1].x],['--by',triangleScreens[1].y],['--cx',triangleScreens[2].x],['--cy',triangleScreens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
   screens.forEach((screen,index)=>{
     const point=document.createElement('div');
     point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
@@ -2758,7 +2759,7 @@ function renderMotionPlaneModal(){
   const selected=motionPlaneSelectedIds();
   const weights=DmxCommon.roomPlaneWeights(plane);
   document.getElementById('motionPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('motionPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('motionPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   document.getElementById('motionPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{
     const isSelected=selected.has(String(fixture.id));
     const isPatched=motionFixtures.some(item=>String(item.fixture.id)===String(fixture.id)&&item.kind==='panTilt');

@@ -1453,7 +1453,7 @@ Use **Clear all** when you want to clear both buffers on the selected DMX Output
 
 ## 10. Room Plane
 
-The **Room Plane** page is a calibration page for moving-light position mapping. It stores saved room planes, fixture mount positions, and A/B/C calibration values on the server.
+The **Room Plane** page is a calibration page for moving-light position mapping. It stores saved room planes, fixture mount positions, and all available calibration-point values on the server. Three non-collinear points are the minimum; add further points wherever a fixture needs more local accuracy.
 
 Open it from the **Plane** navigation link or directly:
 
@@ -1463,17 +1463,17 @@ dmx_room_plane.html
 
 ![Room Plane](screenshots/room-plane.png)
 
-The idea is to describe a real stage or room as a 2D coordinate plane. Points **A**, **B**, and **C** are measured points in that room. Each moving light is then calibrated by storing the pan/tilt values that hit A, B, and C. When the red target is moved in the virtual plane, the page calculates a weighted pan/tilt value for every selected fixture, groups the resulting channel rows by assigned DMX Output, and sends the involved Pico batches concurrently.
+The idea is to describe a real stage or room as a 2D coordinate plane. Points **A**, **B**, and **C** are the initial measured points. Optional points **D**, **E**, and later can refine selected areas. Each moving light is calibrated by storing the pan/tilt values that hit at least three points. When the red target is moved in the virtual plane, the page calculates a localized weighted pan/tilt value for every selected fixture, groups the resulting channel rows by assigned DMX Output, and sends the involved Pico batches concurrently.
 
 ### 10.1 Room Plane Workflow
 
 1. Patch the moving lights on the Fixture Controller page.
 2. Save groups if you want to select fixtures by group on the Room Plane page.
 3. Open **Plane**.
-4. In the **Room Plane** toolbox, enter the measured coordinates for A, B, and C.
+4. In the **Room Plane** toolbox, enter the measured coordinates for A, B, and C. To improve accuracy in another area, move the target there and select **Add point at target**.
 5. Use **Load patched moving lights** to rebuild the working list from every compatible Controller fixture, use **Add patched fixtures** to choose individual moving lights, or recall a saved Plane that already contains fixtures.
 6. Select fixtures directly in the fixture table, or use the **Groups** toolbox to select a whole fixture group.
-7. Edit one fixture at a time. Move the real moving light to point A, store A, then repeat for B and C.
+7. Edit one fixture at a time. Move the real moving light to point A, store A, then repeat for B and C. Store any additional points needed by that fixture; other fixtures may remain on three points.
 8. Move the red target in the virtual room plane. The selected fixtures update automatically.
 9. In the **Planes** toolbox, click an empty tile to save a complete snapshot of the current room definition and fixture calibration.
 
@@ -1483,13 +1483,15 @@ The target can be moved by dragging the red dot, by clicking in the plane, or by
 
 ![Room Plane Toolbox](screenshots/room-plane-toolbox-plane.png)
 
-The **Room Plane** toolbox contains the measured A/B/C points and the current target controls.
+The **Room Plane** toolbox contains all measured calibration points and the current target controls.
 
 | Field | Meaning |
 | --- | --- |
-| A, B, C X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
+| Point X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
 | Target X/Y | Numeric target position in the plane. |
-| Reset calibration | Marks all working fixture A/B/C calibration points as missing and deselects the active saved Plane without changing any saved Plane tile. |
+| Add point at target | Adds the next point at the current target position. The first additional point is D. |
+| `x` beside an optional point | Removes that point from the working plane. At least three points always remain. |
+| Reset calibration | Marks every working fixture calibration point as missing and deselects the active saved Plane without changing any saved Plane tile. |
 
 The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.
 
@@ -1505,7 +1507,7 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 
 | Field | Meaning |
 | --- | --- |
-| Filled plane tile | Recalls that saved plane, including A/B/C points, target, view, fixtures, mount positions, and fixture calibration. |
+| Filled plane tile | Recalls that saved plane, including its complete point list, target, view, fixtures, mount positions, and per-point fixture calibration. |
 | Empty `+ Save current plane` tile | Saves the current plane into that tile and opens **Edit Plane Tile** so it can be named and styled. |
 | Pencil | Opens **Edit Plane Tile** for the selected plane tile name, background color, uploaded icon, or drawn icon. |
 | `x` | Deletes the saved plane after confirmation. |
@@ -1516,7 +1518,7 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 
 Saved Plane tiles are immutable snapshots. Editing room points, the target, fixtures, mount positions, or calibration values changes the separate working setup; it does not silently rewrite the selected tile. Click another empty tile when you want to preserve those changes as a new Plane. A saved Plane can be deleted—including the final tile—without creating a replacement default Plane.
 
-A Plane can be saved while some fixtures or A/B/C points are still uncalibrated. The tile editor warns which fixture points are missing, and the tile reports the missing-calibration count. Such a Plane remains useful for calibrated fixtures, but it cannot calculate a target for a fixture until that fixture has all three A/B/C calibration points.
+A Plane can be saved while some fixtures or points are still uncalibrated. The tile editor warns which fixture points are missing, and the tile reports the missing-calibration count. A fixture becomes usable as soon as it has any three non-collinear calibrated points. Additional points are optional per fixture and improve only the fixtures for which they were taught. Each tile keeps its own point coordinates and exact per-fixture Pan/Tilt calibration; recalling a tile restores both even after a plane with fewer points was active.
 
 #### Scenes and Palettes
 
@@ -1542,15 +1544,15 @@ Use the fixture table's **Select** column to mark one or more working fixtures, 
 | --- | --- |
 | Edit | Opens the pan/tilt/dimmer editor for this fixture. Only one fixture is edited at a time. |
 | Select | Includes the fixture when the target point is applied. |
-| Calibration | Shows whether A, B, and C have been stored. |
+| Calibration | Shows whether the fixture has at least three usable points and lists optional points that are not taught. |
 | Live Pan / Live Tilt / Dimmer | Current fixture values used by the editor and output. |
 | Last send / channels | The last DMX channels written for this fixture. |
 | Mount X/Y/Z | The fixture's physical mounting position in room coordinates. Today this is used for the plot, saved plane context, and future 3D calibration. It is not yet used to calculate pan/tilt output. |
-| A/B/C pan/tilt | Stored calibration values for the three known points. |
+| Point pan/tilt | Stored calibration values for every point in the working plane. |
 
 ![Room Plane Fixture Editor](screenshots/room-plane-fixture-editor.png)
 
-In the fixture editor, **Recall A/B/C** loads an already stored calibration point into the editor. **Store A/B/C** writes the current pan/tilt editor value into that calibration point. Store buttons are separated from recall buttons and use the warning color because they overwrite calibration data.
+In the fixture editor, **Recall A/B/C/...** loads an already stored calibration point into the editor. **Store A/B/C/...** writes the current pan/tilt editor value into that calibration point. Recall and Store are separated by a divider, and Store uses the warning color because it overwrites calibration data. On touch devices, the modal scrolls normally outside the Pan/Tilt pad; dragging the pad temporarily locks modal scrolling so the fixture can be positioned accurately.
 
 The Pan/Tilt coarse and fine relative-step values are shared by the fixture editor and persist across fixture changes, modal reopen, page navigation, and reload. This keeps a carefully chosen fine adjustment available throughout a calibration session.
 
@@ -1560,7 +1562,7 @@ The **Groups** toolbox on the Room Plane page is for selecting calibrated fixtur
 
 ### 10.5 Coordinate Math
 
-The three known room points define a triangle in the room plane:
+Every set of three non-collinear room points can define a triangle in the room plane. With only A/B/C, they form the single triangle:
 
 ```text
 A = (Ax, Ay)
@@ -1585,7 +1587,9 @@ wB = ((Cy - Ay) * (Px - Cx) + (Ax - Cx) * (Py - Cy)) / D
 wC = 1 - wA - wB
 ```
 
-The readout shows these as **Weights: A / B / C**. The target is inside the triangle when all three weights are greater than or equal to zero:
+With additional points, the page creates a Delaunay triangle mesh and selects the local triangle that contains the target. Each fixture builds its mesh only from the points calibrated for that fixture, so a five-point fixture gains local accuracy while a three-point fixture remains usable. Outside the calibrated mesh, the closest suitable triangle is used for extrapolation.
+
+The readout shows the three currently used point IDs and weights. The target is inside the selected triangle when all three weights are greater than or equal to zero:
 
 ```text
 wA >= 0 and wB >= 0 and wC >= 0
@@ -1595,19 +1599,19 @@ The page still allows positions outside the triangle. In that case the same form
 
 ### 10.6 Pan/Tilt Interpolation
 
-For each fixture, the stored calibration values are:
+For each fixture and the three points selected around the current target, the stored calibration values are:
 
 ```text
-panA,  tiltA    values that hit point A
-panB,  tiltB    values that hit point B
-panC,  tiltC    values that hit point C
+pan1,  tilt1    values that hit selected point 1
+pan2,  tilt2    values that hit selected point 2
+pan3,  tilt3    values that hit selected point 3
 ```
 
 The target output is the weighted blend:
 
 ```text
-pan(P)  = wA * panA  + wB * panB  + wC * panC
-tilt(P) = wA * tiltA + wB * tiltB + wC * tiltC
+pan(P)  = w1 * pan1  + w2 * pan2  + w3 * pan3
+tilt(P) = w1 * tilt1 + w2 * tilt2 + w3 * tilt3
 ```
 
 For 16-bit pan/tilt controls, this interpolation is done in the full 16-bit range:
@@ -1665,23 +1669,23 @@ The view zoom changes the visible bounds before this transformation. The pan vie
 
 Room Plane data is saved to the server in `room_plane_setup.json`. A saved plane contains:
 
-- A/B/C room point coordinates
+- Complete calibration-point list, beginning with A/B/C and including every optional point
 - Target position
 - View zoom and pan center
 - Fixture list for that plane
 - Fixture mount X/Y/Z
-- Fixture A/B/C pan/tilt calibration
+- Fixture Pan/Tilt calibration and calibrated state for every point taught to that fixture
 - Active saved plane ID
 
 This means you can create multiple room planes for different physical setups or stage areas. Recalling a plane recalls its own fixture calibration.
 
-When a saved plane is loaded, its fixtures are matched to the current Fixture Controller patch by fixture ID. The saved mount position and A/B/C calibration remain plane-specific, while the current fixture name, profile, DMX start address, and live connection are used. Therefore **Fixtures > Edit > Recall A/B/C** moves the physical fixture even if its patch address changed after the plane was saved.
+When a saved plane is loaded, its fixtures are matched to the current Fixture Controller patch by fixture ID. The saved mount position and all per-point calibration remain plane-specific, while the current fixture name, profile, DMX start address, and live connection are used. Therefore **Fixtures > Edit > Recall A/B/C/...** moves the physical fixture even if its patch address changed after the plane was saved.
 
 ### 10.9 Current Limits
 
-The current implementation is calibration-based. It does not yet calculate pan/tilt from fixture mount position, fixture orientation, beam length, and full 3D geometry. Mount X/Y/Z is saved and drawn, but the output is currently calculated from the measured A/B/C pan/tilt values.
+The current implementation is calibration-based. It does not yet calculate pan/tilt from fixture mount position, fixture orientation, beam length, and full 3D geometry. Mount X/Y/Z is saved and drawn, but the output is currently calculated from the measured per-point Pan/Tilt values.
 
-Use three non-collinear points. If A, B, and C are on one line, the determinant becomes zero and the page cannot calculate a valid plane.
+Use at least three non-collinear points per fixture. If all points available to a fixture are on one line, the page cannot calculate a valid plane for that fixture.
 
 ## 11. Backup and Import
 

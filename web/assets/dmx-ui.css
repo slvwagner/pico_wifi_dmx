@@ -120,7 +120,13 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .modal-card .modal-head>[data-ptd-close][aria-label="Close"],.modal-card .modal-head>button[aria-label="Close"]{position:absolute;top:12px;right:12px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0!important}
 .modal-card .modal-body{flex:0 0 auto;max-height:none;overflow:visible}
 .modal-card .xy-pad{height:clamp(150px,24dvh,230px);aspect-ratio:auto}
-.modal-actions [data-ptd-extra-actions]{display:inline-grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:center}
+#commonPanTiltDimmerModal .modal-body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#commonPanTiltDimmerModal .modal-body.ptd-pad-editing{overflow-y:hidden;-webkit-overflow-scrolling:auto;touch-action:none}
+#commonPanTiltDimmerModal [data-ptd-xy]{touch-action:none;overscroll-behavior:contain}
+#commonPanTiltDimmerModal [data-ptd-extra-actions]{display:grid;gap:10px;align-items:center;width:100%}
+#commonPanTiltDimmerModal .ptd-action-group{display:grid;grid-template-columns:repeat(3,minmax(70px,1fr));gap:8px;align-items:center}
+#commonPanTiltDimmerModal .ptd-action-group+.ptd-action-group{border-top:1px solid var(--line);padding-top:10px}
+#commonPanTiltDimmerModal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0;overscroll-behavior:contain}
 .wide-modal{width:min(1100px,calc(100vw - 32px));max-width:1100px}
 .wheel-option-grid{display:grid;grid-template-columns:minmax(150px,1.4fr) 72px 72px minmax(130px,1fr) 70px minmax(105px,1fr) minmax(105px,1fr) minmax(230px,1.2fr) 52px;gap:8px;align-items:end}

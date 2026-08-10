@@ -3904,11 +3904,17 @@
   function normalizeRoomPlane(plane,index){
     const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
     const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+    const normalizedPoints=(sourcePoints.length?sourcePoints:fallbackPoints)
+      .map((point,i)=>normalizeRoomPlanePoint(point,fallbackPoints[i]));
+    for(const fallback of fallbackPoints){
+      if(normalizedPoints.length>=3)break;
+      if(!normalizedPoints.some(point=>point.id===fallback.id))normalizedPoints.push({...fallback});
+    }
     return {
       ...plane,
       id:plane?.id||('plane_'+index),
       name:String(plane?.name||('Plane '+(index+1))),
-      points:fallbackPoints.map((fallback,i)=>normalizeRoomPlanePoint(sourcePoints[i],fallback)),
+      points:normalizedPoints,
       target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
       fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeRoomPlaneFixture),
       view:{
@@ -3921,24 +3927,112 @@
     };
   }
 
-  function roomPlaneWeights(plane,target=plane?.target){
-    const [a,b,c]=plane?.points||[];
-    if(!a||!b||!c||!target)return {valid:false,wA:0,wB:0,wC:0};
+  function roomPlaneTriangleWeights(a,b,c,target){
+    if(!a||!b||!c||!target)return null;
     const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-    if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-    const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-    const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-    return {valid:true,wA,wB,wC:1-wA-wB};
+    if(Math.abs(det)<1e-9)return null;
+    const first=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+    const second=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+    return [first,second,1-first-second];
+  }
+
+  function roomPlaneCircumcircleContains(a,b,c,point){
+    const divisor=2*(a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y));
+    if(Math.abs(divisor)<1e-9)return false;
+    const a2=a.x*a.x+a.y*a.y,b2=b.x*b.x+b.y*b.y,c2=c.x*c.x+c.y*c.y;
+    const x=(a2*(b.y-c.y)+b2*(c.y-a.y)+c2*(a.y-b.y))/divisor;
+    const y=(a2*(c.x-b.x)+b2*(a.x-c.x)+c2*(b.x-a.x))/divisor;
+    const radius=(x-a.x)*(x-a.x)+(y-a.y)*(y-a.y);
+    const distance=(x-point.x)*(x-point.x)+(y-point.y)*(y-point.y);
+    return distance<=radius+Math.max(1,radius)*1e-9;
+  }
+
+  function roomPlaneTriangles(sourcePoints){
+    const points=[];
+    (Array.isArray(sourcePoints)?sourcePoints:[]).forEach(point=>{
+      const normalized={...point,x:Number(point?.x)||0,y:Number(point?.y)||0};
+      if(!points.some(existing=>Math.abs(existing.x-normalized.x)<1e-9&&Math.abs(existing.y-normalized.y)<1e-9))points.push(normalized);
+    });
+    if(points.length<3)return [];
+    const xs=points.map(point=>point.x),ys=points.map(point=>point.y);
+    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    const span=Math.max(maxX-minX,maxY-minY,1),midX=(minX+maxX)/2,midY=(minY+maxY)/2;
+    const all=[...points,
+      {id:'__super1',x:midX-32*span,y:midY-16*span},
+      {id:'__super2',x:midX,y:midY+32*span},
+      {id:'__super3',x:midX+32*span,y:midY-16*span}
+    ];
+    const superStart=points.length;
+    let triangles=[[superStart,superStart+1,superStart+2]];
+    for(let pointIndex=0;pointIndex<points.length;pointIndex++){
+      const bad=triangles.filter(triangle=>roomPlaneCircumcircleContains(all[triangle[0]],all[triangle[1]],all[triangle[2]],all[pointIndex]));
+      const edges=new Map();
+      bad.forEach(triangle=>[[triangle[0],triangle[1]],[triangle[1],triangle[2]],[triangle[2],triangle[0]]].forEach(edge=>{
+        const ordered=edge[0]<edge[1]?edge:[edge[1],edge[0]];
+        const key=ordered[0]+':'+ordered[1];
+        const entry=edges.get(key)||{edge:ordered,count:0};
+        entry.count++;
+        edges.set(key,entry);
+      }));
+      const rejected=new Set(bad);
+      triangles=triangles.filter(triangle=>!rejected.has(triangle));
+      edges.forEach(entry=>{
+        if(entry.count!==1)return;
+        const candidate=[entry.edge[0],entry.edge[1],pointIndex];
+        if(roomPlaneTriangleWeights(all[candidate[0]],all[candidate[1]],all[candidate[2]],all[pointIndex]))triangles.push(candidate);
+      });
+    }
+    return triangles
+      .filter(triangle=>triangle.every(index=>index<superStart))
+      .map(triangle=>triangle.map(index=>points[index]));
+  }
+
+  function roomPlaneSelectTriangle(points,target){
+    if(!target)return null;
+    let selected=null;
+    roomPlaneTriangles(points).forEach(triangle=>{
+      const values=roomPlaneTriangleWeights(triangle[0],triangle[1],triangle[2],target);
+      if(!values)return;
+      const minWeight=Math.min(...values);
+      const inside=minWeight>=-1e-7;
+      const score=inside?1+minWeight:minWeight;
+      if(!selected||score>selected.score)selected={triangle,values,inside,score};
+    });
+    return selected;
+  }
+
+  function roomPlaneWeights(plane,target=plane?.target){
+    const selected=roomPlaneSelectTriangle(plane?.points,target);
+    if(!selected)return {valid:false,inside:false,target,wA:0,wB:0,wC:0,ids:[],values:[]};
+    const ids=selected.triangle.map(point=>String(point.id));
+    const byId=Object.fromEntries(ids.map((id,index)=>[id,selected.values[index]]));
+    return {
+      valid:true,
+      inside:selected.inside,
+      target:{x:Number(target.x)||0,y:Number(target.y)||0,z:Number(target.z)||0},
+      ids,
+      values:selected.values,
+      wA:byId.A||0,
+      wB:byId.B||0,
+      wC:byId.C||0
+    };
   }
 
   function roomPlaneInterpolateFixture(plane,fixture,weights){
-    if(!weights?.valid)return null;
-    const ids=(plane?.points||[]).map(point=>point.id);
-    if(ids.length<3||ids.some(id=>!fixture?.cal?.[id]?.calibrated))return null;
+    const calibratedPoints=(plane?.points||[]).filter(point=>fixture?.cal?.[point.id]?.calibrated);
+    if(calibratedPoints.length<3)return null;
+    const selected=roomPlaneSelectTriangle(calibratedPoints,weights?.target||plane?.target);
+    if(!selected)return null;
+    const ids=selected.triangle.map(point=>point.id);
     return {
-      pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-      tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+      pan:selected.values.reduce((total,value,index)=>total+value*fixture.cal[ids[index]].pan,0),
+      tilt:selected.values.reduce((total,value,index)=>total+value*fixture.cal[ids[index]].tilt,0)
     };
+  }
+
+  function roomPlaneWeightText(weights,digits=3){
+    if(!weights?.valid)return 'invalid';
+    return (weights.ids||[]).map((id,index)=>id+' '+Number(weights.values?.[index]||0).toFixed(digits)).join(' / ');
   }
 
   function roomPlaneAutoBounds(plane){
@@ -4238,9 +4332,9 @@
       '    <label>Dimmer<input type="range" min="0" max="255" data-ptd-dimmer-range></label>',
       '    <label>Dimmer value<input type="number" min="0" max="255" data-ptd-dimmer></label>',
       '    <div class="small" data-ptd-readout></div>',
+      '    <div data-ptd-extra-actions></div>',
       '  </div>',
       '  <div class="modal-actions">',
-      '    <span data-ptd-extra-actions></span>',
       '    <button type="button" data-ptd-close>Close</button>',
       '  </div>',
       '</div>'
@@ -4253,6 +4347,7 @@
   function closePanTiltDimmerEditor(modal){
     const el=modal||document.getElementById('commonPanTiltDimmerModal');
     if(!el)return;
+    el.querySelector('.modal-body')?.classList.remove('ptd-pad-editing');
     hideModal(el);
     const onClose=el._dmxPanTiltDimmerOnClose;
     el._dmxPanTiltDimmerOnClose=null;
@@ -4261,6 +4356,7 @@
 
   function openPanTiltDimmerEditor(options){
     const modal=ensurePanTiltDimmerEditorModal();
+    const modalBody=modal.querySelector('.modal-body');
     const max=Math.max(1,Math.round(Number(options?.max)||255));
     const title=modal.querySelector('#commonPanTiltDimmerTitle');
     const pad=modal.querySelector('[data-ptd-xy]');
@@ -4284,10 +4380,17 @@
     };
     title.textContent=options?.title||'Edit Fixture Control';
     const actions=Array.isArray(options?.actions)?options.actions:[];
-    extraActions.innerHTML=actions.map(action=>{
+    const actionGroups=[];
+    actions.forEach(action=>{
+      const group=String(action.group||'default');
+      let entry=actionGroups[actionGroups.length-1];
+      if(!entry||entry.name!==group){entry={name:group,actions:[]};actionGroups.push(entry);}
+      entry.actions.push(action);
+    });
+    extraActions.innerHTML=actionGroups.map(group=>'<span class="ptd-action-group" data-ptd-action-group="'+escapeHtml(group.name)+'">'+group.actions.map(action=>{
       const classes=[action.primary?'primary':'',action.className||''].filter(Boolean).join(' ');
       return '<button type="button" data-ptd-action="'+escapeHtml(action.id||action.label||'')+'" '+(classes?'class="'+escapeHtml(classes)+'"':'')+'>'+escapeHtml(action.label||action.id||'Action')+'</button>';
-    }).join('');
+    }).join('')+'</span>').join('');
     extraActions.onclick=event=>{
       const btn=event.target.closest('[data-ptd-action]');
       if(!btn)return;
@@ -4383,13 +4486,33 @@
       renderEditor();
       emit();
     };
+    if(!pad._dmxTouchScrollGuard){
+      pad._dmxTouchScrollGuard=event=>event.preventDefault();
+      pad.addEventListener('touchmove',pad._dmxTouchScrollGuard,{passive:false});
+    }
     pad.onpointerdown=event=>{
       event.preventDefault();
-      pad.setPointerCapture?.(event.pointerId);
+      event.stopPropagation();
+      const pointerId=event.pointerId;
+      const lockedScrollTop=modalBody.scrollTop;
+      modalBody.classList.add('ptd-pad-editing');
+      modalBody.scrollTop=lockedScrollTop;
+      try{pad.setPointerCapture?.(pointerId);}catch(_error){}
       setFromPad(event);
-      pad.onpointermove=setFromPad;
-      pad.onpointerup=pad.onpointercancel=()=>{
-        pad.releasePointerCapture?.(event.pointerId);
+      pad.onpointermove=moveEvent=>{
+        if(moveEvent.pointerId!==pointerId)return;
+        moveEvent.preventDefault();
+        moveEvent.stopPropagation();
+        modalBody.scrollTop=lockedScrollTop;
+        setFromPad(moveEvent);
+      };
+      pad.onpointerup=pad.onpointercancel=endEvent=>{
+        if(endEvent.pointerId!==pointerId)return;
+        endEvent.preventDefault();
+        endEvent.stopPropagation();
+        try{pad.releasePointerCapture?.(pointerId);}catch(_error){}
+        modalBody.classList.remove('ptd-pad-editing');
+        modalBody.scrollTop=lockedScrollTop;
         pad.onpointermove=null;
         pad.onpointerup=null;
         pad.onpointercancel=null;
@@ -4499,6 +4622,7 @@
     normalizeRoomPlane,
     roomPlaneWeights,
     roomPlaneInterpolateFixture,
+    roomPlaneWeightText,
     roomPlaneAutoBounds,
     initSavedPlaneToolbox,
     panTiltMax,

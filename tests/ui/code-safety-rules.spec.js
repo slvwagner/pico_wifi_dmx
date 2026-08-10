@@ -6,6 +6,26 @@ const root = path.join(__dirname, '..', '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test.describe('Code safety regression rules', () => {
+  test('all application pages use one shared cache version for common JavaScript and CSS assets', async () => {
+    const webRoot = path.join(root, 'web');
+    const pages = fs.readdirSync(webRoot)
+      .filter(name => name.endsWith('.html'))
+      .map(name => ({ name, source: fs.readFileSync(path.join(webRoot, name), 'utf8') }))
+      .filter(page => page.source.includes('dmx-common.js'));
+    const commonVersions = new Set();
+    const cssVersions = new Set();
+    for (const page of pages) {
+      const common = page.source.match(/dmx-common\.js\?v=([^"']+)/);
+      const css = page.source.match(/dmx-ui\.css\?v=([^"']+)/);
+      expect(common, page.name + ' must cache-version dmx-common.js').toBeTruthy();
+      expect(css, page.name + ' must cache-version dmx-ui.css').toBeTruthy();
+      commonVersions.add(common[1]);
+      cssVersions.add(css[1]);
+    }
+    expect([...commonVersions]).toHaveLength(1);
+    expect([...cssVersions]).toHaveLength(1);
+  });
+
   test('programming-page Group Edit recalls stop affected Pico playback but Show Run does not', () => {
     const common = read('web/assets/dmx-common.js');
     expect(common).toContain('async function stopPlaybackForFixtures');

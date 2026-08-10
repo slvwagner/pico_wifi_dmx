@@ -4,6 +4,14 @@
 
 Changed:
 
+- Extended Room Plane calibration from a fixed A/B/C triangle to any number of
+  reference points. New points are added at the current target and may be
+  taught independently per fixture; fixtures remain usable with any three
+  non-collinear calibrated points while additional points provide localized
+  piecewise interpolation accuracy. Existing three-point planes remain fully
+  compatible across Room Plane, Controller, Show Run, Chaser, and Effects. The
+  fixture calibration modal now separates Recall and Store actions with a
+  visible divider.
 - Removed the legacy Room Plane **Demo values** button so a user cannot
   accidentally replace the working room definition and fixture list with
   demonstration data. The internal first-run fallback remains available when
@@ -44,6 +52,23 @@ Changed:
 
 Fixed:
 
+- Preserved every fixture's calibration for additional Room Plane points when
+  saving and recalling Plane tiles. Saved planes are now normalized against
+  their own point lists instead of the currently active plane's points.
+- Kept the Planes toolbox at the same visible position on iPad when recalling
+  planes with different numbers of calibration points, even though the Room
+  Plane toolbox above it changes height.
+- Prevented the iPad fixture-calibration modal from scrolling while the user
+  drags the Pan/Tilt position pad. Normal vertical scrolling remains available
+  everywhere else in the modal and resumes immediately after the gesture.
+- Made the shared Pan/Tilt calibration modal vertically scrollable on iPad-sized
+  screens. Recall and Store groups now live inside the scrollable body while
+  the modal header and Close action remain accessible, so every added
+  calibration point can be stored on touch devices.
+- Synchronized and incremented the shared JavaScript and stylesheet cache
+  versions across every application page. Browsers now fetch the Room Plane
+  interpolation, calibration-modal grouping, and Plane-tile action styles
+  together instead of mixing new HTML with stale cached assets.
 - Persisted the Room Plane fixture editor's Pan/Tilt coarse and fine relative
   step sizes across fixtures, modal reopen, navigation, and page reload.
 - Kept saved Room Plane tiles immutable while the working calibration or target

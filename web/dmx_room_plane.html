@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Room Plane</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
-<script src="assets/dmx-common.js?v=1.2.1-19"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
+<script src="assets/dmx-common.js?v=1.2.1-22"></script>
 <style>
 body{min-height:100vh}
 .room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -178,15 +178,16 @@ canvas{display:none}
     </div>
   </div>
   <div id="roomPlaneBoxBody" class="scene-toolbox__body">
-    <div class="small">Three known points define the calibrated plane. Units can be meters, but the math only needs a consistent coordinate system.</div>
+    <div class="small">At least three known points define the calibrated plane. Add points at positions where individual fixtures need greater accuracy.</div>
     <div class="room-card-body">
       <div class="room-plane-meta">
-        <div class="plane-section-note">A/B/C define the active coordinate plane. Use Planes to store and recall complete plane definitions.</div>
+        <div class="plane-section-note">Each fixture uses every point calibrated for it, with a minimum of three non-collinear points. Use Planes to store and recall the complete definition.</div>
         <div class="cal-grid" id="planePointInputs"></div>
       </div>
       <div class="room-tool-row">
         <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
         <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
+        <button id="addCalibrationPoint" type="button">Add point at target</button>
         <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
       </div>
     </div>
@@ -202,7 +203,7 @@ canvas{display:none}
     </div>
   </div>
   <div id="roomPlaneLibraryBoxBody" class="scene-toolbox__body">
-    <div class="small">A saved plane includes A/B/C room points, target/view, fixture mount positions, and fixture A/B/C calibration. Click an empty tile to save the current plane.</div>
+    <div class="small">A saved plane includes all room points, target/view, fixture mount positions, and each fixture's available point calibration. Click an empty tile to save the current plane.</div>
     <div class="room-card-body">
       <input id="planeName" type="hidden" value="Default plane">
       <select id="planeSelect" hidden></select>
@@ -293,7 +294,7 @@ canvas{display:none}
     </div>
   </div>
   <div id="roomFixturesBoxBody" class="scene-toolbox__body">
-    <div class="small">Mount X/Y/Z and A/B/C pan/tilt calibration are stored inside the active saved plane. Recalling another plane recalls its own fixture calibration.</div>
+    <div class="small">Mount X/Y/Z and all available pan/tilt calibration points are stored inside the active saved plane. Recalling another plane recalls its own fixture calibration.</div>
     <div class="buttons">
       <button id="loadPatchedFixtures" type="button">Load patched moving lights</button>
       <button id="addFixture">Add patched fixtures</button>
@@ -302,10 +303,7 @@ canvas{display:none}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr>
-            <th>Edit</th><th>Select</th><th>Fixture</th><th>Calibration</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
-            <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
-          </tr>
+          <tr id="fixtureHeaderRow"></tr>
         </thead>
         <tbody id="fixtureRows"></tbody>
       </table>
@@ -485,18 +483,19 @@ function normalizePoint(point,index){
   };
 }
 
-function normalizeCal(cal,index){
+function normalizeCal(cal,index,pointList=points){
   const fallback=defaultCalibration(index);
   const out={};
-  points.forEach(point=>{
-    const src=cal?.[point.id]||fallback[point.id]||{pan:0,tilt:0};
-    const calibrated=src.calibrated!==false&&src.pan!==null&&src.tilt!==null;
+  pointList.forEach(point=>{
+    const supplied=!!cal&&Object.prototype.hasOwnProperty.call(cal,point.id);
+    const src=supplied?cal[point.id]:(fallback[point.id]||{pan:0,tilt:0,calibrated:false});
+    const calibrated=(supplied||!!fallback[point.id])&&src.calibrated!==false&&src.pan!==null&&src.tilt!==null;
     out[point.id]={pan:Number(src.pan)||0,tilt:Number(src.tilt)||0,calibrated};
   });
   return out;
 }
 
-function normalizeRoomFixture(f,index){
+function normalizeRoomFixture(f,index,pointList=points){
   return {
     id:f?.id,
     name:String(f?.name||('Spot '+(index+1))),
@@ -508,7 +507,7 @@ function normalizeRoomFixture(f,index){
     y:Number(f?.y)||0,
     z:Number(f?.z)||0,
     control:fixtureControl(f||{}),
-    cal:normalizeCal(f?.cal,index)
+    cal:normalizeCal(f?.cal,index,pointList)
   };
 }
 
@@ -599,16 +598,19 @@ function bindPlaneFixturesToPatchedFixtures(savedFixtures,patchedFixtures=contro
 }
 
 function normalizedSavedPlaneDefinitions(){
-  return (planeDefinitions||[]).map((plane,index)=>({
-    id:String(plane.id||('plane_'+index)),
-    name:String(plane.name||('Plane '+(index+1))),
-    points:(Array.isArray(plane.points)?plane.points:defaultPoints()).map(normalizePoint),
-    target:{x:Number(plane.target?.x)||2.5,y:Number(plane.target?.y)||1.5,z:0},
-    fixtures:(Array.isArray(plane.fixtures)?plane.fixtures:[]).map(normalizeRoomFixture),
-    view:{auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))},
-    visual:DmxCommon.normalizeSlotVisual(plane.visual)||null,
-    slot:Number.isFinite(parseInt(plane.slot,10))?parseInt(plane.slot,10):index
-  }));
+  return (planeDefinitions||[]).map((plane,index)=>{
+    const planePoints=(Array.isArray(plane.points)?plane.points:defaultPoints()).map(normalizePoint);
+    return {
+      id:String(plane.id||('plane_'+index)),
+      name:String(plane.name||('Plane '+(index+1))),
+      points:planePoints,
+      target:{x:Number(plane.target?.x)||2.5,y:Number(plane.target?.y)||1.5,z:0},
+      fixtures:(Array.isArray(plane.fixtures)?plane.fixtures:[]).map((fixture,fixtureIndex)=>normalizeRoomFixture(fixture,fixtureIndex,planePoints)),
+      view:{auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))},
+      visual:DmxCommon.normalizeSlotVisual(plane.visual)||null,
+      slot:Number.isFinite(parseInt(plane.slot,10))?parseInt(plane.slot,10):index
+    };
+  });
 }
 
 function normalizedPlaneDefinitions(){
@@ -641,29 +643,50 @@ function renderPlaneSelect(){
 
 function planeCalibrationSummary(plane){
   const fixturesInPlane=Array.isArray(plane.fixtures)?plane.fixtures:[];
-  const pointIds=(Array.isArray(plane.points)&&plane.points.length?plane.points:points).map(point=>String(point.id));
-  let missing=0;
-  fixturesInPlane.forEach(f=>{
-    pointIds.forEach(pointId=>{
-      if(!f.cal?.[pointId]?.calibrated)missing++;
-    });
-  });
-  return fixturesInPlane.length+' fixture'+(fixturesInPlane.length===1?'':'s')+' · '+(missing?missing+' missing calibration point'+(missing===1?'':'s'):'calibrated');
+  const counts=fixturesInPlane.map(fixture=>roomPlaneFixtureCalibrationStatus(plane,fixture).count);
+  const unusable=fixturesInPlane.filter(fixture=>!roomPlaneFixtureCalibrationStatus(plane,fixture).valid).length;
+  const range=counts.length?(Math.min(...counts)===Math.max(...counts)?String(counts[0]):Math.min(...counts)+'-'+Math.max(...counts)):'0';
+  return fixturesInPlane.length+' fixture'+(fixturesInPlane.length===1?'':'s')+' · '+range+' point'+(range==='1'?'':'s')+' each'+(unusable?' · '+unusable+' unusable':'');
 }
 
 function planeCalibrationWarning(plane){
-  const pointIds=(Array.isArray(plane?.points)&&plane.points.length?plane.points:points).map(point=>String(point.id));
   const affected=(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map((fixture,index)=>{
-    const missing=pointIds.filter(pointId=>!fixture.cal?.[pointId]?.calibrated);
-    return missing.length?(fixture.name||('Fixture '+(index+1)))+': '+missing.join(', '):'';
+    const status=roomPlaneFixtureCalibrationStatus(plane,fixture);
+    return status.valid?'':(fixture.name||('Fixture '+(index+1)))+': '+(status.missing?.length?status.missing.join(', '):status.message);
   }).filter(Boolean);
   if(!affected.length)return '';
-  return 'Warning: this saved plane cannot be used for all fixtures until calibration is complete. Missing calibration — '+affected.join('; ')+'.';
+  return 'Warning: this saved plane cannot be used for all fixtures. '+affected.join('; ')+'.';
+}
+
+function roomPlaneFixtureCalibrationStatus(plane,fixture){
+  const planePoints=Array.isArray(plane?.points)&&plane.points.length?plane.points:points;
+  const calibrated=planePoints.filter(point=>fixture?.cal?.[point.id]?.calibrated);
+  const missing=planePoints.filter(point=>!fixture?.cal?.[point.id]?.calibrated).map(point=>String(point.id));
+  if(calibrated.length<3)return {valid:false,count:calibrated.length,missing,message:'missing '+missing.join(', ')};
+  const geometry=DmxCommon.roomPlaneWeights({points:calibrated,target:plane?.target||currentTarget()},plane?.target||currentTarget());
+  return {valid:geometry.valid,count:calibrated.length,missing,message:geometry.valid?'':'calibrated points are collinear'};
 }
 
 function renderPlaneLibrary(defs=planeDefinitions){
   if(defs&&defs.length)planeDefinitions=defs;
   roomPlanesMatrix?.render();
+}
+
+function preservePlaneLibraryToolboxPosition(update){
+  const header=document.getElementById('roomPlaneLibraryBoxHdr');
+  const scrollHost=header?.closest('.toolbox-rail')?.querySelector('.toolbox-rail-scroll');
+  if(!header||!scrollHost){update();return;}
+  const top=header.getBoundingClientRect().top;
+  const restore=()=>{
+    if(!header.isConnected)return;
+    scrollHost.scrollTop+=header.getBoundingClientRect().top-top;
+  };
+  update();
+  restore();
+  requestAnimationFrame(()=>{
+    restore();
+    requestAnimationFrame(restore);
+  });
 }
 
 function saveCurrentPlaneToTile(index){
@@ -687,7 +710,7 @@ function recallPlaneDefinition(id){
   planeDefinitions=normalizedSavedPlaneDefinitions();
   const plane=planeDefinitions.find(item=>String(item.id)===String(id));
   if(!plane)return;
-  applyPlaneDefinition(plane);
+  preservePlaneLibraryToolboxPosition(()=>applyPlaneDefinition(plane));
   const recalledName=currentPlaneName();
   scheduleRoomPlaneAutosave();
   setStatus('Recalled plane '+recalledName);
@@ -1291,7 +1314,7 @@ function numberInput(value,attrs=''){
 function renderPlanePointInputs(){
   const host=document.getElementById('planePointInputs');
   host.innerHTML='<span></span><label>X</label><label>Y</label><label>Z</label>'+points.map((p,i)=>
-    '<strong>'+p.id+'</strong>'+
+    '<strong>'+DmxCommon.escapeHtml(p.id)+(points.length>3?' <button type="button" data-remove-point="'+i+'" title="Remove calibration point '+DmxCommon.escapeHtml(p.id)+'">x</button>':'')+'</strong>'+
     numberInput(p.x,'data-point="'+i+'" data-axis="x"')+
     numberInput(p.y,'data-point="'+i+'" data-axis="y"')+
     numberInput(p.z||0,'data-point="'+i+'" data-axis="z"')
@@ -1302,15 +1325,20 @@ function renderPlanePointInputs(){
     render();
     scheduleRoomPlaneAutosave();
   }));
+  host.querySelectorAll('[data-remove-point]').forEach(button=>button.addEventListener('click',()=>removeCalibrationPoint(Number(button.dataset.removePoint))));
 }
 
 function renderFixtureRows(){
   ensureFixtureSelection();
+  const header=document.getElementById('fixtureHeaderRow');
+  header.innerHTML='<th>Edit</th><th>Select</th><th>Fixture</th><th>Calibration</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>'+points.map(point=>'<th>'+DmxCommon.escapeHtml(point.id)+' pan</th><th>'+DmxCommon.escapeHtml(point.id)+' tilt</th>').join('');
   const body=document.getElementById('fixtureRows');
   body.innerHTML=fixtures.map((f,i)=>{
     const live=fixtureControl(f);
-    const missing=points.filter(point=>!f.cal?.[point.id]?.calibrated).map(point=>point.id);
-    const calText=missing.length?'Missing '+missing.join(', '):'Calibrated';
+    const calibration=roomPlaneFixtureCalibrationStatus({points,target:currentTarget()},f);
+    const calText=calibration.valid
+      ? 'Calibrated · '+calibration.count+' points'+(calibration.missing.length?' · optional '+calibration.missing.join(', ')+' not taught':'')
+      : (calibration.message.startsWith('missing ')?'Missing '+calibration.message.slice(8):calibration.message);
     const controls=findFixtureControls(f);
     const channelText=controls.panTilt
       ? DmxCommon.panTiltDmxRows(controls.panTilt,live,rel=>absolute(f.start,rel)).map(row=>'ch '+row.ch).join(' / ')
@@ -1322,7 +1350,7 @@ function renderFixtureRows(){
       '<td><button type="button" data-edit-fixture="'+i+'" class="'+(editingFixtureIndex===i?'active':'')+'">'+(editingFixtureIndex===i?'Editing':'Edit')+'</button></td>',
       '<td><input type="checkbox" data-select-fixture="'+i+'" '+(selectedFixtureIds.has(fixtureSelectionKey(f,i))?'checked':'')+' aria-label="Select '+f.name+'"></td>',
       '<td><strong>'+DmxCommon.escapeHtml(f.name)+'</strong></td>',
-      '<td><span class="cal-state '+(missing.length?'cal-state--missing':'')+'">'+calText+'</span></td>',
+      '<td><span class="cal-state '+(calibration.valid?'':'cal-state--missing')+'">'+calText+'</span></td>',
       '<td data-live-pan="'+i+'">'+live.pan+'</td>',
       '<td data-live-tilt="'+i+'">'+live.tilt+'</td>',
       '<td data-live-dimmer="'+i+'">'+live.dimmer+'</td>',
@@ -1368,6 +1396,49 @@ function renderFixtureRows(){
 
 function currentTarget(){
   return {x:Number(document.getElementById('targetX').value)||0,y:Number(document.getElementById('targetY').value)||0,z:0};
+}
+
+function nextCalibrationPointId(){
+  const used=new Set(points.map(point=>String(point.id)));
+  for(let code=65;code<=90;code++){
+    const id=String.fromCharCode(code);
+    if(!used.has(id))return id;
+  }
+  let number=points.length+1;
+  while(used.has('P'+number))number++;
+  return 'P'+number;
+}
+
+function addCalibrationPoint(){
+  const target=currentTarget();
+  const duplicate=points.find(point=>Math.hypot(point.x-target.x,point.y-target.y)<1e-6);
+  if(duplicate){
+    setStatus('The target is already calibration point '+duplicate.id+'. Move the target before adding another point.',true);
+    return;
+  }
+  const id=nextCalibrationPointId();
+  points.push({id,x:target.x,y:target.y,z:target.z||0});
+  fixtures.forEach(fixture=>{
+    if(!fixture.cal)fixture.cal={};
+    const live=fixtureControl(fixture);
+    fixture.cal[id]={pan:Number(live.pan)||0,tilt:Number(live.tilt)||0,calibrated:false};
+  });
+  syncTables();
+  scheduleRoomPlaneAutosave();
+  setStatus('Added calibration point '+id+' at target X '+fmt(target.x,2)+' / Y '+fmt(target.y,2)+'. Teach it only for fixtures that need more accuracy.');
+}
+
+function removeCalibrationPoint(index){
+  if(points.length<=3){
+    setStatus('A Room Plane requires at least three calibration points',true);
+    return;
+  }
+  const [removed]=points.splice(index,1);
+  if(!removed)return;
+  fixtures.forEach(fixture=>{if(fixture.cal)delete fixture.cal[removed.id];});
+  syncTables();
+  scheduleRoomPlaneAutosave();
+  setStatus('Removed calibration point '+removed.id);
 }
 
 function setTarget(room,{autoApply=true,save=true}={}){
@@ -1435,8 +1506,8 @@ function openFixtureEditor(index){
     relativeStepValue:(axis,kind,step,limit)=>roomFixtureRelativeStepStore.value(stepScope,axis,kind,step,limit),
     onRelativeStepChange:(axis,kind,value,limit)=>roomFixtureRelativeStepStore.remember(stepScope,axis,kind,value,limit),
     actions:[
-      ...points.map(point=>({id:'recall-'+point.id,label:'Recall '+point.id,className:'success'})),
-      ...points.map(point=>({id:'store-'+point.id,label:'Store '+point.id,className:'warn'}))
+      ...points.map(point=>({id:'recall-'+point.id,label:'Recall '+point.id,className:'success',group:'recall'})),
+      ...points.map(point=>({id:'store-'+point.id,label:'Store '+point.id,className:'warn',group:'store'}))
     ],
     onChange(next){
       f.control={...next};
@@ -1501,20 +1572,11 @@ function openFixtureEditor(index){
 }
 
 function barycentric(target){
-  const [a,b,c]=points;
-  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-  const wC=1-wA-wB;
-  return {valid:true,wA,wB,wC};
+  return DmxCommon.roomPlaneWeights({points,target},target);
 }
 
 function interpolateFixture(f,weights){
-  if(points.some(point=>!f.cal?.[point.id]?.calibrated))return null;
-  const pan=weights.wA*f.cal.A.pan+weights.wB*f.cal.B.pan+weights.wC*f.cal.C.pan;
-  const tilt=weights.wA*f.cal.A.tilt+weights.wB*f.cal.B.tilt+weights.wC*f.cal.C.tilt;
-  return {pan,tilt};
+  return DmxCommon.roomPlaneInterpolateFixture({points,target:weights?.target||currentTarget()},f,weights);
 }
 
 function autoPlaneBounds(){
@@ -1598,12 +1660,14 @@ function renderPlane(target,weights){
   const rect=pad.getBoundingClientRect();
   const screens=points.map(p=>toScreen(p,bounds,rect));
   const triangle=document.getElementById('planeTriangle');
-  triangle.style.setProperty('--ax',screens[0].x+'%');
-  triangle.style.setProperty('--ay',screens[0].y+'%');
-  triangle.style.setProperty('--bx',screens[1].x+'%');
-  triangle.style.setProperty('--by',screens[1].y+'%');
-  triangle.style.setProperty('--cx',screens[2].x+'%');
-  triangle.style.setProperty('--cy',screens[2].y+'%');
+  const activeScreens=(weights.ids||[]).map(id=>screens[points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean);
+  const triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
+  triangle.style.setProperty('--ax',triangleScreens[0].x+'%');
+  triangle.style.setProperty('--ay',triangleScreens[0].y+'%');
+  triangle.style.setProperty('--bx',triangleScreens[1].x+'%');
+  triangle.style.setProperty('--by',triangleScreens[1].y+'%');
+  triangle.style.setProperty('--cx',triangleScreens[2].x+'%');
+  triangle.style.setProperty('--cy',triangleScreens[2].y+'%');
   screens.forEach((s,i)=>{
     const el=document.createElement('div');
     el.className='plane-point';
@@ -1629,8 +1693,7 @@ function renderPlane(target,weights){
     pad.appendChild(el);
     drawLine(pad,s,targetScreen);
   });
-  const inside=weights.valid&&weights.wA>=-0.001&&weights.wB>=-0.001&&weights.wC>=-0.001;
-  document.getElementById('insideReadout').textContent='Inside plane: '+(inside?'yes':'no');
+  document.getElementById('insideReadout').textContent='Inside plane: '+(weights.valid&&weights.inside?'yes':'no');
 }
 
 function updateFixturePositionInputs(index){
@@ -1642,7 +1705,7 @@ function render(){
   const target=currentTarget();
   const weights=barycentric(target);
   document.getElementById('weightReadout').textContent=weights.valid
-    ? 'Weights: A '+fmt(weights.wA,3)+' · B '+fmt(weights.wB,3)+' · C '+fmt(weights.wC,3)
+    ? 'Weights: '+weights.ids.map((id,index)=>id+' '+fmt(weights.values[index],3)).join(' · ')
     : 'Weights: invalid';
   renderPlane(target,weights);
 }
@@ -1666,7 +1729,7 @@ async function applyTargetToSelectedFixtures({silent=false}={}){
     const f=fixtures[index];
     const out=interpolateFixture(f,weights);
     if(!out){
-      errors.push(f.name+': calibration incomplete');
+      errors.push(f.name+': at least three non-collinear calibration points required');
       continue;
     }
     const next={...fixtureControl(f),pan:Math.round(out.pan),tilt:Math.round(out.tilt)};
@@ -1743,7 +1806,7 @@ function resetAllCalibration(){
   renderPlaneSelect();
   render();
   scheduleRoomPlaneAutosave({preserveSavedPlanes:true});
-  setStatus('Calibration reset and saved plane deselected. Store A, B, and C for each fixture before using plane output.');
+  setStatus('Calibration reset and saved plane deselected. Store at least three non-collinear points for each fixture before using plane output.');
 }
 
 function syncTables(){
@@ -2001,6 +2064,7 @@ document.getElementById('planeName')?.addEventListener('input',()=>{renderPlaneS
 document.getElementById('planeSelect')?.addEventListener('change',event=>recallPlaneDefinition(event.target.value));
 document.getElementById('planeCols').addEventListener('input',event=>{planeCols=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
 document.getElementById('planeRows').addEventListener('input',event=>{planeRows=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
+document.getElementById('addCalibrationPoint').onclick=addCalibrationPoint;
 document.getElementById('resetCalibration').onclick=()=>resetAllCalibration();
 document.getElementById('closeGroupModal').onclick=closeRoomGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeRoomGroupModal;

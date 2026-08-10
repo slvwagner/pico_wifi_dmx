@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
-<script src="assets/dmx-common.js?v=1.2.1-18"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
+<script src="assets/dmx-common.js?v=1.2.1-22"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -3063,21 +3063,10 @@ let showPlaneTargetDrag=null;
 let showPlaneViewDrag=null;
 function cloneShowPlane(plane){return JSON.parse(JSON.stringify(plane));}
 function showPlaneWeights(plane,target=plane.target){
-  const [a,b,c]=plane.points;
-  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-  return {valid:true,wA,wB,wC:1-wA-wB};
+  return DmxCommon.roomPlaneWeights(plane,target);
 }
 function showPlaneInterpolateFixture(plane,fixture,weights){
-  if(!weights.valid)return null;
-  const ids=plane.points.map(point=>point.id);
-  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
-  return {
-    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
-  };
+  return DmxCommon.roomPlaneInterpolateFixture(plane,fixture,weights);
 }
 function showPlaneAutoBounds(plane){
   const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
@@ -3234,13 +3223,16 @@ function renderShowPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=showPlaneBounds(plane);
   const screens=plane.points.map(point=>showPlaneToScreen(point,bounds,rect));
+  const weights=showPlaneWeights(plane);
+  const activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean);
+  const triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('showPlaneTriangle');
-  triangle.style.setProperty('--ax',screens[0].x+'%');
-  triangle.style.setProperty('--ay',screens[0].y+'%');
-  triangle.style.setProperty('--bx',screens[1].x+'%');
-  triangle.style.setProperty('--by',screens[1].y+'%');
-  triangle.style.setProperty('--cx',screens[2].x+'%');
-  triangle.style.setProperty('--cy',screens[2].y+'%');
+  triangle.style.setProperty('--ax',triangleScreens[0].x+'%');
+  triangle.style.setProperty('--ay',triangleScreens[0].y+'%');
+  triangle.style.setProperty('--bx',triangleScreens[1].x+'%');
+  triangle.style.setProperty('--by',triangleScreens[1].y+'%');
+  triangle.style.setProperty('--cx',triangleScreens[2].x+'%');
+  triangle.style.setProperty('--cy',triangleScreens[2].y+'%');
   screens.forEach((screen,index)=>{
     const el=document.createElement('div');
     el.className='show-plane-point';
@@ -3271,7 +3263,7 @@ function renderShowPlaneModal(){
   const selected=showPlaneTargetIds();
   const weights=showPlaneWeights(plane);
   document.getElementById('showPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('showPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' - selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' - weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('showPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' - selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' - weights '+DmxCommon.roomPlaneWeightText(weights);
   const list=document.getElementById('showPlaneFixtures');
   list.innerHTML=plane.fixtures.map(fixture=>{
     const selectedClass=selected.has(String(fixture.id))?' selected':'';
@@ -3332,7 +3324,7 @@ async function sendShowPlaneLiveTarget(){
   if(!plane)return {applied:0,errors:['No plane selected']};
   const weights=showPlaneWeights(plane);
   if(!weights.valid){
-    setStatus('Cannot send plane because A/B/C are invalid',true);
+    setStatus('Cannot send plane because it needs at least three non-collinear points',true);
     return {applied:0,errors:['Invalid plane']};
   }
   const selected=showPlaneTargetIds();
@@ -3346,7 +3338,7 @@ async function sendShowPlaneLiveTarget(){
     if(!planeFixture){errors.push((currentFixture.name||currentFixture.id)+': not saved in plane');continue;}
     if(!control){errors.push((currentFixture.name||currentFixture.id)+': no Pan/Tilt control');continue;}
     const out=showPlaneInterpolateFixture(plane,planeFixture,weights);
-    if(!out){errors.push((currentFixture.name||currentFixture.id)+': calibration incomplete');continue;}
+    if(!out){errors.push((currentFixture.name||currentFixture.id)+': fewer than three usable calibration points');continue;}
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     patch[controlKey(currentFixture,control)]=cloneValue(getValue(currentFixture,control,defaultValueForControl(control)));
