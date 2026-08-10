@@ -24,6 +24,10 @@ Changed:
 
 Fixed:
 
+- Fixed fixture-to-target guide lines in every Recall Plane modal when its
+  whiteboard changes size or aspect ratio. Controller, Chaser, Effects, and
+  Show Run now use the same pixel-correct line renderer and redraw whenever
+  their Plane canvas is resized.
 - Fixed VS Code losing the Pico executable target whenever CMake Tools was
   reloaded. The workspace now configures CMake on open without waiting on
   Pico-extension command substitutions, and the malformed Cortex-Debug launch

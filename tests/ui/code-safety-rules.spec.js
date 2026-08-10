@@ -17,6 +17,23 @@ test.describe('Code safety regression rules', () => {
     expect(kits).not.toContain('${command:raspberry-pi-pico.');
   });
 
+  test('every Plane canvas redraws aspect-correct fixture guide lines after resizing', () => {
+    const common = read('web/assets/dmx-common.js');
+    expect(common).toContain('function drawRoomPlaneLine');
+    expect(common).toContain("line.style.width=Math.sqrt(dx*dx+dy*dy)+'px'");
+
+    for (const page of [
+      ['web/dmx_fixture_controller.html', 'controllerPlanePad', 'queueControllerPlaneRender'],
+      ['web/dmx_chaser.html', 'chaserPlanePad', 'queueChaserPlaneRender'],
+      ['web/dmx_motion.html', 'motionPlanePad', 'queueMotionPlaneRender'],
+      ['web/dmx_show.html', 'showPlanePad', 'queueShowPlaneRender']
+    ]) {
+      const source = read(page[0]);
+      expect(source, page[0]).toContain('DmxCommon.drawRoomPlaneLine');
+      expect(source, page[0]).toContain(`DmxCommon.observeElementResize(${page[1]},${page[2]})`);
+    }
+  });
+
   test('all application pages use one shared cache version for common JavaScript and CSS assets', async () => {
     const webRoot = path.join(root, 'web');
     const pages = fs.readdirSync(webRoot)

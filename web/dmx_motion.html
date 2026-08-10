@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-24"></script>
+<script src="assets/dmx-common.js?v=1.3.0-25"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -2845,13 +2845,6 @@ function nudgeMotionPlaneTarget(axis,dir,kind){
   setMotionPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
 }
-function motionPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.className='controller-plane-line';
-  line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderMotionPlanePreview(){
   const plane=activeMotionPlane;
   const pad=document.getElementById('motionPlanePad');
@@ -2876,7 +2869,7 @@ function renderMotionPlanePreview(){
     const point=document.createElement('div');
     point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
     point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
-    motionPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen);
   });
 }
 function renderMotionPlaneModal(){
@@ -2950,7 +2943,9 @@ document.getElementById('motionPlaneZoomIn').onclick=()=>zoomMotionPlaneView(1.2
 document.getElementById('motionPlaneZoomOut').onclick=()=>zoomMotionPlaneView(1/1.25);
 document.getElementById('motionPlaneResetView').onclick=resetMotionPlaneView;
 document.getElementById('motionPlanePanView').onclick=()=>setMotionPlanePanMode(!motionPlanePanMode);
-document.getElementById('motionPlanePad').addEventListener('pointerdown',event=>{
+const motionPlanePad=document.getElementById('motionPlanePad');
+DmxCommon.observeElementResize(motionPlanePad,queueMotionPlaneRender);
+motionPlanePad.addEventListener('pointerdown',event=>{
   if(!activeMotionPlane)return;
   event.preventDefault();
   const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=motionPlaneBounds(activeMotionPlane);

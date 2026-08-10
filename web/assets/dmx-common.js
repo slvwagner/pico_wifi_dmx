@@ -4119,6 +4119,33 @@
     return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
   }
 
+  function drawRoomPlaneLine(host,a,b,className='controller-plane-line'){
+    if(!host||!a||!b)return null;
+    const line=document.createElement('div');
+    const width=Math.max(1,host.clientWidth||host.getBoundingClientRect?.().width||1);
+    const height=Math.max(1,host.clientHeight||host.getBoundingClientRect?.().height||1);
+    const dx=(Number(b.x)-Number(a.x))*width/100;
+    const dy=(Number(b.y)-Number(a.y))*height/100;
+    line.className=className;
+    line.style.left=Number(a.x)+'%';
+    line.style.top=Number(a.y)+'%';
+    line.style.width=Math.sqrt(dx*dx+dy*dy)+'px';
+    line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+    host.appendChild(line);
+    return line;
+  }
+
+  function observeElementResize(element,callback){
+    if(!element||typeof callback!=='function')return null;
+    if(window.ResizeObserver){
+      const observer=new ResizeObserver(()=>callback());
+      observer.observe(element);
+      return observer;
+    }
+    window.addEventListener('resize',callback);
+    return {disconnect:()=>window.removeEventListener('resize',callback)};
+  }
+
   function initSavedPlaneToolbox(options){
     const maxGrid=options.maxGrid||16;
     let moveMode=false;
@@ -4706,6 +4733,8 @@
     roomPlaneInterpolateFixture,
     roomPlaneWeightText,
     roomPlaneAutoBounds,
+    drawRoomPlaneLine,
+    observeElementResize,
     initSavedPlaneToolbox,
     panTiltMax,
     panTiltDefault,

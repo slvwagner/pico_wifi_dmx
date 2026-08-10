@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-24"></script>
+<script src="assets/dmx-common.js?v=1.3.0-25"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -3452,16 +3452,6 @@ function nudgeShowPlaneTarget(axis,dir,kind){
   setShowPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' - live output updating');
 }
-function showPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  line.className='show-plane-line';
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.style.left=a.x+'%';
-  line.style.top=a.y+'%';
-  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
-  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderShowPlanePreview(){
   const plane=activeShowPlane;
   const pad=document.getElementById('showPlanePad');
@@ -3502,7 +3492,7 @@ function renderShowPlanePreview(){
     el.style.left=screen.x+'%';
     el.style.top=screen.y+'%';
     pad.appendChild(el);
-    showPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen,'show-plane-line');
   });
 }
 function renderShowPlaneModal(){
@@ -3620,6 +3610,7 @@ document.getElementById('showPlaneZoomOut')?.addEventListener('click',()=>zoomSh
 document.getElementById('showPlaneResetView')?.addEventListener('click',()=>resetShowPlaneView());
 document.getElementById('showPlanePanView')?.addEventListener('click',()=>setShowPlanePanMode(!showPlanePanMode));
 const showPlanePad=document.getElementById('showPlanePad');
+DmxCommon.observeElementResize(showPlanePad,queueShowPlaneRender);
 let showPlanePinchTarget=null;
 DmxCommon.initPinchZoom(showPlanePad,{
   getZoom:()=>showPlaneView.zoom,

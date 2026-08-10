@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.3.0">
 <link rel="manifest" href="assets/manifest.webmanifest?v=1.3.0">
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-24"></script>
+<script src="assets/dmx-common.js?v=1.3.0-25"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -6650,16 +6650,6 @@ function nudgeControllerPlaneTarget(axis,dir,kind){
   setControllerPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
 }
-function controllerPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  line.className='controller-plane-line';
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.style.left=a.x+'%';
-  line.style.top=a.y+'%';
-  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
-  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderControllerPlanePreview(){
   const plane=activeControllerPlane;
   const pad=document.getElementById('controllerPlanePad');
@@ -6700,7 +6690,7 @@ function renderControllerPlanePreview(){
     el.style.left=screen.x+'%';
     el.style.top=screen.y+'%';
     pad.appendChild(el);
-    controllerPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen);
   });
 }
 function renderControllerPlaneModal(){
@@ -6869,6 +6859,7 @@ document.getElementById('controllerPlanePanView').onclick=()=>setControllerPlane
 let controllerPlaneTargetDrag=null;
 let controllerPlaneViewDrag=null;
 const controllerPlanePad=document.getElementById('controllerPlanePad');
+DmxCommon.observeElementResize(controllerPlanePad,queueControllerPlaneRender);
 let controllerPlanePinchTarget=null;
 DmxCommon.initPinchZoom(controllerPlanePad,{
   getZoom:()=>controllerPlaneView.zoom,
