@@ -155,6 +155,9 @@ test.describe('Cross-page Group Edit contract', () => {
   test('Show: offers the same optional color and 8-bit/16-bit Group Edit merge', async ({ page }) => {
     await routeControllerCompactServerSetup(page);
     await openDmxPage(page, 'dmx_show.html');
+    await page.evaluate(async () => {
+      if (showLoadPromise) await showLoadPromise;
+    });
     await page.evaluate(() => {
       profiles = [
         { id: 1, name: 'A', channels: 9, controls: [
