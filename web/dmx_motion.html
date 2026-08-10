@@ -183,8 +183,10 @@ main{max-width:none;width:100%;margin:0}
       <select id="effectType">
         <option value="circle">Circle</option>
         <option value="figure8">Figure-8</option>
-        <option value="panSwing">Pan Swing</option>
-        <option value="tiltSwing">Tilt Swing</option>
+        <option value="panSwing">Pan Sine Wave</option>
+        <option value="tiltSwing">Tilt Sine Wave</option>
+        <option value="panPulse">Pan Pulse</option>
+        <option value="tiltPulse">Tilt Pulse</option>
         <option value="sine">Sine</option>
         <option value="pulse">Pulse</option>
       </select>
@@ -476,8 +478,10 @@ function relativeStepFromButton(button){
 const EFFECTS={
   circle:{label:'Circle',target:'panTilt'},
   figure8:{label:'Figure-8',target:'panTilt'},
-  panSwing:{label:'Pan Swing',target:'panTilt'},
-  tiltSwing:{label:'Tilt Swing',target:'panTilt'},
+  panSwing:{label:'Pan Sine Wave',target:'panTilt'},
+  tiltSwing:{label:'Tilt Sine Wave',target:'panTilt'},
+  panPulse:{label:'Pan Pulse',target:'panTilt'},
+  tiltPulse:{label:'Tilt Pulse',target:'panTilt'},
   sine:{label:'Sine',target:'scalar'},
   pulse:{label:'Pulse',target:'scalar'}
 };
@@ -514,8 +518,8 @@ function effectAxisMode(){
   if(family==='scalar')return'scalar';
   if(family!=='panTilt')return'none';
   const type=document.getElementById('effectType')?.value||'';
-  if(type==='panSwing')return'pan';
-  if(type==='tiltSwing')return'tilt';
+  if(type==='panSwing'||type==='panPulse')return'pan';
+  if(type==='tiltSwing'||type==='tiltPulse')return'tilt';
   return'both';
 }
 function axisModeShowsPan(mode){
@@ -1132,6 +1136,8 @@ function effectOffset(t,type){
     case 'figure8':  return{pan:Math.sin(t),tilt:Math.sin(2*t)};
     case 'panSwing': return{pan:Math.sin(t),tilt:0};
     case 'tiltSwing':return{pan:0,tilt:Math.sin(t)};
+    case 'panPulse': return{pan:Math.sin(t)>=0?1:-1,tilt:0};
+    case 'tiltPulse':return{pan:0,tilt:Math.sin(t)>=0?1:-1};
     case 'sine':     return{pan:Math.sin(t),tilt:Math.sin(t)};
     case 'pulse':    return{pan:Math.sin(t)>=0?1:-1,tilt:Math.sin(t)>=0?1:-1};
     default:         return{pan:0,tilt:0};
@@ -1467,7 +1473,7 @@ updateBrowserMotionButtons();
 window.addEventListener('resize',drawPathPreview);
 
 // ---- Pico Effects ----
-const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
+const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5,panPulse:6,tiltPulse:7};
 function serializeMotionForPico(outputId=null){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
@@ -1510,7 +1516,7 @@ function serializeMotionForPico(outputId=null){
 }
 
 let picoMotionTimer=null;
-const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing','Sine','Pulse'];
+const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Sine Wave','Tilt Sine Wave','Sine','Pulse','Pan Pulse','Tilt Pulse'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
 let _lastPausedMask=0;

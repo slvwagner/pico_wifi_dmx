@@ -860,8 +860,43 @@ test.describe('Effects established rules', () => {
       return { panOptions, scalarOptions };
     });
 
-    expect(result.panOptions).toEqual(['circle', 'figure8', 'panSwing', 'tiltSwing']);
+    expect(result.panOptions).toEqual(['circle', 'figure8', 'panSwing', 'tiltSwing', 'panPulse', 'tiltPulse']);
     expect(result.scalarOptions).toEqual(['sine', 'pulse']);
+  });
+
+  test('pan and tilt pulse effects preview and upload only their selected axis', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(pan.control));
+      const effect = document.getElementById('effectType');
+      const sample = type => {
+        effect.value = type;
+        effect.dispatchEvent(new Event('change'));
+        return {
+          offsetHigh: effectOffset(Math.PI / 2, type),
+          offsetLow: effectOffset(3 * Math.PI / 2, type),
+          typeLine: serializeMotionForPico().split('\n').find(line => line.startsWith('TYPE ')),
+          amp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
+          amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+        };
+      };
+      return { panPulse: sample('panPulse'), tiltPulse: sample('tiltPulse') };
+    });
+
+    expect(result.panPulse).toMatchObject({
+      offsetHigh: { pan: 1, tilt: 0 },
+      offsetLow: { pan: -1, tilt: 0 },
+      typeLine: 'TYPE 6',
+      amp2: 'AMP2 0.000000'
+    });
+    expect(result.panPulse.amp1).not.toBe('AMP1 0.000000');
+    expect(result.tiltPulse).toMatchObject({
+      offsetHigh: { pan: 0, tilt: 1 },
+      offsetLow: { pan: 0, tilt: -1 },
+      typeLine: 'TYPE 7',
+      amp1: 'AMP1 0.000000'
+    });
+    expect(result.tiltPulse.amp2).not.toBe('AMP2 0.000000');
   });
 
   test('scalar targets show one amplitude slider and force hidden tilt amplitude to zero', async ({ page }) => {

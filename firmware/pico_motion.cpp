@@ -273,6 +273,8 @@ static void effect_offset(float t, mfx_type_t type, float *a, float *b)
         case MFX_TILT_SWING: *a = 0.0f; *b = sinf(t); break;
         case MFX_SINE:       *a = sinf(t); *b = 0.0f; break;
         case MFX_PULSE:      *a = sinf(t) >= 0.0f ? 1.0f : -1.0f; *b = 0.0f; break;
+        case MFX_PAN_PULSE:  *a = sinf(t) >= 0.0f ? 1.0f : -1.0f; *b = 0.0f; break;
+        case MFX_TILT_PULSE: *a = 0.0f; *b = sinf(t) >= 0.0f ? 1.0f : -1.0f; break;
         default:             *a = 0.0f; *b = 0.0f; break;
     }
 }
@@ -375,8 +377,8 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             float half = t->max_val / 2.0f;
 
             if (target_is_pantilt(t)) {
-                bool moves_1 = (sn->type != MFX_TILT_SWING);
-                bool moves_2 = (sn->type != MFX_PAN_SWING);
+                bool moves_1 = (sn->type != MFX_TILT_SWING && sn->type != MFX_TILT_PULSE);
+                bool moves_2 = (sn->type != MFX_PAN_SWING && sn->type != MFX_PAN_PULSE);
                 if (moves_1) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
                                                     : (float)dmx_engine_get_base_channel(t->ch1);

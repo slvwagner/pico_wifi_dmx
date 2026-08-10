@@ -33,6 +33,9 @@ Changed:
 - Documented autonomous Pico Effects interpolation and DMX output timing,
   including the number of calculated and transmitted positions per BPM-timed
   cycle and practical guidance for smooth 16-bit Pan/Tilt movement.
+- Added Pan Pulse and Tilt Pulse effects for Pan/Tilt targets. Existing Pan
+  Swing and Tilt Swing effects are now labelled Pan Sine Wave and Tilt Sine
+  Wave while retaining their saved-effect and Pico-slot compatibility.
 
 Fixed:
 

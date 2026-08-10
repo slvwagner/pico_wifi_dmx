@@ -17,6 +17,8 @@ typedef enum {
     MFX_TILT_SWING = 3,
     MFX_SINE       = 4,
     MFX_PULSE      = 5,
+    MFX_PAN_PULSE  = 6,
+    MFX_TILT_PULSE = 7,
 } mfx_type_t;
 
 typedef enum {

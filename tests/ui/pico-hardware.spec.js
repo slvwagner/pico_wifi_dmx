@@ -409,6 +409,59 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await waitForSlot(request, 'motion', slot, s => !s.active);
   });
 
+  test('Pan and Tilt Pulse drive only the selected axis', async ({ request }) => {
+    const slot = Number(hardware.motionSlot);
+    const channels = hardware.dmxTestChannels || [];
+    test.skip(channels.length < 2, 'Two configured DMX test channels are required for Pan/Tilt Pulse');
+    const panChannel = Number(channels[0]);
+    const tiltChannel = Number(channels[1]);
+    const target = type => [
+      'FX 1',
+      `TYPE ${type}`,
+      'BPM 60',
+      'AMP1 0.25',
+      'AMP2 0.25',
+      'SPREAD 0',
+      `TARGET pantilt8 1 ${panChannel} 0 ${tiltChannel} 0 0 0 0`,
+      'END'
+    ].join('\n');
+    const samplePulse = async type => {
+      await postText(request, '/motion/load/' + slot, target(type));
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(150);
+      const high = await getJson(request, '/dmx/output.json');
+      await sleep(500);
+      const low = await getJson(request, '/dmx/output.json');
+      await getJson(request, '/motion/stop/' + slot);
+      return {
+        high: { pan: high.values[panChannel - 1], tilt: high.values[tiltChannel - 1] },
+        low: { pan: low.values[panChannel - 1], tilt: low.values[tiltChannel - 1] }
+      };
+    };
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await getJson(request, '/dmx/clear');
+    await postText(request, '/dmx/b', `${panChannel}:128,${tiltChannel}:128`);
+    try {
+      const panPulse = await samplePulse(6);
+      expect(panPulse.high.pan).toBeGreaterThan(128);
+      expect(panPulse.low.pan).toBeLessThan(128);
+      expect(panPulse.high.tilt).toBe(128);
+      expect(panPulse.low.tilt).toBe(128);
+
+      const tiltPulse = await samplePulse(7);
+      expect(tiltPulse.high.tilt).toBeGreaterThan(128);
+      expect(tiltPulse.low.tilt).toBeLessThan(128);
+      expect(tiltPulse.high.pan).toBe(128);
+      expect(tiltPulse.low.pan).toBe(128);
+    } finally {
+      await getJson(request, '/motion/stop/' + slot).catch(() => {});
+      await getJson(request, '/motion/clear/' + slot).catch(() => {});
+      await getJson(request, '/dmx/clear').catch(() => {});
+    }
+  });
+
   test('Motion pause holds the current phase and resume continues from it', async ({ request }) => {
     const slot = Number(hardware.motionSlot);
     const channel = (hardware.dmxTestChannels || [1])[0];

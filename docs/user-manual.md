@@ -1006,7 +1006,7 @@ The Effects page combines participating-fixture cards and effect parameters with
 
 Supported effects include:
 
-- Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing
+- Pan/tilt targets: Circle, Figure-8, Pan Sine Wave, Tilt Sine Wave, Pan Pulse, Tilt Pulse
 - Scalar targets: Sine, Pulse
 
 Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth. Browser playback is only an overlay for testing; when you press **Stop**, Effects restores the stored base values to the output so the last moving effect position does not become the next center.
@@ -1036,7 +1036,7 @@ The fixture matrix is a selection and preview surface:
 - Pan/tilt targets show a small XY plot with the current position.
 - Scalar targets show a small value bar with the current value.
 
-Center values come from the current base buffer or from recalling a scene as the effect center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show **Pan amp** and **Tilt amp**. Pan Swing shows only **Pan amp**. Tilt Swing shows only **Tilt amp**. Scalar effects show one **Amplitude** slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.
+Center values come from the current base buffer or from recalling a scene as the effect center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show **Pan amp** and **Tilt amp**. Pan Sine Wave and Pan Pulse show only **Pan amp**; Tilt Sine Wave and Tilt Pulse show only **Tilt amp**. The sine-wave effects move smoothly between both amplitude limits, while Pulse switches directly between them once per half-cycle. Scalar effects show one **Amplitude** slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
@@ -1114,7 +1114,7 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 ![Effects Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
-**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, play mode, Loop N count, amplitude, phase spread, phase-preserving browser pause/resume controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one **Amplitude** control.
+**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, play mode, Loop N count, amplitude, phase spread, phase-preserving browser pause/resume controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan/Tilt Sine Wave and Pulse show only the moving axis, and scalar targets show one **Amplitude** control.
 
 **Single** runs one complete BPM-timed cycle, **Loop** runs until stopped, and **Loop N** runs the selected number of complete cycles. When autonomous Single or Loop N playback completes, the Pico stops the slot and returns channels no longer used by another Effect to their current scene/base values. This prevents the last generated position or level from remaining frozen after the finite Effect has ended.
 
