@@ -81,6 +81,13 @@ test.describe('Pico Performance Test established rules', () => {
       contentType: 'application/json',
       body: '{"ok":true}'
     }));
+    for (const cleanupPath of ['chaser/stop', 'motion/stop', 'dmx/master/clear', 'dmx/blackout/clear', 'dmx/clear']) {
+      await page.route(`http://127.0.0.1:18992/${cleanupPath}`, route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true}'
+      }));
+    }
     const values = Array.from({ length: 512 }, () => 73);
     await page.route('http://127.0.0.1:18992/dmx/output.json', route => route.fulfill({
       status: 200,
@@ -95,6 +102,11 @@ test.describe('Pico Performance Test established rules', () => {
   });
 
   test('checks Pico logs and buffer readback from the configured base URL', async ({ page }) => {
+    const picoRequests = [];
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (url.origin === 'http://127.0.0.1:18992') picoRequests.push(url.pathname);
+    });
     await openDmxPage(page, 'test/');
     await expect(page.locator('header h1')).toContainText('Pico Performance Test');
     await expect(page.locator('#connectionTimingPanel + #timingHistoryPanel')).toBeVisible();
@@ -124,6 +136,23 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
+    await expect(page.locator('#status')).toContainText('Playback stopped and DMX output cleared');
+    const finalWriteIndex = picoRequests.lastIndexOf('/dmx/b');
+    for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+      expect(picoRequests.lastIndexOf(cleanupPath)).toBeGreaterThan(finalWriteIndex);
+    }
+
+    const writeTestStart = picoRequests.length;
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#durationSec').fill('0');
+    await page.locator('#btnStart').click();
+    await expect(page.locator('#btnStart')).toBeEnabled();
+    await expect(page.locator('#status')).toContainText('DMX write test complete. Playback stopped and DMX output cleared');
+    const writeTestRequests = picoRequests.slice(writeTestStart);
+    const loadWriteIndex = Math.max(writeTestRequests.lastIndexOf('/dmx/set'), writeTestRequests.lastIndexOf('/dmx/b'));
+    for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+      expect(writeTestRequests.lastIndexOf(cleanupPath)).toBeGreaterThan(loadWriteIndex);
+    }
   });
 
   test('fails clearly when the Pico firmware version does not match the deployed application', async ({ page }) => {
@@ -287,6 +316,10 @@ test.describe('Pico Performance Test established rules', () => {
       expect(paths).toContain('/dmx/output.json');
       expect(paths).toContain('/dmx/base');
       expect(paths).toContain('/dmx/b');
+      const finalWriteIndex = paths.lastIndexOf('/dmx/b');
+      for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+        expect(paths.lastIndexOf(cleanupPath)).toBeGreaterThan(finalWriteIndex);
+      }
     }
   });
 
@@ -436,6 +469,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.evaluate(() => window.__emitMidiLatency([0xb0, 21, 100]));
     await expect(page.locator('#midiLatencyResultsBody tr')).toHaveCount(2);
     await expect(page.locator('#midiLatencyStatus')).toContainText('Complete');
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Playback stopped and DMX output cleared');
     await expect(page.locator('#midiLatencyMedian')).not.toHaveText('—');
     await expect(page.locator('#midiLatencyP95')).not.toHaveText('—');
     await expect(page.locator('#midiLatencyTransportP95')).not.toHaveText('—');
@@ -711,6 +745,74 @@ test.describe('Pico Performance Test established rules', () => {
     });
   });
 
+  test('runs playback plus palette stress with fully occupied slots without replacing show data', async ({ page }) => {
+    const loadedRequests = [];
+    const playbackRequests = [];
+    const clearRequests = [];
+    const uiStatePosts = [];
+    const state = {
+      chaserSlots: [
+        { slot: 0, loaded: true, active: true, step_count: 2 },
+        { slot: 1, loaded: true, active: true, step_count: 3 }
+      ],
+      motionSlots: [
+        { slot: 0, loaded: true, active: true, target_count: 8 },
+        { slot: 1, loaded: true, active: true, target_count: 4 }
+      ]
+    };
+    await page.route('**/ui_state.php', async route => {
+      if (route.request().method() === 'POST') {
+        uiStatePosts.push(route.request().postDataJSON());
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true,"exists":false,"state":{}}'
+      });
+    });
+    await page.route('http://127.0.0.1:18992/chaser/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: state.chaserSlots })
+    }));
+    await page.route('http://127.0.0.1:18992/motion/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: state.motionSlots })
+    }));
+    await page.route(/http:\/\/127\.0\.0\.1:18992\/(chaser|motion)\/(load|play|start|stop).*/, route => {
+      const url = route.request().url();
+      if (/\/load\//.test(url)) loadedRequests.push(url);
+      if (/\/(play|start)\//.test(url)) playbackRequests.push(url);
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/127\.0\.0\.1:18992\/(chaser|motion)\/clear\/.*/, route => {
+      clearRequests.push(route.request().url());
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/dmx/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    await page.route('http://127.0.0.1:18992/dmx/master/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    await page.route('http://127.0.0.1:18992/dmx/blackout/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#btnRunPlaybackPaletteStress').click();
+
+    await expect(page.locator('#btnRunPlaybackPaletteStress')).toBeEnabled({ timeout: 15000 });
+    await expect(page.locator('#status')).toContainText('Playback stopped and DMX output cleared');
+    await expect(page.locator('#checkWrite .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkWrite .check-detail')).toContainText('2 chaser and 2 effect slots');
+    expect(loadedRequests).toEqual([]);
+    expect(clearRequests).toEqual([]);
+    expect(uiStatePosts).toEqual([]);
+    expect(playbackRequests).toEqual([
+      'http://127.0.0.1:18992/chaser/play/0',
+      'http://127.0.0.1:18992/chaser/play/1',
+      'http://127.0.0.1:18992/motion/start/0',
+      'http://127.0.0.1:18992/motion/start/1'
+    ]);
+  });
+
   test('clears recorded temporary stress slots before starting a new stress run', async ({ page }) => {
     const clearRequests = [];
     const uiStatePosts = [];
@@ -777,5 +879,98 @@ test.describe('Pico Performance Test established rules', () => {
       'http://127.0.0.1:18992/chaser/clear/1',
       'http://127.0.0.1:18992/motion/clear/1'
     ]);
+  });
+
+  test('cleans temporary stress slots on the recorded second Pico and retries a transient failure', async ({ page }) => {
+    const clearRequests = [];
+    let secondPicoChaserAttempts = 0;
+    const secondPicoSlots = {
+      chaser: [{ slot: 1, loaded: true }],
+      motion: [{ slot: 1, loaded: true }]
+    };
+
+    await page.route(/http:\/\/(127\.0\.0\.1:18992|second-pico\.test)\/(chaser|motion)\/clear\/1/, route => {
+      const url = route.request().url();
+      clearRequests.push(url);
+      if (url === 'http://second-pico.test/chaser/clear/1') {
+        secondPicoChaserAttempts += 1;
+        if (secondPicoChaserAttempts === 1) {
+          return route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });
+        }
+      }
+      const kind = url.includes('/chaser/') ? 'chaser' : 'motion';
+      secondPicoSlots[kind][0].loaded = false;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/second-pico\.test\/(chaser|motion)\/slots/, route => {
+      const kind = route.request().url().includes('/chaser/') ? 'chaser' : 'motion';
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, slots: secondPicoSlots[kind] })
+      });
+    });
+    await page.route('**/ui_state.php', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: route.request().method() === 'POST' ? '{"ok":true}' : '{"ok":true,"exists":false,"state":{}}'
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.evaluate(() => clearRecordedStressSlots({
+      picoBaseUrl: 'http://second-pico.test/',
+      chaserSlots: [1],
+      motionSlots: [1]
+    }));
+
+    expect(clearRequests).toEqual([
+      'http://second-pico.test/chaser/clear/1',
+      'http://second-pico.test/motion/clear/1',
+      'http://second-pico.test/chaser/clear/1'
+    ]);
+  });
+
+  test('paces a large temporary-slot cleanup so the Pico can process every clear', async ({ page }) => {
+    const slots = {
+      chaser: [{ slot: 1, loaded: true }, { slot: 2, loaded: true }],
+      motion: [{ slot: 1, loaded: true }, { slot: 2, loaded: true }]
+    };
+    let lastAcceptedClearAt = 0;
+
+    await page.route(/http:\/\/paced-pico\.test\/(chaser|motion)\/clear\/[12]/, route => {
+      const now = Date.now();
+      if (now - lastAcceptedClearAt < 20) {
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });
+      }
+      lastAcceptedClearAt = now;
+      const url = route.request().url();
+      const kind = url.includes('/chaser/') ? 'chaser' : 'motion';
+      const slot = Number(url.split('/').at(-1));
+      slots[kind].find(candidate => candidate.slot === slot).loaded = false;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/paced-pico\.test\/(chaser|motion)\/slots/, route => {
+      const kind = route.request().url().includes('/chaser/') ? 'chaser' : 'motion';
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, slots: slots[kind] })
+      });
+    });
+    await page.route('**/ui_state.php', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: route.request().method() === 'POST' ? '{"ok":true}' : '{"ok":true,"exists":false,"state":{}}'
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.evaluate(() => clearRecordedStressSlots({
+      picoBaseUrl: 'http://paced-pico.test/',
+      chaserSlots: [1, 2],
+      motionSlots: [1, 2]
+    }));
+
+    expect(slots.chaser.every(slot => !slot.loaded)).toBe(true);
+    expect(slots.motion.every(slot => !slot.loaded)).toBe(true);
   });
 });

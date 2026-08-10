@@ -16,20 +16,25 @@ typedef struct {
     bool          active;
     bool          paused;
     mfx_type_t    type;
+    mfx_mode_t    mode;
     float         bpm;
     float         amp1;
     float         amp2;
+    float         pulse_offset;
+    float         pulse_direction;
     float         spread_deg;
     uint32_t      start_us;
     uint32_t      paused_elapsed_us;
     float         last_elapsed_s;
+    uint16_t      loop_count;
+    uint16_t      completed_loops;
     uint16_t      target_count;
     mfx_target_t  targets[MFX_MAX_TARGETS];
 } mfx_slot_data_t;
 
 typedef struct {
     mfx_type_t    type;
-    float         bpm, amp1, amp2, spread_deg, elapsed_s;
+    float         bpm, amp1, amp2, pulse_offset, pulse_direction, spread_deg, elapsed_s;
     int           enabled_count;
     uint16_t      target_count;
     mfx_target_t  targets[MFX_MAX_TARGETS];
@@ -38,11 +43,13 @@ typedef struct {
 static mfx_slot_data_t slot_data[MFX_MAX_SLOTS];
 static mfx_snap_t snaps[MFX_MAX_SLOTS];
 static mutex_t mfx_lock;
+static bool previously_touched[513];
 
 void mfx_init(void)
 {
     mutex_init(&mfx_lock);
     memset(slot_data, 0, sizeof(slot_data));
+    memset(previously_touched, 0, sizeof(previously_touched));
     slot_data[0].bpm  = 30.0f;
     slot_data[0].amp1 = 0.2f;
     slot_data[0].amp2 = 0.15f;
@@ -76,6 +83,8 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     tmp.bpm  = 30.0f;
     tmp.amp1 = 0.2f;
     tmp.amp2 = 0.15f;
+    tmp.mode = MFX_MODE_LOOP;
+    tmp.loop_count = 1;
 
     const char *p = body;
     const char *end = body + len;
@@ -95,12 +104,27 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
 
         if (strncmp(line, "TYPE ", 5) == 0) {
             tmp.type = (mfx_type_t)atoi(line + 5);
+        } else if (strncmp(line, "MODE ", 5) == 0) {
+            const char *mode = line + 5;
+            if (strcmp(mode, "single") == 0 || strcmp(mode, "once") == 0)
+                tmp.mode = MFX_MODE_SINGLE;
+            else if (strcmp(mode, "loop_n") == 0 || strcmp(mode, "loopn") == 0)
+                tmp.mode = MFX_MODE_LOOP_N;
+            else
+                tmp.mode = MFX_MODE_LOOP;
+        } else if (strncmp(line, "LOOPS ", 6) == 0) {
+            int loops = atoi(line + 6);
+            tmp.loop_count = (uint16_t)(loops < 1 ? 1 : (loops > 999 ? 999 : loops));
         } else if (strncmp(line, "BPM ", 4) == 0) {
             tmp.bpm = strtof(line + 4, NULL);
         } else if (strncmp(line, "AMP1 ", 5) == 0) {
             tmp.amp1 = strtof(line + 5, NULL);
         } else if (strncmp(line, "AMP2 ", 5) == 0) {
             tmp.amp2 = strtof(line + 5, NULL);
+        } else if (strncmp(line, "PULSE_OFFSET ", 13) == 0) {
+            tmp.pulse_offset = strtof(line + 13, NULL);
+        } else if (strncmp(line, "PULSE_DIRECTION ", 16) == 0) {
+            tmp.pulse_direction = strtof(line + 16, NULL);
         } else if (strncmp(line, "SPREAD ", 7) == 0) {
             tmp.spread_deg = strtof(line + 7, NULL);
         } else if (strncmp(line, "TARGET ", 7) == 0 && tmp.target_count < MFX_MAX_TARGETS) {
@@ -131,6 +155,12 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     }
 
     if (tmp.target_count == 0) return false;
+    if (tmp.bpm < 0.1f) tmp.bpm = 0.1f;
+    if (tmp.bpm > 600.0f) tmp.bpm = 600.0f;
+    if (tmp.pulse_offset < -1.0f) tmp.pulse_offset = -1.0f;
+    if (tmp.pulse_offset > 1.0f) tmp.pulse_offset = 1.0f;
+    if (tmp.pulse_direction < -1.0f) tmp.pulse_direction = -1.0f;
+    if (tmp.pulse_direction > 1.0f) tmp.pulse_direction = 1.0f;
     tmp.loaded = true;
 
     mutex_enter_blocking(&mfx_lock);
@@ -138,6 +168,7 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     tmp.paused = false;
     tmp.start_us = 0;
     tmp.paused_elapsed_us = 0;
+    tmp.completed_loops = 0;
     memcpy(&slot_data[slot], &tmp, sizeof(mfx_slot_data_t));
     mutex_exit(&mfx_lock);
     return true;
@@ -150,6 +181,8 @@ void mfx_start(uint8_t slot)
     if (slot_data[slot].loaded) {
         slot_data[slot].start_us = 0;
         slot_data[slot].paused_elapsed_us = 0;
+        slot_data[slot].last_elapsed_s = 0.0f;
+        slot_data[slot].completed_loops = 0;
         slot_data[slot].paused = false;
         slot_data[slot].active = true;
     }
@@ -204,6 +237,8 @@ void mfx_stop(void)
         slot_data[i].paused = false;
         slot_data[i].start_us = 0;
         slot_data[i].paused_elapsed_us = 0;
+        slot_data[i].last_elapsed_s = 0.0f;
+        slot_data[i].completed_loops = 0;
     }
     mutex_exit(&mfx_lock);
 }
@@ -216,6 +251,8 @@ void mfx_stop_slot(uint8_t slot)
     slot_data[slot].paused = false;
     slot_data[slot].start_us = 0;
     slot_data[slot].paused_elapsed_us = 0;
+    slot_data[slot].last_elapsed_s = 0.0f;
+    slot_data[slot].completed_loops = 0;
     mutex_exit(&mfx_lock);
 }
 
@@ -246,8 +283,21 @@ static void effect_offset(float t, mfx_type_t type, float *a, float *b)
         case MFX_TILT_SWING: *a = 0.0f; *b = sinf(t); break;
         case MFX_SINE:       *a = sinf(t); *b = 0.0f; break;
         case MFX_PULSE:      *a = sinf(t) >= 0.0f ? 1.0f : -1.0f; *b = 0.0f; break;
+        case MFX_PAN_PULSE:  *a = sinf(t) >= 0.0f ? 1.0f : -1.0f; *b = 0.0f; break;
+        case MFX_TILT_PULSE: *a = 0.0f; *b = sinf(t) >= 0.0f ? 1.0f : -1.0f; break;
         default:             *a = 0.0f; *b = 0.0f; break;
     }
+}
+
+static bool effect_is_position_pulse(mfx_type_t type)
+{
+    return type == MFX_PAN_PULSE || type == MFX_TILT_PULSE;
+}
+
+static float pulse_directional_value(float value, float direction)
+{
+    if (value < 0.0f) return -(1.0f - (direction > 0.0f ? direction : 0.0f));
+    return 1.0f + (direction < 0.0f ? direction : 0.0f);
 }
 
 static inline void scratch8(uint16_t ch, uint8_t v, uint8_t *scratch, bool *touched)
@@ -304,6 +354,16 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         float elapsed_s = sd->paused
             ? (float)sd->paused_elapsed_us / 1e6f
             : (float)((uint32_t)(now_us - sd->start_us)) / 1e6f;
+        float completed = elapsed_s * sd->bpm / 60.0f;
+        uint16_t limit = sd->mode == MFX_MODE_SINGLE ? 1u : sd->loop_count;
+        if (sd->mode != MFX_MODE_LOOP && completed >= (float)limit) {
+            sd->completed_loops = limit;
+            elapsed_s = (float)limit * 60.0f / sd->bpm;
+            sd->active = false;
+            sd->paused = false;
+        } else {
+            sd->completed_loops = completed >= 65535.0f ? 65535u : (uint16_t)completed;
+        }
         sd->last_elapsed_s = elapsed_s;
 
         mfx_snap_t *sn = &snaps[active_count++];
@@ -311,6 +371,8 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         sn->bpm = sd->bpm;
         sn->amp1 = sd->amp1;
         sn->amp2 = sd->amp2;
+        sn->pulse_offset = sd->pulse_offset;
+        sn->pulse_direction = sd->pulse_direction;
         sn->spread_deg = sd->spread_deg;
         sn->elapsed_s = elapsed_s;
         sn->target_count = sd->target_count;
@@ -320,8 +382,6 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         sn->enabled_count = ec;
     }
     mutex_exit(&mfx_lock);
-
-    if (active_count == 0) return;
 
     for (int si = 0; si < active_count; si++) {
         mfx_snap_t *sn = &snaps[si];
@@ -337,22 +397,28 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             float phase = t->phase_offset_deg * MFX_PI / 180.0f + auto_phase;
             float off1, off2;
             effect_offset(angle + phase, sn->type, &off1, &off2);
+            if (effect_is_position_pulse(sn->type)) {
+                off1 = pulse_directional_value(off1, sn->pulse_direction) * sn->amp1 + sn->pulse_offset;
+                off2 = pulse_directional_value(off2, sn->pulse_direction) * sn->amp2 + sn->pulse_offset;
+            }
             float half = t->max_val / 2.0f;
 
             if (target_is_pantilt(t)) {
-                bool moves_1 = (sn->type != MFX_TILT_SWING);
-                bool moves_2 = (sn->type != MFX_PAN_SWING);
+                bool moves_1 = (sn->type != MFX_TILT_SWING && sn->type != MFX_TILT_PULSE);
+                bool moves_2 = (sn->type != MFX_PAN_SWING && sn->type != MFX_PAN_PULSE);
                 if (moves_1) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
                                                     : (float)dmx_engine_get_base_channel(t->ch1);
                     float dir = t->reverse1 ? -1.0f : 1.0f;
-                    write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half * dir, scratch, touched);
+                    float amount = effect_is_position_pulse(sn->type) ? off1 : off1 * sn->amp1;
+                    write_target_value(t, t->ch1, t->fine1, base + amount * half * dir, scratch, touched);
                 }
                 if (moves_2) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch2, t->fine2)
                                                     : (float)dmx_engine_get_base_channel(t->ch2);
                     float dir = t->reverse2 ? -1.0f : 1.0f;
-                    write_target_value(t, t->ch2, t->fine2, base + off2 * sn->amp2 * half * dir, scratch, touched);
+                    float amount = effect_is_position_pulse(sn->type) ? off2 : off2 * sn->amp2;
+                    write_target_value(t, t->ch2, t->fine2, base + amount * half * dir, scratch, touched);
                 }
             } else {
                 float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
@@ -362,6 +428,20 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             }
             ti++;
         }
+    }
+
+    /* Release channels after the final effect using them stops. The output
+     * buffer otherwise keeps the last generated value even though the slot's
+     * active flag is already clear. Keep retrying while a blackout lock owns
+     * the channel so its current lock value is not replaced prematurely. */
+    for (uint16_t ch = 1; ch <= 512; ch++) {
+        bool active_touch = touched[ch];
+        if (!active_touch && previously_touched[ch]) {
+            scratch[ch] = dmx_engine_get_base_channel(ch);
+            touched[ch] = true;
+        }
+        previously_touched[ch] = active_touch ||
+            (previously_touched[ch] && dmx_engine_channel_is_blackout_locked(ch));
     }
 }
 
@@ -393,8 +473,11 @@ void mfx_get_slot_info(uint8_t slot, mfx_slot_info_t *out)
     out->active = slot_data[slot].active;
     out->paused = slot_data[slot].paused;
     out->type = (int)slot_data[slot].type;
+    out->mode = slot_data[slot].mode;
     out->bpm = slot_data[slot].bpm;
     out->elapsed_s = slot_data[slot].last_elapsed_s;
+    out->loop_count = slot_data[slot].loop_count;
+    out->completed_loops = slot_data[slot].completed_loops;
     out->target_count = slot_data[slot].target_count;
     mutex_exit(&mfx_lock);
 }

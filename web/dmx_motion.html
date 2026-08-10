@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.0-15">
-<script src="assets/dmx-common.js?v=1.2.0-15"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -59,9 +59,9 @@ main{max-width:none;width:100%;margin:0}
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_gpio.html?v=1.2.0">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.2.0#6-effects" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.3.0#effects" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -109,6 +109,18 @@ main{max-width:none;width:100%;margin:0}
       </select>
     </label>
     <label class="pico-field">
+      Mode
+      <select id="picoMotionMode">
+        <option value="loop">Loop</option>
+        <option value="single">Single</option>
+        <option value="loop_n">Loop N</option>
+      </select>
+    </label>
+    <label class="pico-field" id="picoMotionLoopCountField" hidden>
+      Loops
+      <input id="picoMotionLoopCount" class="pico-number" type="number" min="1" max="999" step="1" value="2">
+    </label>
+    <label class="pico-field">
       BPM
       <input id="picoMotionBpm" class="pico-number" type="number" min="0.1" max="600" step="1" value="30">
     </label>
@@ -117,7 +129,8 @@ main{max-width:none;width:100%;margin:0}
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
-    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
+    <button id="btnPicoMotionRestoreAll">&#x21BA; Synchronize Saved Slots to Picos</button>
+    <button id="btnPicoMotionMigrateSlots" style="display:none">Normalize Legacy Slots</button>
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
@@ -160,21 +173,34 @@ main{max-width:none;width:100%;margin:0}
   <div style="display:grid;gap:8px">
     <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
       <span class="mode-badge">Browser</span>
-      <button class="primary" id="startStop">Start</button>
+      <span class="row" style="gap:8px">
+        <button class="primary" id="startStop">Start</button>
+        <button id="motionPauseResume" title="Pause or resume the browser effect at its current phase">Pause</button>
+      </span>
     </div>
     <div class="motion-effect-grid">
     <label>Effect
       <select id="effectType">
         <option value="circle">Circle</option>
         <option value="figure8">Figure-8</option>
-        <option value="panSwing">Pan Swing</option>
-        <option value="tiltSwing">Tilt Swing</option>
+        <option value="panSwing">Pan Sine Wave</option>
+        <option value="tiltSwing">Tilt Sine Wave</option>
+        <option value="panPulse">Pan Pulse</option>
+        <option value="tiltPulse">Tilt Pulse</option>
         <option value="sine">Sine</option>
         <option value="pulse">Pulse</option>
       </select>
     </label>
     <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
     <label>Hz<input id="updateRate" type="number" min="5" max="50" value="25"></label>
+    <label>Mode
+      <select id="motionPlayMode">
+        <option value="loop">Loop</option>
+        <option value="single">Single</option>
+        <option value="loop_n">Loop N</option>
+      </select>
+    </label>
+    <label id="motionLoopCountField" hidden>Loops<input id="motionLoopCount" type="number" min="1" max="999" value="2" title="Used for Loop N"></label>
     </div>
     <label id="panAmpLabel">Pan amp
       <span class="motion-effect-slider"><input id="panAmp" type="range" min="0" max="100" value="20"><span><span id="panAmpVal">20</span>%</span></span>
@@ -182,6 +208,15 @@ main{max-width:none;width:100%;margin:0}
     <label id="tiltAmpLabel">Tilt amp
       <span class="motion-effect-slider"><input id="tiltAmp" type="range" min="0" max="100" value="15"><span><span id="tiltAmpVal">15</span>%</span></span>
     </label>
+    <div id="pulseShapeFields" hidden>
+      <label>Position offset
+        <span class="motion-effect-slider"><input id="pulsePositionOffset" type="range" min="-100" max="100" value="0"><span><span id="pulsePositionOffsetVal">0</span>%</span></span>
+      </label>
+      <label>Direction
+        <span class="motion-effect-slider"><input id="pulseDirection" type="range" min="-100" max="100" value="0"><span id="pulseDirectionVal">Symmetric</span></span>
+      </label>
+      <div class="small">Negative-only at -100%, symmetric at 0%, positive-only at +100%.</div>
+    </div>
     <label>Phase spread
       <span class="motion-effect-slider"><input id="phaseSpread" type="range" min="0" max="360" value="0"><span><span id="phaseSpreadVal">0</span>°</span></span>
     </label>
@@ -452,8 +487,10 @@ function relativeStepFromButton(button){
 const EFFECTS={
   circle:{label:'Circle',target:'panTilt'},
   figure8:{label:'Figure-8',target:'panTilt'},
-  panSwing:{label:'Pan Swing',target:'panTilt'},
-  tiltSwing:{label:'Tilt Swing',target:'panTilt'},
+  panSwing:{label:'Pan Sine Wave',target:'panTilt'},
+  tiltSwing:{label:'Tilt Sine Wave',target:'panTilt'},
+  panPulse:{label:'Pan Pulse',target:'panTilt'},
+  tiltPulse:{label:'Tilt Pulse',target:'panTilt'},
   sine:{label:'Sine',target:'scalar'},
   pulse:{label:'Pulse',target:'scalar'}
 };
@@ -490,9 +527,26 @@ function effectAxisMode(){
   if(family==='scalar')return'scalar';
   if(family!=='panTilt')return'none';
   const type=document.getElementById('effectType')?.value||'';
-  if(type==='panSwing')return'pan';
-  if(type==='tiltSwing')return'tilt';
+  if(type==='panSwing'||type==='panPulse')return'pan';
+  if(type==='tiltSwing'||type==='tiltPulse')return'tilt';
   return'both';
+}
+function isPositionPulse(type=document.getElementById('effectType')?.value||''){
+  return type==='panPulse'||type==='tiltPulse';
+}
+function pulseDirectionalValue(value,direction){
+  const d=clamp(direction,-1,1);
+  return value<0?-(1-Math.max(d,0)):(1+Math.min(d,0));
+}
+function pulsePositionValue(value,direction,positionOffset,amplitude=1){
+  return pulseDirectionalValue(value,direction)*amplitude+positionOffset;
+}
+function pulseDirectionLabel(value){
+  const n=Math.round(clamp(value,-100,100));
+  if(n===-100)return'Negative only';
+  if(n===0)return'Symmetric';
+  if(n===100)return'Positive only';
+  return(n>0?'+':'')+n+'%';
 }
 function axisModeShowsPan(mode){
   return mode==='both'||mode==='pan';
@@ -509,6 +563,7 @@ function updateEffectParameterUi(){
   const tiltLabel=document.getElementById('tiltAmpLabel');
   const tilt=document.getElementById('tiltAmp');
   const tiltVal=document.getElementById('tiltAmpVal');
+  const pulseFields=document.getElementById('pulseShapeFields');
   if(axisModeShowsPan(lastEffectAxisMode)&&!axisModeShowsPan(mode)&&pan){
     lastPanTiltPanAmp=clamp(pan.value,0,100);
   }
@@ -542,6 +597,7 @@ function updateEffectParameterUi(){
   }
   lastEffectParameterFamily=family;
   lastEffectAxisMode=mode;
+  if(pulseFields)pulseFields.hidden=!isPositionPulse();
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -821,7 +877,10 @@ function closeMotionGroupModal(){
   drawFixtureList();
   drawPathPreview();
 }
-function recallMotionGroupFixtureValues(which){
+async function recallMotionGroupFixtureValues(which){
+  const selectedFixtures=[...new Map(motionGroupEditFixtures().map(item=>[String(item.fixture.id),item.fixture])).values()];
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,outputs,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
   const controls=getMotionGroupCommonControls();
   let changed=0;
   controls.forEach(control=>{
@@ -873,8 +932,8 @@ function handleMotionGroupInput(target){
 }
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
-document.getElementById('defaultMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('defaultValue');
-document.getElementById('blackoutMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('blackoutValue');
+document.getElementById('defaultMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{
@@ -1105,6 +1164,8 @@ function effectOffset(t,type){
     case 'figure8':  return{pan:Math.sin(t),tilt:Math.sin(2*t)};
     case 'panSwing': return{pan:Math.sin(t),tilt:0};
     case 'tiltSwing':return{pan:0,tilt:Math.sin(t)};
+    case 'panPulse': return{pan:Math.sin(t)>=0?1:-1,tilt:0};
+    case 'tiltPulse':return{pan:0,tilt:Math.sin(t)>=0?1:-1};
     case 'sine':     return{pan:Math.sin(t),tilt:Math.sin(t)};
     case 'pulse':    return{pan:Math.sin(t)>=0?1:-1,tilt:Math.sin(t)>=0?1:-1};
     default:         return{pan:0,tilt:0};
@@ -1123,6 +1184,8 @@ function drawPathPreview(){
   const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
   const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const pulseOffset=clamp(document.getElementById('pulsePositionOffset').value,-100,100)/100;
+  const pulseDirection=clamp(document.getElementById('pulseDirection').value,-100,100)/100;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
 
   pathCtx.clearRect(0,0,w,h);
@@ -1158,16 +1221,20 @@ function drawPathPreview(){
     for(let s=0;s<=STEPS;s++){
       const t=s/STEPS*Math.PI*2+phase;
       const off=effectOffset(t,type);
-      const px=(0.5+off.pan*pAmp*0.46)*w;
-      const py=(0.5-off.tilt*tAmp*0.46)*h;
+      const panPosition=isPositionPulse(type)&&mode!=='tilt'?pulsePositionValue(off.pan,pulseDirection,pulseOffset,pAmp):off.pan*pAmp;
+      const tiltPosition=isPositionPulse(type)&&mode!=='pan'?pulsePositionValue(off.tilt,pulseDirection,pulseOffset,tAmp):off.tilt*tAmp;
+      const px=(0.5+panPosition*0.46)*w;
+      const py=(0.5-tiltPosition*0.46)*h;
       s===0?pathCtx.moveTo(px,py):pathCtx.lineTo(px,py);
     }
     pathCtx.stroke();pathCtx.globalAlpha=1;
 
     // start dot
     const s0=effectOffset(phase,type);
-    const sx=(0.5+s0.pan*pAmp*0.46)*w;
-    const sy=(0.5-s0.tilt*tAmp*0.46)*h;
+    const startPan=isPositionPulse(type)&&mode!=='tilt'?pulsePositionValue(s0.pan,pulseDirection,pulseOffset,pAmp):s0.pan*pAmp;
+    const startTilt=isPositionPulse(type)&&mode!=='pan'?pulsePositionValue(s0.tilt,pulseDirection,pulseOffset,tAmp):s0.tilt*tAmp;
+    const sx=(0.5+startPan*0.46)*w;
+    const sy=(0.5-startTilt*0.46)*h;
     pathCtx.fillStyle=color;
     pathCtx.beginPath();pathCtx.arc(sx,sy,4,0,Math.PI*2);pathCtx.fill();
 
@@ -1180,9 +1247,49 @@ function drawPathPreview(){
 
 // ---- motion loop ----
 let running=false;
+let motionPaused=false;
 let intervalId=null;
 let startTime=null;
+let motionPausedElapsedMs=0;
 let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
+
+function normalizedMotionMode(value){
+  return value==='single'||value==='loop_n'?value:'loop';
+}
+function normalizedMotionLoopCount(value){
+  return Math.max(1,Math.min(999,parseInt(value,10)||1));
+}
+function updateMotionLoopCountVisibility(){
+  const browserLoopN=normalizedMotionMode(document.getElementById('motionPlayMode')?.value)==='loop_n';
+  const picoLoopN=normalizedMotionMode(document.getElementById('picoMotionMode')?.value)==='loop_n';
+  const browserField=document.getElementById('motionLoopCountField');
+  const picoField=document.getElementById('picoMotionLoopCountField');
+  if(browserField){browserField.hidden=!browserLoopN;browserField.style.display=browserLoopN?'':'none';document.getElementById('motionLoopCount').disabled=!browserLoopN;}
+  if(picoField){picoField.hidden=!picoLoopN;picoField.style.display=picoLoopN?'':'none';document.getElementById('picoMotionLoopCount').disabled=!picoLoopN;}
+}
+function syncPicoMotionPlaybackFromBrowser(){
+  document.getElementById('picoMotionMode').value=normalizedMotionMode(document.getElementById('motionPlayMode').value);
+  document.getElementById('picoMotionLoopCount').value=normalizedMotionLoopCount(document.getElementById('motionLoopCount').value);
+  updateMotionLoopCountVisibility();
+}
+function syncBrowserMotionPlaybackFromPico(){
+  document.getElementById('motionPlayMode').value=normalizedMotionMode(document.getElementById('picoMotionMode').value);
+  document.getElementById('motionLoopCount').value=normalizedMotionLoopCount(document.getElementById('picoMotionLoopCount').value);
+  updateMotionLoopCountVisibility();
+}
+function updateBrowserMotionButtons(){
+  const start=document.getElementById('startStop');
+  const pause=document.getElementById('motionPauseResume');
+  start.textContent=running?'■ Stop':motionPaused?'▶ Restart':'▶ Start';
+  start.className=running?'stop':'primary';
+  pause.textContent=motionPaused?'▶ Resume':'Pause';
+  pause.disabled=!running&&!motionPaused;
+}
+function motionElapsedSeconds(){
+  if(motionPaused)return motionPausedElapsedMs/1000;
+  if(running&&startTime!==null)return Math.max(0,(performance.now()-startTime)/1000);
+  return 0;
+}
 
 async function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
@@ -1198,23 +1305,49 @@ async function startMotion(){
   // Fetch current live base values from Pico to use as motion center
   if(root) await syncBaseFromPico();
   running=true;
+  motionPaused=false;
   startTime=performance.now();
+  motionPausedElapsedMs=0;
   sentToPico={};
   const hz=clamp(document.getElementById('updateRate').value,5,50);
-  document.getElementById('startStop').textContent='■ Stop';
-  document.getElementById('startStop').className='stop';
+  updateBrowserMotionButtons();
   intervalId=setInterval(tick,1000/hz);
   setStatus('Running…');
 }
 
 function stopMotion(){
-  const wasRunning=running;
+  const wasRunning=running||motionPaused;
   running=false;
+  motionPaused=false;
+  motionPausedElapsedMs=0;
+  startTime=null;
   clearInterval(intervalId);
+  intervalId=null;
   if(wasRunning)restoreMotionBaseOutput();
-  document.getElementById('startStop').textContent='▶ Start';
-  document.getElementById('startStop').className='primary';
+  updateBrowserMotionButtons();
   setStatus('Stopped');
+}
+
+function pauseMotion(){
+  if(!running)return;
+  motionPausedElapsedMs=Math.max(0,performance.now()-startTime);
+  running=false;
+  motionPaused=true;
+  clearInterval(intervalId);
+  intervalId=null;
+  updateBrowserMotionButtons();
+  setStatus('Paused at '+(motionPausedElapsedMs/1000).toFixed(1)+'s');
+}
+
+function resumeMotion(){
+  if(!motionPaused)return;
+  startTime=performance.now()-motionPausedElapsedMs;
+  motionPaused=false;
+  running=true;
+  const hz=clamp(document.getElementById('updateRate').value,5,50);
+  intervalId=setInterval(tick,1000/hz);
+  updateBrowserMotionButtons();
+  tick();
 }
 
 function sendBatch(map){
@@ -1266,14 +1399,24 @@ function addMotionControlValueToBatch(mf,value,batchMap){
 }
 
 function tick(){
-  const elapsed=(performance.now()-startTime)/1000;
+  if(!running)return;
+  const elapsed=motionElapsedSeconds();
   const bpm=clamp(document.getElementById('bpm').value,1,600);
+  const playMode=normalizedMotionMode(document.getElementById('motionPlayMode').value);
+  const loopCount=playMode==='single'?1:normalizedMotionLoopCount(document.getElementById('motionLoopCount').value);
+  if(playMode!=='loop'&&elapsed*bpm/60>=loopCount){
+    stopMotion();
+    setStatus(playMode==='single'?'Completed single effect cycle':'Completed '+loopCount+' loops');
+    return;
+  }
   const angle=elapsed*(bpm/60)*Math.PI*2;
   const type=document.getElementById('effectType').value;
   const mode=effectAxisMode();
   const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
   const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const pulseOffset=clamp(document.getElementById('pulsePositionOffset').value,-100,100)/100;
+  const pulseDirection=clamp(document.getElementById('pulseDirection').value,-100,100)/100;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
   const batchMap={};
 
@@ -1282,11 +1425,15 @@ function tick(){
     const f=mf.fixture;
     const autoPhase=motionAutoPhase(spread,i,enabled.length);
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
-    const off=effectOffset(angle+phase,type);
+    const rawOff=effectOffset(angle+phase,type);
+    const off=isPositionPulse(type)?{
+      pan:mode==='tilt'?0:pulsePositionValue(rawOff.pan,pulseDirection,pulseOffset,pAmp),
+      tilt:mode==='pan'?0:pulsePositionValue(rawOff.tilt,pulseDirection,pulseOffset,tAmp)
+    }:rawOff;
     const max=mf.kind==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const half=max/2;
     if(mf.kind!=='panTilt'){
-      const newVal=clamp(mf.baseValue+off.pan*pAmp*half,0,max);
+      const newVal=clamp(mf.baseValue+off.pan*(isPositionPulse(type)?1:pAmp)*half,0,max);
       sendMotionTargetValue(mf,newVal,batchMap);
       const idx=motionFixtures.indexOf(mf);
       const bar=document.getElementById('bar'+idx);
@@ -1295,8 +1442,8 @@ function tick(){
       if(posEl)posEl.textContent=Math.round(newVal)+' / '+max;
       return;
     }
-    const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
-    const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
+    const newPan=clamp(mf.basePan+off.pan*(isPositionPulse(type)?1:pAmp)*half,0,max);
+    const newTilt=clamp(mf.baseTilt+off.tilt*(isPositionPulse(type)?1:tAmp)*half,0,max);
     addPanTiltToBatch(f,c,{pan:newPan,tilt:newTilt},batchMap);
 
     // update mini XY pad
@@ -1313,6 +1460,7 @@ function tick(){
 
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
+document.getElementById('motionPauseResume').onclick=()=>{motionPaused?resumeMotion():pauseMotion();};
 document.getElementById('effectType').onchange=()=>{updateEffectParameterUi();drawPathPreview();saveMotionWorkingState();};
 document.getElementById('btnMotionAll').onclick=()=>{
   if(!selectedMotionTargetKey){setStatus('Choose an Effect Target first',true);return;}
@@ -1352,14 +1500,29 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
     saveMotionWorkingState();
   };
 });
-['bpm','updateRate'].forEach(id=>{
+['pulsePositionOffset','pulseDirection'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.oninput=()=>{
+    const value=clamp(el.value,-100,100);
+    document.getElementById(id+'Val').textContent=id==='pulseDirection'?pulseDirectionLabel(value):value;
+    drawPathPreview();
+    saveMotionWorkingState();
+  };
+});
+['bpm','updateRate','motionLoopCount'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',saveMotionWorkingState);
 });
+document.getElementById('motionPlayMode').addEventListener('change',()=>{syncPicoMotionPlaybackFromBrowser();saveMotionWorkingState();});
+document.getElementById('motionLoopCount').addEventListener('input',()=>{syncPicoMotionPlaybackFromBrowser();saveMotionWorkingState();});
+document.getElementById('picoMotionMode').addEventListener('change',()=>{syncBrowserMotionPlaybackFromPico();saveMotionWorkingState();});
+document.getElementById('picoMotionLoopCount').addEventListener('input',()=>{syncBrowserMotionPlaybackFromPico();saveMotionWorkingState();});
+syncPicoMotionPlaybackFromBrowser();
+updateBrowserMotionButtons();
 window.addEventListener('resize',drawPathPreview);
 
 // ---- Pico Effects ----
-const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
+const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5,panPulse:6,tiltPulse:7};
 function serializeMotionForPico(outputId=null){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
@@ -1367,12 +1530,20 @@ function serializeMotionForPico(outputId=null){
   const amp1=mode==='tilt'?0:parseFloat(document.getElementById('panAmp').value)/100;
   const amp2=(mode==='scalar'||mode==='pan')?0:parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
+  const pulseOffset=parseFloat(document.getElementById('pulsePositionOffset').value)/100;
+  const pulseDirection=parseFloat(document.getElementById('pulseDirection').value)/100;
+  const playMode=normalizedMotionMode(document.getElementById('picoMotionMode').value);
+  const loopCount=normalizedMotionLoopCount(document.getElementById('picoMotionLoopCount').value);
   const lines=[
     'FX 1',
     'TYPE '+(typeMapPico[type]??0),
+    'MODE '+playMode,
+    'LOOPS '+(playMode==='single'?1:loopCount),
     'BPM '+bpm.toFixed(4),
     'AMP1 '+amp1.toFixed(6),
     'AMP2 '+amp2.toFixed(6),
+    'PULSE_OFFSET '+pulseOffset.toFixed(6),
+    'PULSE_DIRECTION '+pulseDirection.toFixed(6),
     'SPREAD '+spread.toFixed(4),
   ];
   const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
@@ -1398,19 +1569,40 @@ function serializeMotionForPico(outputId=null){
 }
 
 let picoMotionTimer=null;
-const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing','Sine','Pulse'];
+const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Sine Wave','Tilt Sine Wave','Sine','Pulse','Pan Pulse','Tilt Pulse'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
 let _lastPausedMask=0;
 let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
 let linkedMotionPlaybacks=[];
 
+function updateMotionSlotMigrationButton(){
+  const button=document.getElementById('btnPicoMotionMigrateSlots');
+  const count=DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks).length;
+  button.style.display=count?'':'none';
+  button.textContent=count?'Normalize '+count+' Legacy Effect Slot'+(count===1?'':'s'):'Normalize Legacy Slots';
+}
+
+async function migrateLegacyMotionSlots(){
+  const legacy=DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks);
+  if(!legacy.length){updateMotionSlotMigrationButton();return;}
+  if(!confirm('Normalize '+legacy.length+' legacy linked effect slot'+(legacy.length===1?'':'s')+'?\n\nA server backup will be created first. Each linked effect will then use its logical slot number on every Pico. Conflicts with unmanaged Pico data cancel the migration.'))return;
+  setPicoMotionStatus('Backing up and normalizing legacy effect slots…','var(--warn)');
+  try{
+    const result=await DmxCommon.migrateLinkedPicoPlaybacks({kind:'motion',playbacks:linkedMotionPlaybacks,serverEndpoint:'motion_setup.php'});
+    linkedMotionPlaybacks=result.playbacks;
+    updateMotionSlotMigrationButton();
+    setPicoMotionStatus('Normalized '+result.count+' linked effect slot'+(result.count===1?'':'s')+' · backup '+(result.backup||'created'),'var(--accent)');
+    pollPicoMotionStatus();
+  }catch(error){setPicoMotionStatus('Migration error: '+error.message,'var(--bad)');}
+}
+
 function linkedMotionPlaybackForSlot(slot){
   const preferredRoot=baseUrlEl.value.replace(/\/+$/,'');
   return linkedMotionPlaybacks.find(playback=>{
     const members=Array.isArray(playback?.members)?playback.members:[];
     const coordinator=members.find(member=>String(member.baseUrl||'').replace(/\/+$/,'')===preferredRoot)||members[0];
-    return Number(coordinator?.slot)===Number(slot);
+    return Number(playback?.logicalSlot??coordinator?.slot)===Number(slot);
   })||null;
 }
 
@@ -1433,9 +1625,16 @@ function updatePicoMotionPauseResumeButton(){
   btn.textContent=paused?'Resume':'Pause';
 }
 
+function motionSlotModeLine(slot){
+  const mode=Number(slot?.mode);
+  if(mode===0)return 'Mode Single';
+  if(mode===2)return 'Mode Loop N ('+normalizedMotionLoopCount(slot?.loop_count)+'x)';
+  return 'Mode Loop';
+}
+
 function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
-  _lastMotionReportedSlotCount=slots.length;
-  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
+  if(!slots.some(slot=>slot?.fleetState))_lastMotionReportedSlotCount=slots.length;
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,type:0,mode:1,loop_count:1,completed_loops:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
   _lastSlots=slots; _lastActiveMask=activeMask; _lastPausedMask=pausedMask;
   const strip=document.getElementById('motionSlotStrip');
   const sel=selectedMotionSlot();
@@ -1446,6 +1645,9 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
     const loaded=s.loaded;
     const selected=s.slot===sel;
     const unsupported=!!s.unsupported;
+    const fleetState=s.fleetState||null;
+    const uncertain=fleetState==='unknown';
+    const partial=fleetState==='partial';
     const d=document.createElement('div');
     d.style.cssText=[
       'background:#0a0d10',
@@ -1460,8 +1662,11 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
-    const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const typeName=unsupported?'FW old':uncertain?'Fleet unknown':partial?'Mixed occupancy':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
     const linkedPlayback=linkedMotionPlaybackForSlot(s.slot);
+    const playbackLabel=linkedPlayback?.label
+      ? '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;color:inherit;line-height:1.25;margin-bottom:3px">'+escMotionHtml(linkedPlayback.label)+'</div>'
+      : '';
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
       : '';
@@ -1469,17 +1674,23 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       ? '<button type="button" data-delete-motion-slot="'+s.slot+'" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
     d.innerHTML=
+      DmxCommon.slotVisualHtml(linkedPlayback)+
       deleteButton+
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
+      playbackLabel+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':paused?'var(--warn)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
+      (loaded?'<div style="font-size:11px;color:var(--muted)">'+motionSlotModeLine(s)+'</div>':'') +
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>'+linkedLine:'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
         '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
-        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
+         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported||uncertain||partial?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':uncertain?'UNKNOWN':partial?'PARTIAL':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
+    const playbackVisualStyle=DmxCommon.slotVisualStyle(linkedPlayback);
+    if(playbackVisualStyle)d.style.cssText+=';'+playbackVisualStyle;
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(uncertain){setPicoMotionStatus('Slot '+s.slot+' cannot be changed because not every configured Pico responded','var(--warn)');return;}
       const wasSelected=selectedMotionSlot()===s.slot;
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask);
@@ -1501,29 +1712,25 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
 
 async function deleteMotionSlot(slot){
   const linked=linkedMotionPlaybackForSlot(slot);
-  if(!confirm(linked?'Delete linked effect from all '+linked.members.length+' Picos?':'Delete effect slot '+slot+'?'))return;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value).filter(output=>DmxCommon.dmxOutputEndpoint(output));
+  if(!confirm('Delete logical effect slot '+slot+' from all '+outputs.length+' configured Pico'+(outputs.length===1?'':'s')+'?'))return;
   try{
+    if(!outputs.length)throw new Error('No configured Pico URLs');
+    await DmxCommon.requestDmxOutputs(outputs,'/motion/clear/'+slot,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
     if(linked){
-      await DmxCommon.commandLinkedPicoPlayback(linked,member=>'/motion/clear/'+member.slot);
       const response=await fetch('motion_setup.php?delete_playback='+encodeURIComponent(linked.id),{method:'POST'});
       const data=await response.json();
       if(!response.ok||!data.ok)throw new Error(data.error||'Delete failed');
       linkedMotionPlaybacks=linkedMotionPlaybacks.filter(playback=>playback.id!==linked.id);
-      setPicoMotionStatus('Deleted linked effect from '+linked.members.length+' Picos','var(--accent)');
+      setPicoMotionStatus('Deleted logical effect slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }else{
     const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'Delete failed');
-    const root=baseUrlEl.value.replace(/\/+$/,'');
-    if(root){
-      try{await fetch(root+'/motion/clear/'+slot,{cache:'no-store'});}catch(_){}
-      setPicoMotionStatus('Deleted slot '+slot,'var(--accent)');
-    }else{
-      setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
-    }
+    setPicoMotionStatus('Deleted logical effect slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }
     if(_lastSlots){
-      _lastSlots[slot]={slot:slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0};
+      _lastSlots[slot]={slot:slot,loaded:false,active:false,paused:false,type:0,mode:1,loop_count:1,completed_loops:0,bpm:30,target_count:0,fixture_count:0};
       renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask);
     }
     pollPicoMotionStatus();
@@ -1549,14 +1756,17 @@ async function pollPicoMotionStatus(){
     const st=await fetch(root+'/motion/status').then(r=>r.json());
     if(st.ok){
       /* fetch slot details sequentially to avoid overwhelming the Pico */
-      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
-      const activeSlots=(sl?.slots||[]).filter(s=>s.active).map(s=>s.slot);
-      const pausedSlots=(sl?.slots||[]).filter(s=>s.paused).map(s=>s.slot);
+      const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+      const fleet=await DmxCommon.fetchFleetPicoSlots('motion',outputs,{slotCount:PICO_SLOT_COUNT,legacyBaseUrl:setup.baseUrl||baseUrlEl.value,playbacks:linkedMotionPlaybacks});
+      const activeSlots=fleet.slots.filter(s=>s.active).map(s=>s.slot);
+      const pausedSlots=fleet.slots.filter(s=>s.paused).map(s=>s.slot);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :pausedSlots.length>0?'Slots '+pausedSlots.join(',')+' paused \u00b7 '+st.elapsed_s.toFixed(1)+'s':'Stopped';
       setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':pausedSlots.length>0?'var(--warn)':'var(--muted)');
-      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask,st.paused_mask||0);
+      const supportedCounts=fleet.reports.filter(report=>report.ok).map(report=>report.slots.length);
+      _lastMotionReportedSlotCount=supportedCounts.length?Math.min(...supportedCounts):0;
+      renderMotionSlotStrip(fleet.slots,st.active_mask,st.paused_mask||0);
     }
   }catch(e){setPicoMotionStatus('No response','var(--bad)');}
 }
@@ -1570,40 +1780,35 @@ async function saveMotionSlotToServer(slot, body){
   try{await fetch('motion_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
 }
 async function restoreAllMotionSlots(){
-  const root=baseUrlEl.value.replace(/\/+$/,'');
   let j;
-  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Restore error: '+e.message,'var(--bad)');return;}
-  if(!j.ok){setPicoMotionStatus('Restore error','var(--bad)');return;}
+  setPicoMotionStatus('Inspecting every Pico before synchronization…','var(--warn)');
+  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Synchronization error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoMotionStatus('Synchronization error','var(--bad)');return;}
   const slots=j.pico_slots||[];
   linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-  let count=0;
-  if(linkedMotionPlaybacks.length){
-    for(const playback of linkedMotionPlaybacks){
-      for(const member of playback.members||[]){
-        const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-        if(!memberRoot||!member.payload)continue;
-        try{
-          const response=await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});
-          const data=await response.json();
-          if(data.ok)count++;
-        }catch(_){}
-      }
-    }
-    setPicoMotionStatus(count+' linked slot member(s) restored','var(--accent)');
+  updateMotionSlotMigrationButton();
+  if(DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks).length){setPicoMotionStatus('Normalize legacy effect slots before synchronizing them','var(--warn)');return;}
+  try{
+    const result=await DmxCommon.synchronizeSavedPicoSlots({
+      kind:'motion',
+      slotCount:PICO_SLOT_COUNT,
+      outputs:setup.dmxOutputs,
+      legacyBaseUrl:setup.baseUrl||baseUrlEl.value,
+      legacyPicoUrl:j.pico_url||baseUrlEl.value,
+      legacySlots:slots,
+      playbacks:linkedMotionPlaybacks,
+      confirmPlan:summary=>confirm(
+        'Synchronize saved Effects slots with all '+summary.outputCount+' configured Picos?\n\n'+
+        'Saved logical slots: '+summary.logicalSlotCount+'\n'+
+        'Payloads to upload: '+summary.uploadCount+'\n'+
+        'Stale loaded slots to clear: '+summary.clearCount+'\n\n'+
+        'Pico-only slot data is not stored by the controller application and cannot be recovered after synchronization.'
+      )
+    });
+    if(result.cancelled){setPicoMotionStatus('Synchronization cancelled; no slots were changed','var(--muted)');return;}
+    setPicoMotionStatus('Synchronized '+result.logicalSlotCount+' logical effect slots across '+result.outputCount+' Picos · cleared '+result.clearCount+' stale slot'+(result.clearCount===1?'':'s'),'var(--accent)');
     pollPicoMotionStatus();
-    return;
-  }
-  if(!root){setPicoMotionStatus('No linked playbacks and no primary Pico URL configured','var(--warn)');return;}
-  for(let i=0;i<slots.length;i++){
-    if(!slots[i])continue;
-    try{
-      const r=await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
-      const rj=await r.json();
-      if(rj.ok)count++;
-    }catch(_){}
-  }
-  setPicoMotionStatus(count+' slot(s) restored to Pico','var(--accent)');
-  pollPicoMotionStatus();
+  }catch(error){setPicoMotionStatus('Synchronization error: '+error.message,'var(--bad)');}
 }
 
 async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
@@ -1622,17 +1827,30 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
     output=>serializeMotionForPico(output.id),
     {legacyBaseUrl:setup.baseUrl||baseUrlEl.value,preferredBaseUrl:baseUrlEl.value}
   );
-  setPicoMotionStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
+  setPicoMotionStatus('Checking logical slot '+slot+' on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const playback=await DmxCommon.uploadLinkedPicoPlayback({
+    const existing=linkedMotionPlaybackForSlot(slot);
+    const recalled=activeRecalledMotionEffect();
+    const upload=allowOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'motion',
       members,
       preferredSlot:slot,
       slotCount:PICO_SLOT_COUNT,
-      allowCoordinatorOverwrite:!!confirmOverwrite,
-      label:'Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot)),
+      allowOverwrite,
+      id:existing?.id,
+      label:recalled?.name||('Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot))),
+      visual:recalled?.visual||currentMotionEffectVisualForSave(),
       serverEndpoint:'motion_setup.php'
     });
+    let playback;
+    try{
+      playback=await upload(!!confirmOverwrite);
+    }catch(e){
+      if(e?.code!=='LOGICAL_SLOT_OCCUPIED'||!confirm(
+        e.outputName+' already contains effect slot '+slot+'. Overwrite logical slot '+slot+' on every involved Pico?\n\nExisting effects in that slot will be replaced.'
+      ))throw e;
+      playback=await upload(true);
+    }
     linkedMotionPlaybacks=linkedMotionPlaybacks.filter(item=>item.id!==playback.id);
     linkedMotionPlaybacks.push(playback);
     const locations=playback.members.map(member=>'U'+member.universe+' S'+member.slot).join(' · ');
@@ -1641,6 +1859,7 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 }
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
+document.getElementById('btnPicoMotionMigrateSlots').onclick=migrateLegacyMotionSlots;
 
 async function commandSelectedMotionSlot(action,slot,suffix=''){
   const playback=linkedMotionPlaybackForSlot(slot);
@@ -1725,8 +1944,12 @@ function motionData(){
       bpm:+document.getElementById('bpm').value,
       panAmp:+document.getElementById('panAmp').value,
       tiltAmp:+document.getElementById('tiltAmp').value,
+      pulsePositionOffset:+document.getElementById('pulsePositionOffset').value,
+      pulseDirection:+document.getElementById('pulseDirection').value,
       phaseSpread:+document.getElementById('phaseSpread').value,
       updateRate:+document.getElementById('updateRate').value,
+      playMode:normalizedMotionMode(document.getElementById('motionPlayMode').value),
+      loopCount:normalizedMotionLoopCount(document.getElementById('motionLoopCount').value),
     },
     fixtures:motionFixtures.map(mf=>({
       fixtureId:mf.fixture.id,controlId:mf.control.id,
@@ -1765,8 +1988,17 @@ function applyMotionData(data,{includeEffects=true,saveWorkingState:saveState=tr
     if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
     if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
     if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+    const pulsePositionOffset=p.pulsePositionOffset===undefined?0:clamp(p.pulsePositionOffset,-100,100);
+    const pulseDirection=p.pulseDirection===undefined?0:clamp(p.pulseDirection,-100,100);
+    document.getElementById('pulsePositionOffset').value=pulsePositionOffset;
+    document.getElementById('pulsePositionOffsetVal').textContent=pulsePositionOffset;
+    document.getElementById('pulseDirection').value=pulseDirection;
+    document.getElementById('pulseDirectionVal').textContent=pulseDirectionLabel(pulseDirection);
     if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
     if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
+    if(p.playMode!==undefined)document.getElementById('motionPlayMode').value=normalizedMotionMode(p.playMode);
+    if(p.loopCount!==undefined)document.getElementById('motionLoopCount').value=normalizedMotionLoopCount(p.loopCount);
+    syncPicoMotionPlaybackFromBrowser();
   }
   if(includeEffects){
     if(Array.isArray(data.effects))motionEffects=data.effects;
@@ -1895,6 +2127,7 @@ if(document.getElementById('importMotionSlotsFile'))document.getElementById('imp
 
 // ---- saved effects toolbox (effect recipe, no center/base values) ----
 let motionEffects=[];
+let activeRecalledMotionEffectSlot=null;
 let motionEffectCols=4,motionEffectRows=4;
 let motionEffectMoveMode=false;
 let motionEffectMoveSelectedSlot=null;
@@ -1910,6 +2143,10 @@ saveMotionEffectVisualDefault();
 function currentMotionEffectVisualForSave(){
   return DmxCommon.normalizeSlotVisualDefault(motionEffectVisualDefault,'#225a50');
 }
+function activeRecalledMotionEffect(){
+  if(activeRecalledMotionEffectSlot===null)return null;
+  return motionEffects.find(effect=>parseInt(effect.slot,10)===activeRecalledMotionEffectSlot)||null;
+}
 function currentMotionEffectRecipe(){
   return{
     targetKey:selectedMotionTargetKey,
@@ -1918,8 +2155,12 @@ function currentMotionEffectRecipe(){
       bpm:+document.getElementById('bpm').value,
       panAmp:+document.getElementById('panAmp').value,
       tiltAmp:+document.getElementById('tiltAmp').value,
+      pulsePositionOffset:+document.getElementById('pulsePositionOffset').value,
+      pulseDirection:+document.getElementById('pulseDirection').value,
       phaseSpread:+document.getElementById('phaseSpread').value,
-      updateRate:+document.getElementById('updateRate').value
+      updateRate:+document.getElementById('updateRate').value,
+      playMode:normalizedMotionMode(document.getElementById('motionPlayMode').value),
+      loopCount:normalizedMotionLoopCount(document.getElementById('motionLoopCount').value)
     },
     fixtures:motionFixtures
       .filter(mf=>motionControlKey(mf.control)===selectedMotionTargetKey&&mf.enabled)
@@ -1976,6 +2217,7 @@ function renderMotionEffectMatrix(){
       const e=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
       if(!e||!confirm('Delete effect "'+(e.name||('Effect '+(slot+1)))+'"?'))return;
       motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+      if(activeRecalledMotionEffectSlot===slot)activeRecalledMotionEffectSlot=null;
       renderMotionEffectMatrix();
       saveMotionEffectsServer();
     });
@@ -2017,6 +2259,7 @@ function motionEffectSlotClick(slot){
   if(!name)return;
   motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
   motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:currentMotionEffectVisualForSave()});
+  activeRecalledMotionEffectSlot=slot;
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
   setStatus('Saved effect "'+name+'"');
@@ -2027,6 +2270,8 @@ function moveMotionEffectSlot(fromSlot,toSlot){
   const target=motionEffects.find(fx=>parseInt(fx.slot,10)===toSlot);
   from.slot=toSlot;
   if(target)target.slot=fromSlot;
+  if(activeRecalledMotionEffectSlot===fromSlot)activeRecalledMotionEffectSlot=toSlot;
+  else if(activeRecalledMotionEffectSlot===toSlot)activeRecalledMotionEffectSlot=fromSlot;
   motionEffectMoveSelectedSlot=null;
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
@@ -2036,6 +2281,7 @@ function moveMotionEffectSlot(fromSlot,toSlot){
 function recallMotionEffect(effect){
   const recipe=effect.recipe||effect;
   if(!recipe.targetKey){setStatus('Effect has no target data',true);return;}
+  activeRecalledMotionEffectSlot=Number.isFinite(parseInt(effect.slot,10))?parseInt(effect.slot,10):null;
   const previewWasRunning=running;
   clearMotionGroupSelection();
   selectedMotionTargetKey=recipe.targetKey;
@@ -2048,8 +2294,17 @@ function recallMotionEffect(effect){
   if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
   if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
   if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+  const pulsePositionOffset=p.pulsePositionOffset===undefined?0:clamp(p.pulsePositionOffset,-100,100);
+  const pulseDirection=p.pulseDirection===undefined?0:clamp(p.pulseDirection,-100,100);
+  document.getElementById('pulsePositionOffset').value=pulsePositionOffset;
+  document.getElementById('pulsePositionOffsetVal').textContent=pulsePositionOffset;
+  document.getElementById('pulseDirection').value=pulseDirection;
+  document.getElementById('pulseDirectionVal').textContent=pulseDirectionLabel(pulseDirection);
   if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
   if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
+  if(p.playMode!==undefined)document.getElementById('motionPlayMode').value=normalizedMotionMode(p.playMode);
+  if(p.loopCount!==undefined)document.getElementById('motionLoopCount').value=normalizedMotionLoopCount(p.loopCount);
+  syncPicoMotionPlaybackFromBrowser();
   const selected=new Set((recipe.fixtures||[]).map(f=>String(f.fixtureId)+':'+String(f.controlId)));
   motionFixtures.forEach(mf=>{
     const key=String(mf.fixture.id)+':'+String(mf.control.id);
@@ -2168,44 +2423,41 @@ if(document.getElementById('exportMotionEffectsBtn'))document.getElementById('ex
 if(document.getElementById('importMotionEffectsBtn'))document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile')?.click();
 if(document.getElementById('importMotionEffectsFile'))document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
 
-if(!new URLSearchParams(location.search).has('docshot_overview')){
+const motionDocshotOverview=new URLSearchParams(location.search).has('docshot_overview');
+if(!motionDocshotOverview){
   loadSetup().finally(async()=>{
     try{
-      const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
+      const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,mode:1,loop_count:1,completed_loops:0,bpm:30,target_count:0,fixture_count:0}));
       renderMotionSlotStrip(dummy,0);
     }catch(e){console.warn('slot strip init error',e);}
     await loadMotionEffectCatalogFromServer();
-    if(!isHardPageReload())restoreMotionWorkingState();
-    // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+    const restoredWorkingState=!isHardPageReload()&&restoreMotionWorkingState();
+    if(!restoredWorkingState)await loadMotionFromServer();
+    // Load saved slot metadata only. Physical Pico memory changes require explicit synchronization.
     const root=baseUrlEl.value.replace(/\/+$/,'');
     try{
       const r=await fetch('motion_setup.php?slots');
       const j=await r.json();
       if(j.ok){
         linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-        if(linkedMotionPlaybacks.length){
-          for(const playback of linkedMotionPlaybacks){
-            for(const member of playback.members||[]){
-              const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-              if(!memberRoot||!member.payload)continue;
-              try{await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});}catch(_){}
-            }
-          }
-          pollPicoMotionStatus();
-        }else if(root){
-          const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
-          if(!savedUrl||savedUrl===root){
-            const slots=j.pico_slots||[];
-            for(let i=0;i<slots.length;i++){
-              if(!slots[i])continue;
-              try{await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
-            }
-            pollPicoMotionStatus();
-          }
-        }
+        updateMotionSlotMigrationButton();
+        if(root)pollPicoMotionStatus();
       }
     }catch(_){}
   });
+}else{
+  const applyMotionDocshotSlots=()=>{
+    const docPicoSlots=Array.from({length:PICO_SLOT_COUNT},(_,slot)=>({
+      slot,loaded:false,active:false,paused:false,type:0,mode:1,loop_count:1,completed_loops:0,bpm:30,target_count:0,fixture_count:0
+    }));
+    Object.assign(docPicoSlots[0],{loaded:true,active:true,type:0,bpm:120,target_count:6});
+    Object.assign(docPicoSlots[4],{loaded:true,type:1,bpm:90,target_count:4});
+    Object.assign(docPicoSlots[8],{loaded:true,paused:true,type:4,bpm:60,target_count:8});
+    renderMotionSlotStrip(docPicoSlots,1<<0,1<<8);
+    setPicoMotionStatus('Slot 0 running · slot 8 paused','var(--accent)');
+    setStatus('Documentation example with occupied Pico effect slots');
+  };
+  applyMotionDocshotSlots();
 }
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
@@ -2681,13 +2933,6 @@ function nudgeMotionPlaneTarget(axis,dir,kind){
   setMotionPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
 }
-function motionPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.className='controller-plane-line';
-  line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderMotionPlanePreview(){
   const plane=activeMotionPlane;
   const pad=document.getElementById('motionPlanePad');
@@ -2697,8 +2942,9 @@ function renderMotionPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=motionPlaneBounds(plane);
   const screens=plane.points.map(point=>motionPlaneToScreen(point,bounds,rect));
+  const weights=DmxCommon.roomPlaneWeights(plane),activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean),triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('motionPlaneTriangle');
-  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  [['--ax',triangleScreens[0].x],['--ay',triangleScreens[0].y],['--bx',triangleScreens[1].x],['--by',triangleScreens[1].y],['--cx',triangleScreens[2].x],['--cy',triangleScreens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
   screens.forEach((screen,index)=>{
     const point=document.createElement('div');
     point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
@@ -2711,7 +2957,7 @@ function renderMotionPlanePreview(){
     const point=document.createElement('div');
     point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
     point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
-    motionPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen);
   });
 }
 function renderMotionPlaneModal(){
@@ -2720,7 +2966,7 @@ function renderMotionPlaneModal(){
   const selected=motionPlaneSelectedIds();
   const weights=DmxCommon.roomPlaneWeights(plane);
   document.getElementById('motionPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('motionPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('motionPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   document.getElementById('motionPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{
     const isSelected=selected.has(String(fixture.id));
     const isPatched=motionFixtures.some(item=>String(item.fixture.id)===String(fixture.id)&&item.kind==='panTilt');
@@ -2785,7 +3031,9 @@ document.getElementById('motionPlaneZoomIn').onclick=()=>zoomMotionPlaneView(1.2
 document.getElementById('motionPlaneZoomOut').onclick=()=>zoomMotionPlaneView(1/1.25);
 document.getElementById('motionPlaneResetView').onclick=resetMotionPlaneView;
 document.getElementById('motionPlanePanView').onclick=()=>setMotionPlanePanMode(!motionPlanePanMode);
-document.getElementById('motionPlanePad').addEventListener('pointerdown',event=>{
+const motionPlanePad=document.getElementById('motionPlanePad');
+DmxCommon.observeElementResize(motionPlanePad,queueMotionPlaneRender);
+motionPlanePad.addEventListener('pointerdown',event=>{
   if(!activeMotionPlane)return;
   event.preventDefault();
   const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=motionPlaneBounds(activeMotionPlane);
@@ -2877,31 +3125,34 @@ const motionPlanesToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'motionPlanesBoxPos',
   uiStateCollapsedKey:'motionPlanesBoxCollapsed'
 });
-loadMotionScenesServer();
-loadMotionPalettesServer();
-motionPlanesMatrix.load();
+const motionSceneLoadPromise=loadMotionScenesServer();
+const motionPaletteLoadPromise=loadMotionPalettesServer();
+window.motionDocshotReady=Promise.allSettled([motionSceneLoadPromise,motionPaletteLoadPromise]);
+if(!motionDocshotOverview)motionPlanesMatrix.load();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('motion',key,val);
 }
-(async()=>{
-  try{
-    const st=await DmxCommon.loadUiState('motion');
-    motionGroupRelativeStepStore.load(st.groupEditRelativeSteps);
-    if(st.sceneBoxCollapsed!==undefined){
-      const c=!!st.sceneBoxCollapsed;
-      localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
-      motionSceneToolbox.setCollapsed(c,false);
-    }
-    if(st.sceneBoxPos){
-      localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
-      motionSceneToolbox.applyPosition(st.sceneBoxPos);
-    }
-  }catch(_){}
-})();
+if(!motionDocshotOverview){
+  (async()=>{
+    try{
+      const st=await DmxCommon.loadUiState('motion');
+      motionGroupRelativeStepStore.load(st.groupEditRelativeSteps);
+      if(st.sceneBoxCollapsed!==undefined){
+        const c=!!st.sceneBoxCollapsed;
+        localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+        motionSceneToolbox.setCollapsed(c,false);
+      }
+      if(st.sceneBoxPos){
+        localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
+        motionSceneToolbox.applyPosition(st.sceneBoxPos);
+      }
+    }catch(_){}
+  })();
+}
 
 // After setup loads (and baseUrl is restored from localStorage), auto-poll once
-setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
+setTimeout(()=>{ if(!motionDocshotOverview&&baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
 // Auto-reload when Fixture Controller saves to localStorage in another tab
 window.addEventListener('storage',e=>{if(e.key==='dmxFixtureController')loadSetup(true);});
 // Poll server every 3 seconds for changes saved from the Fixture Controller

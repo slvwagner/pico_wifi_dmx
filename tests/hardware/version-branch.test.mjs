@@ -57,7 +57,6 @@ test("starting a committed version branch updates main development metadata", ()
       "README.md",
       [
         "- **Latest stable release:** `0.9.16`",
-        "- **Current development version:** `0.9.16`",
         "",
         "Development takes place on a branch named for the next version, such as `0.9.16`.",
         "An asset suffix such as `?v=0.9.16-1` is used.",
@@ -91,7 +90,11 @@ test("starting a committed version branch updates main development metadata", ()
     assert.equal(run(root, "git", ["branch", "--show-current"]), "0.9.17");
     const mainReadme = run(root, "git", ["show", "main:README.md"]);
     assert.match(mainReadme, /Latest stable release:\*\* `0\.9\.16`/);
-    assert.match(mainReadme, /Current development version:\*\* `0\.9\.17`/);
+    assert.doesNotMatch(mainReadme, /Current development version:/);
+    assert.doesNotMatch(
+      run(root, "git", ["show", "0.9.17:README.md"]),
+      /Current development version:/,
+    );
     assert.equal(run(root, "git", ["show", "main:VERSION"]), "0.9.16");
     assert.equal(run(root, "git", ["show", "0.9.17:VERSION"]), "0.9.17");
     assert.match(

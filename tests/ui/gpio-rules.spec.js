@@ -10,6 +10,16 @@ test.describe('GPIO established rules', () => {
     expect(source).toContain("'outputConfigs' => $data['outputConfigs'] ?? null");
   });
 
+  test('firmware maps Effects pause, resume, and pause-toggle GPIO actions', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../../firmware/gpio_control.cpp'), 'utf8');
+    expect(source).toContain('strcmp(s, "motion_pause")');
+    expect(source).toContain('strcmp(s, "motion_resume")');
+    expect(source).toContain('strcmp(s, "motion_pause_toggle")');
+    expect(source).toContain('mfx_pause(slot)');
+    expect(source).toContain('mfx_resume(slot)');
+    expect(source).toContain('mfx_pause_toggle(slot)');
+  });
+
   test.beforeEach(async ({ page }) => {
     await openDmxPage(page, 'dmx_gpio.html');
   });
@@ -321,6 +331,68 @@ test.describe('GPIO established rules', () => {
     expect(text).toEqual([
       'Slot 2 · Ping Pong · Reverse · Loop on · 4 steps · ready',
       'Slot 2 · Ping Pong · Reverse · Loop on · 4 steps · ready'
+    ]);
+  });
+
+  test('Effects GPIO mappings offer pause controls, all 64 slots, and playback readback', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/motion/slots', async route => {
+      const slots = Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: false,
+        active: false,
+        paused: false,
+        bpm: 30,
+        mode: 1,
+        loop_count: 1,
+        completed_loops: 0,
+        target_count: 0
+      }));
+      slots[40] = {
+        slot: 40,
+        loaded: true,
+        active: false,
+        paused: true,
+        bpm: 90,
+        mode: 2,
+        loop_count: 5,
+        completed_loops: 2,
+        target_count: 3
+      };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+    });
+
+    const result = await page.evaluate(async () => {
+      baseUrl.value = 'http://127.0.0.1:18991/';
+      mappings = [
+        { pin: 16, pull: 'pullup', trigger: 'falling', action: 'motion_pause_toggle', slot: 40, debounce_ms: 30 }
+      ];
+      adcMappings = [
+        { pin: 26, action: 'motion_bpm', slot: 40, min_x100: 1000, max_x100: 12000 }
+      ];
+      render();
+      await pollMotionSlots();
+      return {
+        actions: [...document.querySelector('[data-field="action"]').options].map(option => option.value),
+        digitalSlot: document.querySelector('[data-field="slot"]').value,
+        digitalMax: document.querySelector('[data-field="slot"]').max,
+        adcSlot: document.querySelector('[data-adc-field="slot"]').value,
+        adcMax: document.querySelector('[data-adc-field="slot"]').max,
+        summaries: [...document.querySelectorAll('[data-motion-slot-info]')].map(el => el.textContent)
+      };
+    });
+
+    expect(result.actions).toEqual(expect.arrayContaining([
+      'motion_pause',
+      'motion_resume',
+      'motion_pause_toggle'
+    ]));
+    expect(result.digitalSlot).toBe('40');
+    expect(result.digitalMax).toBe('63');
+    expect(result.adcSlot).toBe('40');
+    expect(result.adcMax).toBe('63');
+    expect(result.summaries).toEqual([
+      'Slot 40 · Loop N · 2/5 loops · 90 BPM · 3 targets · paused',
+      'Slot 40 · Loop N · 2/5 loops · 90 BPM · 3 targets · paused'
     ]);
   });
 });

@@ -23,8 +23,10 @@ test.describe('Shared page width rules', () => {
       const layout = await page.locator('main').evaluate(element => {
         const style = getComputedStyle(element);
         const box = element.getBoundingClientRect();
-        const hasToolboxRail = document.body.classList.contains('toolbox-rail-layout')
-          && !document.body.classList.contains('toolbox-rail-collapsed');
+        const hasToolboxRail = (
+          document.body.classList.contains('toolbox-rail-layout')
+          || document.body.classList.contains('show-sidebar-active')
+        ) && !document.body.classList.contains('toolbox-rail-collapsed');
         return {
           maxWidth: style.maxWidth,
           marginLeft: style.marginLeft,

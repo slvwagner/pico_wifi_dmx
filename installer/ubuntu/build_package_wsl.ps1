@@ -8,6 +8,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$wslBuildClock = [Diagnostics.Stopwatch]::StartNew()
+
+function Start-WslPackageStep {
+    return [Diagnostics.Stopwatch]::StartNew()
+}
+
+function Complete-WslPackageStep {
+    param([string]$Name, [Diagnostics.Stopwatch]$Clock)
+
+    $Clock.Stop()
+    Write-Host ("WSL package step timing: {0} | total {1:N1} ms" -f $Name, $Clock.Elapsed.TotalMilliseconds) -ForegroundColor DarkCyan
+}
+
+function Complete-WslPackageBuildTiming {
+    $wslBuildClock.Stop()
+    Write-Host ("WSL package build timing: total {0:N1} ms" -f $wslBuildClock.Elapsed.TotalMilliseconds) -ForegroundColor Cyan
+}
 
 function Invoke-Wsl([string[]]$Arguments, [string]$Description) {
     $wslArguments = @()
@@ -53,6 +70,7 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 
+$stepClock = Start-WslPackageStep
 $linuxBuilder = ConvertTo-WslPath (Join-Path $PSScriptRoot "build_package.sh") "Ubuntu package builder"
 $linuxApplicationUf2 = ConvertTo-WslPath $ApplicationUf2 "application UF2"
 $linuxWifiFirmwareUf2 = ConvertTo-WslPath $WifiFirmwareUf2 "Wi-Fi firmware UF2"
@@ -75,6 +93,10 @@ if ($WslPicotoolPath) {
     }
     $environment += "PICO_DMX_PICOTOOL=$picotool"
 }
+Complete-WslPackageStep -Name "Resolve WSL paths" -Clock $stepClock
 
 Write-Host "Building Debian package in WSL$(if ($Distribution) { " ($Distribution)" })..."
+$stepClock = Start-WslPackageStep
 Invoke-Wsl (@("env") + $environment + @("bash", $linuxBuilder, $linuxOutputDir)) "Debian package build"
+Complete-WslPackageStep -Name "Run Linux package builder" -Clock $stepClock
+Complete-WslPackageBuildTiming

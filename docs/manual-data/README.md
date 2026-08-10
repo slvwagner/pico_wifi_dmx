@@ -2,7 +2,7 @@
 
 This folder contains a deterministic snapshot of the JSON data used for manual screenshots.
 
-`scripts/update_user_manual.ps1 -LocalOnly` copies these files into the repo-local `api/data` folder, starts the repo-local PHP dev router, captures screenshots, and rebuilds the manual without using a machine-specific XAMPP URL. Running the script without `-LocalOnly` also syncs the rebuilt manual to the configured XAMPP folder after the local screenshots have been created.
+`scripts/build_user_manual.ps1 -LocalOnly` copies these files into the repo-local `api/data` folder, starts the repo-local PHP dev router, captures screenshots, and rebuilds the manual without using a machine-specific XAMPP URL. Running the script without `-LocalOnly` also syncs the rebuilt manual to the configured XAMPP folder after the local screenshots have been created.
 
 The baseline was captured from a development show and then committed here. The screenshot pipeline reads these JSON files directly, so another machine can regenerate the same screenshots without knowing or sharing the original XAMPP path.
 

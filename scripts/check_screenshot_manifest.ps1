@@ -47,9 +47,9 @@ function Get-GeneratedScreenshotNames {
 }
 
 $generatorFiles = @(
-    "scripts/capture_readme_screenshots.ps1",
-    "scripts/capture_chaser_screenshot.ps1",
-    "scripts/update_user_manual.ps1"
+    "scripts/capture_manual_ui_screenshots.ps1",
+    "scripts/capture_chaser_manual_screenshots.ps1",
+    "scripts/capture_manual_page_overviews.ps1"
 )
 
 $generated = @()

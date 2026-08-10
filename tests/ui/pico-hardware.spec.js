@@ -25,6 +25,36 @@ async function postText(request, path, body) {
   return response.json();
 }
 
+function gpioConfigText(config) {
+  const lines = ['ENABLE ' + (config?.enabled === false ? '0' : '1')];
+  for (const mapping of config?.mappings || []) {
+    const parts = [
+      'MAP',
+      mapping.pin,
+      mapping.pull || 'pullup',
+      mapping.trigger || 'falling',
+      mapping.action,
+      mapping.slot || 0,
+      mapping.debounce_ms || 30
+    ];
+    if (mapping.action === 'chaser_tap' || mapping.action === 'motion_tap') {
+      parts.push(mapping.beat_div || 1);
+    }
+    lines.push(parts.join(' '));
+  }
+  for (const mapping of config?.adc_mappings || []) {
+    lines.push([
+      'ADC',
+      mapping.pin,
+      mapping.action,
+      mapping.slot || 0,
+      mapping.min_x100,
+      mapping.max_x100
+    ].join(' '));
+  }
+  return lines.join('\n') + '\n';
+}
+
 async function waitForSlot(request, kind, slot, predicate) {
   const path = kind === 'chaser' ? '/chaser/slots' : '/motion/slots';
   let last = null;
@@ -84,6 +114,23 @@ function heavyMotionDemoBody(slot = 0) {
   for (let i = 0; i < 8; i++) lines.push(`TARGET scalar8 1 ${i + 1} 0 0 0 ${(i * 45 + slot * 7) % 360} 0 0`);
   lines.push('END');
   return lines.join('\n');
+}
+
+function finiteMotionDemoBody(channel, mode, loops = 1, bpm = 240) {
+  return [
+    'FX 1',
+    // Circle ends at its positive peak, so this catches a stopped effect
+    // leaving its last generated value frozen instead of releasing the channel.
+    'TYPE 0',
+    `MODE ${mode}`,
+    `LOOPS ${loops}`,
+    `BPM ${bpm}`,
+    'AMP1 0.50',
+    'AMP2 0.00',
+    'SPREAD 0',
+    `TARGET scalar8 1 ${channel} 0 0 0 0 0 0`,
+    'END'
+  ].join('\n');
 }
 
 async function getSlots(request, kind) {
@@ -151,6 +198,37 @@ function paletteRecallBody(seed, channelCount = 512) {
 }
 
 describeHardware('Real Pico endpoint and slot behavior', () => {
+  test('GPIO firmware accepts Effects pause controls and all 64 Effects slots', async ({ request }) => {
+    const original = await getJson(request, '/gpio/config');
+    expect(original.ok).toBe(true);
+
+    try {
+      const configured = await postText(request, '/gpio/config', [
+        'ENABLE 0',
+        'MAP 16 pullup falling motion_pause 40 30',
+        'MAP 17 pullup falling motion_resume 40 30',
+        'MAP 18 pullup falling motion_pause_toggle 63 30',
+        ''
+      ].join('\n'));
+      expect(configured.ok).toBe(true);
+
+      const readback = await getJson(request, '/gpio/config');
+      expect(readback.enabled).toBe(false);
+      expect(readback.mappings).toEqual([
+        expect.objectContaining({ pin: 16, action: 'motion_pause', slot: 40 }),
+        expect.objectContaining({ pin: 17, action: 'motion_resume', slot: 40 }),
+        expect.objectContaining({ pin: 18, action: 'motion_pause_toggle', slot: 63 })
+      ]);
+    } finally {
+      const restored = await postText(request, '/gpio/config', gpioConfigText(original));
+      expect(restored.ok).toBe(true);
+      const restoredReadback = await getJson(request, '/gpio/config');
+      expect(restoredReadback.enabled).toBe(original.enabled);
+      expect(restoredReadback.mappings).toEqual(original.mappings);
+      expect(restoredReadback.adc_mappings).toEqual(original.adc_mappings);
+    }
+  });
+
   test('DMX output endpoint reports live buffer and reflects batch writes', async ({ request }) => {
     const channels = hardware.dmxTestChannels || [1, 2];
     const [a, b] = channels;
@@ -331,6 +409,61 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await waitForSlot(request, 'motion', slot, s => !s.active);
   });
 
+  test('Pan and Tilt Pulse drive only the selected axis', async ({ request }) => {
+    const slot = Number(hardware.motionSlot);
+    const channels = hardware.dmxTestChannels || [];
+    test.skip(channels.length < 2, 'Two configured DMX test channels are required for Pan/Tilt Pulse');
+    const panChannel = Number(channels[0]);
+    const tiltChannel = Number(channels[1]);
+    const target = (type, positionOffset, direction) => [
+      'FX 1',
+      `TYPE ${type}`,
+      'BPM 60',
+      'AMP1 0.25',
+      'AMP2 0.25',
+      `PULSE_OFFSET ${positionOffset}`,
+      `PULSE_DIRECTION ${direction}`,
+      'SPREAD 0',
+      `TARGET pantilt8 1 ${panChannel} 0 ${tiltChannel} 0 0 0 0`,
+      'END'
+    ].join('\n');
+    const samplePulse = async (type, positionOffset, direction) => {
+      await postText(request, '/motion/load/' + slot, target(type, positionOffset, direction));
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(150);
+      const high = await getJson(request, '/dmx/output.json');
+      await sleep(500);
+      const low = await getJson(request, '/dmx/output.json');
+      await getJson(request, '/motion/stop/' + slot);
+      return {
+        high: { pan: high.values[panChannel - 1], tilt: high.values[tiltChannel - 1] },
+        low: { pan: low.values[panChannel - 1], tilt: low.values[tiltChannel - 1] }
+      };
+    };
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await getJson(request, '/dmx/clear');
+    await postText(request, '/dmx/b', `${panChannel}:128,${tiltChannel}:128`);
+    try {
+      const panPulse = await samplePulse(6, 0, -1);
+      expect(Math.abs(panPulse.high.pan - 128)).toBeLessThanOrEqual(1);
+      expect(panPulse.low.pan).toBeLessThan(128);
+      expect(panPulse.high.tilt).toBe(128);
+      expect(panPulse.low.tilt).toBe(128);
+
+      const tiltPulse = await samplePulse(7, .25, 1);
+      expect(tiltPulse.high.tilt).toBeGreaterThan(tiltPulse.low.tilt);
+      expect(tiltPulse.low.tilt).toBeGreaterThan(128);
+      expect(tiltPulse.high.pan).toBe(128);
+      expect(tiltPulse.low.pan).toBe(128);
+    } finally {
+      await getJson(request, '/motion/stop/' + slot).catch(() => {});
+      await getJson(request, '/motion/clear/' + slot).catch(() => {});
+      await getJson(request, '/dmx/clear').catch(() => {});
+    }
+  });
+
   test('Motion pause holds the current phase and resume continues from it', async ({ request }) => {
     const slot = Number(hardware.motionSlot);
     const channel = (hardware.dmxTestChannels || [1])[0];
@@ -369,6 +502,69 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     ).toBeGreaterThan(8);
 
     await getJson(request, '/motion/stop/' + slot);
+  });
+
+  test('Motion Single, Loop, and Loop N modes preserve pause phase and stop at their limits', async ({ request }) => {
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const slots = await getSlots(request, 'motion');
+    const preferredSlot = Number(hardware.motionSlot);
+    const slotInfo = slots.find(s => Number(s.slot) === preferredSlot && !s.loaded)
+      || slots.find(s => !s.loaded);
+    test.skip(!slotInfo, 'No empty Pico motion slot is available for the playback-mode test');
+    const slot = Number(slotInfo.slot);
+    const base = await getJson(request, '/dmx/base.json');
+    const originalValue = Number(base[channel - 1]) || 0;
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await postText(request, '/dmx/b', `${channel}:128`);
+
+    try {
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'single'));
+      let state = await waitForSlot(request, 'motion', slot, s => s.loaded && Number(s.mode) === 0);
+      expect(Number(state.loop_count)).toBe(1);
+      await getJson(request, '/motion/start/' + slot);
+      state = await waitForSlot(request, 'motion', slot, s => !s.active && Number(s.completed_loops) === 1);
+      expect(Number(state.elapsed_s)).toBeCloseTo(0.25, 1);
+
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'loop', 7));
+      state = await waitForSlot(request, 'motion', slot, s => s.loaded && Number(s.mode) === 1);
+      expect(Number(state.loop_count)).toBe(7);
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(650);
+      state = await waitForSlot(request, 'motion', slot, s => s.active && Number(s.completed_loops) >= 2);
+      expect(state.active).toBe(true);
+      await getJson(request, '/motion/stop/' + slot);
+
+      await postText(request, '/motion/load/' + slot, finiteMotionDemoBody(channel, 'loop_n', 3));
+      state = await waitForSlot(
+        request,
+        'motion',
+        slot,
+        s => s.loaded && Number(s.mode) === 2 && Number(s.loop_count) === 3
+      );
+      await getJson(request, '/motion/start/' + slot);
+      await sleep(350);
+      await getJson(request, '/motion/pause/' + slot);
+      const paused = await waitForSlot(request, 'motion', slot, s => s.paused);
+      await sleep(350);
+      const held = await waitForSlot(request, 'motion', slot, s => s.paused);
+      expect(Math.abs(Number(held.elapsed_s) - Number(paused.elapsed_s))).toBeLessThanOrEqual(0.02);
+      expect(Number(held.completed_loops)).toBe(Number(paused.completed_loops));
+
+      await getJson(request, '/motion/resume/' + slot);
+      await waitForSlot(request, 'motion', slot, s => s.active);
+      state = await waitForSlot(request, 'motion', slot, s => !s.active && Number(s.completed_loops) === 3);
+      expect(Number(state.elapsed_s)).toBeCloseTo(0.75, 1);
+      await expect.poll(
+        () => readOutputValue(request, channel),
+        { timeout: 1000, intervals: [50, 100] }
+      ).toBe(128);
+    } finally {
+      await getJson(request, '/motion/stop/' + slot).catch(() => {});
+      await getJson(request, '/motion/clear/' + slot).catch(() => {});
+      await postText(request, '/dmx/b', `${channel}:${originalValue}`).catch(() => {});
+    }
   });
 
   test('Blackout lock suppresses running motion output on locked channels', async ({ request }) => {

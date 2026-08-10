@@ -192,7 +192,10 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, exists: true, state: { showRun: { ...defaultShowRunState, ...(calls.showRunState || {}) } } })
+      body: JSON.stringify({ ok: true, exists: true, state: {
+        showRun: { ...defaultShowRunState, ...(calls.showRunState || {}) },
+        toolboxes: calls.toolboxState || {}
+      } })
     });
   });
 
@@ -296,7 +299,7 @@ async function installFakeComputerMidi(page) {
 }
 
 test.describe('Show Run page', () => {
-  test('toggles browser fullscreen from the sticky Show Run header', async ({ page }) => {
+  test('toggles browser fullscreen from the Show Sidebar beside Edit', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await page.addInitScript(() => {
       let fullscreenElement = null;
@@ -324,18 +327,34 @@ test.describe('Show Run page', () => {
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    const button = page.locator('#fullscreenBtn');
+    const sidebar = page.locator('#showSidebar');
+    const button = sidebar.locator('#fullscreenBtn');
+    const edit = sidebar.locator('#editLayoutBtn');
     await expect(button).toBeVisible();
-    await expect(button).toHaveText('Full Screen');
+    await expect(page.locator('header #fullscreenBtn')).toHaveCount(0);
+    await expect(button).toHaveText('Fullscreen');
     await expect(button).toHaveAttribute('aria-pressed', 'false');
+    const sizes = await page.evaluate(() => {
+      const editRect = document.getElementById('editLayoutBtn').getBoundingClientRect();
+      const fullscreenRect = document.getElementById('fullscreenBtn').getBoundingClientRect();
+      return {
+        editWidth: editRect.width,
+        editHeight: editRect.height,
+        fullscreenWidth: fullscreenRect.width,
+        fullscreenHeight: fullscreenRect.height
+      };
+    });
+    expect(sizes.fullscreenWidth).toBe(sizes.editWidth);
+    expect(sizes.fullscreenHeight).toBe(sizes.editHeight);
+    expect(await edit.evaluate(element => element.nextElementSibling?.id)).toBe('fullscreenBtn');
 
     await button.click();
-    await expect(button).toHaveText('Exit Full Screen');
+    await expect(button).toHaveText('Exit');
     await expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.__fullscreenRequests)).toBe(1);
 
     await button.click();
-    await expect(button).toHaveText('Full Screen');
+    await expect(button).toHaveText('Fullscreen');
     await expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(await page.evaluate(() => window.__fullscreenExits)).toBe(1);
   });
@@ -774,7 +793,13 @@ test.describe('Show Run page', () => {
           name: 'Front Plane',
           visual: { type: 'visual', color: '#123456', image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22%3E%3Crect width=%22100%22 height=%2250%22 fill=%22red%22/%3E%3C/svg%3E' },
           view: { auto: false, centerX: 5, centerY: 5, zoom: 2 },
-          points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 10, y: 0, z: 0 }, { id: 'C', x: 0, y: 10, z: 0 }],
+          points: [
+            { id: 'A', x: 0, y: 0, z: 0 },
+            { id: 'B', x: 10, y: 0, z: 0 },
+            { id: 'C', x: 0, y: 10, z: 0 },
+            { id: 'D', x: 10, y: 10, z: 0 },
+            { id: 'E', x: 5, y: 5, z: 0 }
+          ],
           target: { x: 5, y: 0, z: 0 },
           fixtures: [
             {
@@ -822,6 +847,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
     await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('#showPlanePad .show-plane-point:not(.show-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2000, tilt: 3000 } });
     await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
     await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
@@ -873,6 +899,7 @@ test.describe('Show Run page', () => {
     await page.locator('#showPlaneZoomIn').click();
     await expect.poll(() => calls.roomPlaneWrites?.length || 0).toBeGreaterThan(0);
     const savedPlane = calls.roomPlaneWrites.at(-1).planes.find(plane => plane.id === 'front_plane');
+    expect(savedPlane.points.map(point => point.id)).toEqual(['A', 'B', 'C', 'D', 'E']);
     expect(savedPlane.view).toMatchObject({ auto: false, centerX: 5, centerY: 5 });
     expect(savedPlane.view.zoom).toBeGreaterThan(2);
   });
@@ -1246,7 +1273,7 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('uses the available browser width for the Show Run workspace', async ({ page }) => {
+  test('uses the available browser width beside the persistent Show Sidebar', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await page.setViewportSize({ width: 2200, height: 1100 });
@@ -1255,17 +1282,22 @@ test.describe('Show Run page', () => {
     const metrics = await page.evaluate(() => {
       const main = document.querySelector('main');
       const grid = document.querySelector('#cardGrid');
+      const sidebar = document.querySelector('#showSidebar');
       const mainRect = main.getBoundingClientRect();
       const gridRect = grid.getBoundingClientRect();
+      const sidebarRect = sidebar.getBoundingClientRect();
       return {
         mainWidth: mainRect.width,
         mainLeft: mainRect.left,
-        gridWidth: gridRect.width
+        mainRight: mainRect.right,
+        gridWidth: gridRect.width,
+        sidebarLeft: sidebarRect.left
       };
     });
     expect(metrics.mainLeft).toBeLessThan(2);
-    expect(metrics.mainWidth).toBeGreaterThan(2160);
-    expect(metrics.gridWidth).toBeGreaterThan(2160);
+    expect(metrics.mainWidth).toBeGreaterThan(1750);
+    expect(metrics.gridWidth).toBeGreaterThan(1750);
+    expect(metrics.mainRight).toBeLessThanOrEqual(metrics.sidebarLeft + 1);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1629,6 +1661,34 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
   });
 
+  test('shows saved Pico playback names and icons on Show Run', async ({ page }) => {
+    const icon = 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: ['STEP 500 0\nCH 1 255\nEND'],
+      mirroredMotionSlots: ['FX 1\nBPM 60\nTARGET scalar8 1 1 0 255\nEND'],
+      chaserPlaybacks: [{
+        id: 'chase-0', label: 'Purple Sweep', visual: { type: 'visual', color: '#71368a', image: icon },
+        members: [{ outputId: 'primary', slot: 0, payload: 'STEP 500 0\nCH 1 255\nEND' }]
+      }],
+      motionPlaybacks: [{
+        id: 'effect-0', label: 'Blue Orbit', visual: { type: 'visual', color: '#1d6b8f', image: icon },
+        members: [{ outputId: 'primary', slot: 0, payload: 'FX 1\nBPM 60\nTARGET scalar8 1 1 0 255\nEND' }]
+      }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const chase = page.locator('#chaserSlots .playback-card').first();
+    const effect = page.locator('#motionSlots .playback-card').first();
+    await expect(chase).toContainText('Purple Sweep');
+    await expect(effect).toContainText('Blue Orbit');
+    await expect(chase.locator('.palette-visual')).toHaveCount(1);
+    await expect(effect.locator('.palette-visual')).toHaveCount(1);
+  });
+
   test('shows primary show output health instead of a Pico URL editor', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -1687,6 +1747,66 @@ test.describe('Show Run page', () => {
     expect(urls).toContain('http://pico.test/motion/load/0');
     await expect(page.locator('#chaserControlRestore')).toHaveCount(0);
     await expect(page.locator('#motionControlRestore')).toHaveCount(0);
+  });
+
+  test('shows Pico Effect mode, Loop N count, and completed-loop progress on Show Run', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredMotionSlots: Array(64).fill(null),
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 0,
+        active: slot === 0,
+        paused: false,
+        bpm: 90,
+        mode: slot === 0 ? 2 : 1,
+        loop_count: slot === 0 ? 4 : 1,
+        completed_loops: slot === 0 ? 2 : 0,
+        target_count: slot === 0 ? 3 : 0
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#motionControlMode')).toHaveValue('Loop N');
+    await expect(page.locator('#motionControlLoops')).toHaveValue('4');
+    await expect(page.locator('#motionControlLoops')).toBeDisabled();
+    await expect(page.locator('#motionSlots .playback-card').first()).toContainText('Loop N · 2/4 loops');
+  });
+
+  test('returns a completed Pico Loop N effect tile to Start automatically', async ({ page }) => {
+    const payload = 'FX 1\nBPM 120\nMODE loop_n\nLOOPS 1\nTARGET scalar8 1 1 0 255\nEND';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredMotionSlots: Array.from({ length: 64 }, (_, slot) => slot === 4 ? payload : null),
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 4,
+        active: false,
+        paused: false,
+        bpm: 120,
+        mode: slot === 4 ? 2 : 1,
+        loop_count: 1,
+        completed_loops: 0,
+        target_count: slot === 4 ? 1 : 0
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const toggle = page.locator('[data-motion-toggle="4"]');
+    await toggle.click();
+    await expect(toggle).toHaveText('Stop');
+    calls.liveMotionSlots[4].completed_loops = 1;
+    calls.liveMotionSlots[4].active = false;
+    await expect(toggle).toHaveText('Start', { timeout: 3000 });
+
+    await toggle.click();
+    await expect.poll(() => calls.pico.filter(call => call.url === 'http://pico.test/motion/start/4').length).toBe(2);
   });
 
   test('loads Show Run layout and live controls from server UI state', async ({ page }) => {
@@ -2373,6 +2493,120 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('provides a resizable single-column sidebar with configurable card rows', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 2,
+        cardRows: 5,
+        cardOrder: ['group', 'scene', 'palette', 'plane', 'chaser', 'live', 'midi', 'fixture', null, null],
+        sidebarRows: 3,
+        sidebarOrder: ['master', 'motion', null],
+        sidebarWidth: 420
+      },
+      toolboxState: { toolboxRailWidth: 420 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const sidebar = page.locator('#showSidebar');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveCSS('position', 'fixed');
+    await expect(sidebar).toHaveCSS('z-index', '180');
+    await expect(sidebar).toHaveCSS('padding', '20px 16px 20px 12px');
+    await expect(sidebar).toHaveCSS('box-shadow', /rgba\(0, 0, 0, 0\.38\) -12px 0px 30px/);
+    await expect(sidebar).toHaveCSS('background-image', /linear-gradient/);
+    await expect(page.locator('#sidebarCardGrid')).toHaveCSS('overflow-y', 'auto');
+    expect(await page.locator('#sidebarCardGrid').evaluate(el => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length)).toBe(1);
+    await expect(page.locator('body')).toHaveClass(/show-sidebar-active/);
+    const independentScroll = await page.evaluate(() => {
+      const rail = document.querySelector('#sidebarCardGrid');
+      const beforeWindow = window.scrollY;
+      rail.scrollTop = Math.min(120, Math.max(0, rail.scrollHeight - rail.clientHeight));
+      return {
+        overflow: rail.scrollHeight > rail.clientHeight,
+        railScroll: rail.scrollTop,
+        windowUnchanged: window.scrollY === beforeWindow
+      };
+    });
+    expect(independentScroll).toEqual({ overflow: true, railScroll: 120, windowUnchanged: true });
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(3);
+    await expect(page.locator('#sidebarCardGrid > :nth-child(1) h2')).toHaveText('Master');
+    await expect(page.locator('#sidebarCardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid #cardMaster')).toHaveCount(0);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#sidebarRows').selectOption('4');
+    await page.locator('#cardGroup .card-area-move').click();
+    await expect(page.locator('#sidebarCardGrid > :nth-child(3) h2')).toHaveText('Groups');
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(4);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.sidebarOrder') || '[]').slice(0, 3)))
+      .toEqual(['master', 'motion', 'group']);
+
+    await page.locator('#sidebarRows').selectOption('2');
+    await expect(page.locator('#cardGrid #cardGroup')).toBeVisible();
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(2);
+    await page.locator('#sidebarRows').selectOption('3');
+    await page.locator('#cardGroup .card-area-move').click();
+    await expect(page.locator('#sidebarCardGrid > :nth-child(3) h2')).toHaveText('Groups');
+
+    const resizer = page.locator('#showSidebarResizer');
+    const box = await resizer.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box.x + box.width / 2, box.y + 80);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 60, box.y + 80);
+    await page.mouse.up();
+    expect(Number(await page.evaluate(() => localStorage.getItem('dmxShowRun.sidebarWidth')))).toBeGreaterThan(420);
+    await page.locator('#sidebarCardGrid [data-show-card="group"] .card-area-move').click();
+    await expect(page.locator('#cardGrid #cardGroup')).toBeVisible();
+    await expect(page.locator('#sidebarCardGrid [data-show-card="group"]')).toHaveCount(0);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.sidebarOrder)).toBe(true);
+    expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailWidth)).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('keeps Edit, Fullscreen, and collapse controls in the Show Sidebar header', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: { sidebarRows: 2, sidebarOrder: [null, null] },
+      toolboxState: { toolboxRailCollapsed: false }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const sidebar = page.locator('#showSidebar');
+    const edit = sidebar.locator('#editLayoutBtn');
+    const fullscreen = sidebar.locator('#fullscreenBtn');
+    const toggle = sidebar.locator('#showSidebarToggle');
+    await expect(sidebar).toBeVisible();
+    await expect(page.locator('header #editLayoutBtn')).toHaveCount(0);
+    await expect(edit).toHaveText('Edit');
+    await expect(fullscreen).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await edit.click();
+    await expect(page.locator('body')).toHaveClass(/layout-editing/);
+    await expect(edit).toHaveText('Done');
+    await toggle.click();
+    await expect(page.locator('body')).toHaveClass(/toolbox-rail-collapsed/);
+    await expect(page.locator('body')).not.toHaveClass(/layout-editing/);
+    await expect(sidebar).toHaveCSS('width', '48px');
+    await expect(edit).toBeHidden();
+    await expect(fullscreen).toBeHidden();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await toggle.click();
+    await expect(page.locator('body')).not.toHaveClass(/toolbox-rail-collapsed/);
+    await expect(edit).toBeVisible();
+    await expect(fullscreen).toBeVisible();
+    expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailCollapsed === true)).toBe(true);
+  });
+
   test('shows only the configured number of card matrix slots', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -2832,7 +3066,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
     await page.locator('#cardLive').scrollIntoViewIfNeeded();
-    const source = await page.locator('#cardLive .panel-head').boundingBox();
+    const source = await page.locator('#cardLive .panel-head h2').boundingBox();
     expect(source).not.toBeNull();
 
     await page.mouse.move(source.x + source.width / 2, source.y + Math.min(80, source.height / 2));

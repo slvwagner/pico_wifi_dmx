@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico Performance Test</title>
-<link rel="stylesheet" href="../assets/dmx-ui.css?v=1.2.0-15">
-<script src="../assets/dmx-common.js?v=1.2.0-15"></script>
+<link rel="stylesheet" href="../assets/dmx-ui.css?v=1.3.0-21">
+<script src="../assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 h2{font-size:16px}
 input[type=number]{width:100px}input[type=url]{min-width:220px}
@@ -64,10 +64,10 @@ th{color:var(--muted);font-weight:600}
     <a class="nav" href="../dmx_show.html">Show</a>
     <a class="nav" href="../dmx_chaser.html">Chaser</a>
     <a class="nav" href="../dmx_motion.html">Effects</a>
-    <a class="nav" href="../dmx_gpio.html?v=1.2.0">GPIO</a>
+    <a class="nav" href="../dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="../dmx_monitor.html">Monitor</a>
     <a class="nav" href="../dmx_room_plane.html">Plane</a>
-    <a class="nav" href="../user-manual.html?v=1.2.0#8-pico-performance-test" target="_blank">Manual</a>
+    <a class="nav" href="../user-manual.html?v=1.3.0#pico-performance-test" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -329,14 +329,20 @@ async function loadPerformanceTargets(){
   renderPerformanceTargets();
 }
 
-async function runForSelectedPicos(action,activity){
+async function runForSelectedPicos(action,activity,{cleanupOutput=false}={}){
   const targets=selectedPerformanceOutputs();
   if(!targets.length){setStatus('Configure at least one DMX Output with a Pico URL first.',true);return[];}
   const results=[];
   for(let index=0;index<targets.length;index++){
     setActivePerformanceOutput(targets[index]);
     if(targets.length>1)setStatus((activity||'Running measurement')+' on '+performanceTargetLabel()+' ('+(index+1)+'/'+targets.length+')…');
-    results.push(await action(targets[index],index,targets.length));
+    let result;
+    try{
+      result=await action(targets[index],index,targets.length);
+    }finally{
+      if(cleanupOutput)await finishPerformanceTestOutput(activity||'Performance test');
+    }
+    results.push(result);
   }
   if(picoTargetEl.value==='__all__'){
     document.getElementById('picoTargetTitle').textContent='All configured Picos ('+targets.length+')';
@@ -372,16 +378,28 @@ async function fetchPico(path,options={},timeoutMs=PICO_REQUEST_TIMEOUT_MS){
   }
 }
 
-async function fetchPicoText(path){
-  const root=picoRoot();
+function normalizedPicoRoot(baseUrl){
+  return String(baseUrl||'').replace(/\/+$/,'');
+}
+
+async function fetchPicoTextAt(baseUrl,path){
+  const root=normalizedPicoRoot(baseUrl);
   if(!root)throw new Error('Set Pico base URL first');
   const r=await fetchPico(root+path,{cache:'no-store'});
   if(!r.ok)throw new Error(path+' HTTP '+r.status);
   return r.text();
 }
 
+async function fetchPicoText(path){
+  return fetchPicoTextAt(picoRoot(),path);
+}
+
+async function fetchPicoJsonAt(baseUrl,path){
+  return JSON.parse(await fetchPicoTextAt(baseUrl,path));
+}
+
 async function fetchPicoJson(path){
-  return JSON.parse(await fetchPicoText(path));
+  return fetchPicoJsonAt(picoRoot(),path);
 }
 
 function expectedFirmwareVersion(){
@@ -1125,6 +1143,19 @@ async function finishMidiLatencyTest({cancelled=false,error=''}={}){
     setCheck('checkMidiLatency',resultState,'MIDI-to-DMX timing',detail);
     midiLatencySetStatus('Complete: '+state.results.length+' samples measured. DMX channel '+state.channel+' was restored.','ready');
   }
+  if(state.cleanupOutput){
+    const failures=await clearPerformanceTestOutput();
+    if(failures.length){
+      const cleanupError='Output cleanup failed: '+failures.join('; ');
+      error=error||cleanupError;
+      lastMidiLatencySnapshot={state:'bad',detail:cleanupError,shortDetail:'cleanup failed'};
+      setCheck('checkMidiLatency','bad','MIDI-to-DMX timing',cleanupError);
+      midiLatencySetStatus(cleanupError,'bad');
+    }else{
+      const status=document.getElementById('midiLatencyStatus');
+      status.textContent=(status.textContent.trim()+' Playback stopped and DMX output cleared.').trim();
+    }
+  }
   state.completionResolve?.(!error&&!cancelled);
 }
 
@@ -1215,7 +1246,7 @@ async function startMidiLatencyTest(options={}){
     let completionResolve=null;
     const completion=new Promise(resolve=>{completionResolve=resolve;});
     const automated=Boolean(options.automated&&midiLatencyEmulatorSelected());
-    midiLatencyRun={active:true,busy:false,timer:null,autoTimer:null,pending:null,mode,channel,sampleCount,originalBase,inputName:midiLatencyInput.name||'MIDI input',results:[],output,completionResolve,automated};
+    midiLatencyRun={active:true,busy:false,timer:null,autoTimer:null,pending:null,mode,channel,sampleCount,originalBase,inputName:midiLatencyInput.name||'MIDI input',results:[],output,completionResolve,automated,cleanupOutput:options.cleanupOutput!==false};
     renderMidiLatencyStats(midiLatencyRun);
     if(automated){
       midiLatencySetStatus('Ready. Generating emulator sample 1 of '+sampleCount+'...','busy');
@@ -1384,39 +1415,67 @@ async function runTest(){
   }
 }
 
+async function clearPerformanceTestOutput(){
+  const failures=[];
+  for(const path of ['/chaser/stop','/motion/stop','/dmx/master/clear','/dmx/blackout/clear','/dmx/clear']){
+    try{await fetchPicoJson(path);}
+    catch(error){failures.push(path+' ('+error.message+')');}
+  }
+  return failures;
+}
+
+async function finishPerformanceTestOutput(testLabel){
+  setStatus(testLabel+' complete. Stopping playback and clearing DMX output on '+performanceTargetLabel()+'...');
+  const failures=await clearPerformanceTestOutput();
+  if(failures.length){
+    const detail=testLabel+' completed, but output cleanup failed: '+failures.join('; ');
+    setStatus(detail,true);
+    return failures;
+  }
+  setStatus(testLabel+' complete. Playback stopped and DMX output cleared on '+performanceTargetLabel()+'.');
+  return [];
+}
+
 async function runFullPerformanceTestForActivePico(){
   let embeddedEmulator=null;
-  if(!midiLatencyInput&&!midiLatencyEmulatorAvailable()){
-    embeddedEmulator=ensureMidiLatencyEmulatorFrame();
-  }
-  if(!midiLatencyInput&&embeddedEmulator){
-    setStatus('Starting the MIDI Emulator...');
-    if(await waitForMidiLatencyEmulator(3500)){
-      selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
-      renderMidiLatencyInputs();
+  let cleanupFailures=[];
+  try{
+    if(!midiLatencyInput&&!midiLatencyEmulatorAvailable()){
+      embeddedEmulator=ensureMidiLatencyEmulatorFrame();
     }
-  }
-  if(!midiLatencyInput){
-    try{await connectMidiLatencyInput();}
-    catch(e){
-      const detail='MIDI phase skipped: '+e.message+(embeddedEmulator?' The embedded emulator did not connect.':'');
-      lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'not connected'};
-      setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
+    if(!midiLatencyInput&&embeddedEmulator){
+      setStatus('Starting the MIDI Emulator...');
+      if(await waitForMidiLatencyEmulator(3500)){
+        selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+        renderMidiLatencyInputs();
+      }
     }
+    if(!midiLatencyInput){
+      try{await connectMidiLatencyInput();}
+      catch(e){
+        const detail='MIDI phase skipped: '+e.message+(embeddedEmulator?' The embedded emulator did not connect.':'');
+        lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'not connected'};
+        setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
+      }
+    }
+    await checkPico({record:false});
+    await runBufferReadback();
+    await runTest();
+    if(midiLatencyInput){
+      const samples=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
+      setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
+      await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected(),cleanupOutput:false});
+    }
+    await runPlaybackPaletteStress({recordTiming:false});
+    await Promise.race([
+      checkPico(),
+      new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
+    ]);
+  }finally{
+    setStatus('Full Test measurements complete. Stopping playback and clearing DMX output on '+performanceTargetLabel()+'...');
+    cleanupFailures=await clearPerformanceTestOutput();
   }
-  await checkPico({record:false});
-  await runBufferReadback();
-  await runTest();
-  if(midiLatencyInput){
-    const samples=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
-    setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
-    await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
-  }
-  await runPlaybackPaletteStress({recordTiming:false});
-  await Promise.race([
-    checkPico(),
-    new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
-  ]);
+  return cleanupFailures;
 }
 
 async function runFullPerformanceTest(){
@@ -1433,6 +1492,7 @@ async function runFullPerformanceTest(){
     const availability=await Promise.all(targets.map(checkPerformanceOutputAvailability));
     const available=availability.filter(result=>result.available).map(result=>result.output);
     const unavailable=availability.filter(result=>!result.available);
+    const cleanupFailures=[];
     const scopeLabel=picoTargetEl.value==='__all__'?'configured':'selected';
 
     if(!available.length){
@@ -1447,7 +1507,8 @@ async function runFullPerformanceTest(){
       setStatus('Running full test on '+performanceTargetLabel()+' ('+(index+1)+'/'+available.length+' available)...');
       lastBufferSnapshot={state:'idle',detail:'not run'};
       lastMidiLatencySnapshot={state:'idle',detail:'not run',shortDetail:'not run'};
-      await runFullPerformanceTestForActivePico();
+      const failures=await runFullPerformanceTestForActivePico();
+      failures.forEach(failure=>cleanupFailures.push(performanceTargetLabel()+': '+failure));
     }
 
     if(picoTargetEl.value==='__all__'){
@@ -1455,7 +1516,11 @@ async function runFullPerformanceTest(){
       document.getElementById('picoTargetDetail').textContent='Last displayed cards: '+performanceTargetLabel()+'. Histories contain results for every available Pico.';
     }
 
-    if(unavailable.length){
+    if(cleanupFailures.length){
+      const detail='Full test measurements completed, but output cleanup failed: '+cleanupFailures.join('; ')+(unavailable.length?' · skipped unavailable: '+unavailable.map(unavailablePerformanceOutputDetail).join('; '):'');
+      setCheck('checkWrite','bad','Full Test output cleanup',detail);
+      setStatus(detail,true);
+    }else if(unavailable.length){
       const detail='Full test complete on '+available.length+' of '+targets.length+' '+scopeLabel+' Picos. Skipped unavailable: '+unavailable.map(unavailablePerformanceOutputDetail).join('; ');
       setCheck('checkStatus','warn','Pico availability',detail);
       setStatus(detail);
@@ -1540,6 +1605,8 @@ async function saveTemporaryStressRecord(record){
   await postLocalJson('../ui_state.php',{page:'performanceTest',state:{temporaryPlaybackStress:record}});
 }
 
+let activeTemporaryStressRecord=null;
+
 async function readTemporaryStressRecord(){
   try{
     const data=await fetchLocalJson('../ui_state.php');
@@ -1552,20 +1619,67 @@ async function readTemporaryStressRecord(){
 }
 
 async function clearTemporaryStressRecord(){
-  await saveTemporaryStressRecord(null).catch(()=>{});
+  await saveTemporaryStressRecord(null);
 }
 
 async function clearRecordedStressSlots(record){
   if(!record)return;
+  const root=normalizedPicoRoot(record.picoBaseUrl)||picoRoot();
   const chaserSlots=Array.isArray(record.chaserSlots)?record.chaserSlots:[];
   const motionSlots=Array.isArray(record.motionSlots)?record.motionSlots:[];
-  for(const slot of chaserSlots)await fetchPicoJson('/chaser/clear/'+slot).catch(()=>{});
-  for(const slot of motionSlots)await fetchPicoJson('/motion/clear/'+slot).catch(()=>{});
-  if(chaserSlots.length||motionSlots.length)await clearTemporaryStressRecord();
+  if(!chaserSlots.length&&!motionSlots.length)return;
+
+  let pending={chaser:[...chaserSlots],motion:[...motionSlots]};
+  let lastError=null;
+  const maxAttempts=5;
+  const clearIntervalMs=50;
+  await new Promise(resolve=>setTimeout(resolve,500));
+  for(let attempt=0;attempt<maxAttempts&&(pending.chaser.length||pending.motion.length);attempt++){
+    for(const kind of ['chaser','motion']){
+      for(const slot of pending[kind]){
+        try{
+          await fetchPicoJsonAt(root,'/'+kind+'/clear/'+slot);
+        }catch(error){
+          lastError=error;
+        }
+        await new Promise(resolve=>setTimeout(resolve,clearIntervalMs));
+      }
+    }
+
+    const next={chaser:[],motion:[]};
+    for(const kind of ['chaser','motion']){
+      if(!pending[kind].length)continue;
+      try{
+        const data=await fetchPicoJsonAt(root,'/'+kind+'/slots');
+        next[kind]=pending[kind].filter(slot=>{
+          const state=(data.slots||[]).find(candidate=>Number(candidate.slot)===Number(slot));
+          return Boolean(state&&state.loaded);
+        });
+      }catch(error){
+        lastError=error;
+        next[kind]=[...pending[kind]];
+      }
+    }
+    pending=next;
+    if((pending.chaser.length||pending.motion.length)&&attempt<maxAttempts-1){
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+  }
+
+  if(pending.chaser.length||pending.motion.length){
+    const remaining=[
+      ...pending.chaser.map(slot=>'chaser '+slot),
+      ...pending.motion.map(slot=>'effect '+slot)
+    ].join(', ');
+    throw new Error('Could not clear temporary playback slots on '+root+': '+remaining+(lastError?' · '+lastError.message:''));
+  }
+  await clearTemporaryStressRecord();
+  activeTemporaryStressRecord=null;
 }
 
 async function startPlaybackWithTemporaryDemoSlots(){
   await clearRecordedStressSlots(await readTemporaryStressRecord());
+  activeTemporaryStressRecord=null;
 
   const chaserSnapshot=await getPicoSlots('chaser');
   const motionSnapshot=await getPicoSlots('motion');
@@ -1573,7 +1687,9 @@ async function startPlaybackWithTemporaryDemoSlots(){
   const existingMotionSlots=motionSnapshot.filter(s=>s.loaded).map(s=>Number(s.slot));
   const tempChaserSlots=emptyPicoSlotIndexes(chaserSnapshot);
   const tempMotionSlots=emptyPicoSlotIndexes(motionSnapshot);
-  if(!tempChaserSlots.length&&!tempMotionSlots.length)throw new Error('No empty Pico playback slots available for temporary stress data.');
+  if(!existingChaserSlots.length&&!existingMotionSlots.length&&!tempChaserSlots.length&&!tempMotionSlots.length){
+    throw new Error('The Pico did not report any playback slots for the stress test.');
+  }
 
   const record={
     createdAt:new Date().toISOString(),
@@ -1585,7 +1701,10 @@ async function startPlaybackWithTemporaryDemoSlots(){
       motion:motionSnapshot.filter(s=>tempMotionSlots.includes(Number(s.slot)))
     }
   };
-  await saveTemporaryStressRecord(record);
+  if(tempChaserSlots.length||tempMotionSlots.length){
+    await saveTemporaryStressRecord(record);
+    activeTemporaryStressRecord=record;
+  }
 
   for(const slot of tempChaserSlots)await postPicoText('/chaser/load/'+slot,demoChaserBody(128,slot));
   for(const slot of tempMotionSlots)await postPicoText('/motion/load/'+slot,demoMotionBody(slot));
@@ -1607,7 +1726,7 @@ async function runPlaybackPaletteStress({recordTiming=true}={}){
   const paletteCount=80;
   let slotInfo={chaserSlots:[],motionSlots:[],tempChaserSlots:[],tempMotionSlots:[]};
   try{
-    setStatus('Adding temporary demo data to empty playback slots for palette stress...');
+    setStatus('Preparing Pico playback slots for palette stress...');
     await fetchPicoJson('/chaser/stop').catch(()=>{});
     await fetchPicoJson('/motion/stop').catch(()=>{});
     await fetchPicoJson('/dmx/master/clear').catch(()=>{});
@@ -1665,36 +1784,49 @@ async function runPlaybackPaletteStress({recordTiming=true}={}){
     historyRow.midiLatencyLabel=shortMidiLatencyLabel(lastMidiLatencySnapshot);
     historyRow.overall=overallTimingState(historyRow);
     if(recordTiming)addTimingHistory(historyRow);
-    setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played; temporary slots will be cleared'+(errors?' · '+errors+' errors':''));
-    setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls. Temporary slots are being cleared.');
+    const temporarySlotCount=slotInfo.tempChaserSlots.length+slotInfo.tempMotionSlots.length;
+    const cleanupDetail=temporarySlotCount
+      ? '; '+temporarySlotCount+' temporary slot'+(temporarySlotCount===1?'':'s')+' will be cleared'
+      : '; all playback slots were already occupied, so no show data was replaced';
+    setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played'+cleanupDetail+(errors?' · '+errors+' errors':''));
+    setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls.'+(temporarySlotCount?' Temporary slots are being cleared.':' Existing playback data was left unchanged.'));
   }catch(e){
     setStatus(e.message,true);
     setCheck('checkWrite','bad','Playback + palette stress',e.message);
   }finally{
     running=false;
-    document.getElementById('btnStart').disabled=false;
     document.getElementById('btnStop').disabled=true;
-    btn.disabled=false;
     await fetchPicoJson('/chaser/stop').catch(()=>{});
     await fetchPicoJson('/motion/stop').catch(()=>{});
-    await clearRecordedStressSlots(await readTemporaryStressRecord());
+    try{
+      const cleanupRecord=activeTemporaryStressRecord||await readTemporaryStressRecord();
+      if(cleanupRecord)setStatus('Playback + palette stress complete. Clearing and verifying temporary slots on '+normalizedPicoRoot(cleanupRecord.picoBaseUrl||picoRoot())+'…');
+      await clearRecordedStressSlots(cleanupRecord);
+      if(cleanupRecord)setStatus('Playback + palette stress complete. All temporary slots were cleared and verified.');
+    }catch(cleanupError){
+      setStatus(cleanupError.message,true);
+      setCheck('checkWrite','bad','Playback + palette stress cleanup',cleanupError.message+' The recovery record was kept so cleanup can be retried.');
+    }finally{
+      document.getElementById('btnStart').disabled=false;
+      btn.disabled=false;
+    }
   }
 }
 
 initMidiLatencyEmulator();
 document.getElementById('preset').onchange=e=>applyPreset(e.target.value);
 ['channel','value','chPerReq','reqCount','durationSec'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{document.getElementById('preset').value='custom';updateModeHint();}));
-document.getElementById('btnStart').onclick=()=>runForSelectedPicos(runTest,'Running DMX write test');
+document.getElementById('btnStart').onclick=()=>runForSelectedPicos(runTest,'DMX write test',{cleanupOutput:true});
 document.getElementById('btnStop').onclick=()=>{running=false;};
 document.getElementById('btnExport').onclick=exportCsv;
 document.getElementById('btnClearHistory').onclick=()=>{history=[];renderHistory();};
 document.getElementById('btnClearTimingHistory').onclick=()=>{timingHistory=[];renderTimingHistory();};
 document.getElementById('btnCheckPico').onclick=()=>runForSelectedPicos(()=>checkPico(),'Checking');
-document.getElementById('btnBufferReadback').onclick=()=>runForSelectedPicos(runBufferReadback,'Running buffer readback');
+document.getElementById('btnBufferReadback').onclick=()=>runForSelectedPicos(runBufferReadback,'Buffer readback',{cleanupOutput:true});
 document.getElementById('midiLatencyInput').onchange=e=>{selectMidiLatencyInput(e.target.value);renderMidiLatencyInputs();};
 document.getElementById('btnMidiLatencyConnect').onclick=()=>connectMidiLatencyInput().catch(e=>midiLatencySetStatus(e.message,'bad'));
 document.getElementById('btnMidiLatencyStart').onclick=()=>{
-  if(picoTargetEl.value!=='__all__')return startMidiLatencyTest();
+  if(picoTargetEl.value!=='__all__')return startMidiLatencyTest({cleanupOutput:true});
   return runForSelectedPicos(
     ()=>startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()}),
     'Running MIDI latency test'
@@ -1703,7 +1835,7 @@ document.getElementById('btnMidiLatencyStart').onclick=()=>{
 document.getElementById('btnMidiLatencyStop').onclick=()=>finishMidiLatencyTest({cancelled:true});
 document.getElementById('midiLatencyMode').onchange=e=>{document.getElementById('midiLatencyRate').textContent=e.target.value==='continuous'?'33.3':'43.0';};
 document.getElementById('btnRunFull').onclick=runFullPerformanceTest;
-document.getElementById('btnRunPlaybackPaletteStress').onclick=()=>runForSelectedPicos(runPlaybackPaletteStress,'Running playback + palette stress');
+document.getElementById('btnRunPlaybackPaletteStress').onclick=()=>runForSelectedPicos(runPlaybackPaletteStress,'Playback + palette stress',{cleanupOutput:true});
 picoTargetEl.onchange=()=>{
   if(picoTargetEl.value==='__all__'){
     const targets=selectedPerformanceOutputs();

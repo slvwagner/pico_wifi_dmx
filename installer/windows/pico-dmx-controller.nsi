@@ -1,6 +1,10 @@
 Unicode True
 RequestExecutionLevel admin
-SetCompressor /SOLID lzma
+!ifdef USE_LZMA_COMPRESSION
+  SetCompressor /SOLID lzma
+!else
+  SetCompressor /SOLID zlib
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"

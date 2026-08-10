@@ -86,6 +86,11 @@ The locked Microsoft WebView2 package is restored during the build:
 .\installer\windows\build_installer.ps1
 ```
 
+The build reports the elapsed time for input validation, build-directory cleanup,
+.NET restore and publish, Apache/PHP extraction, staging, NSIS compilation, installer
+finalization, and the complete run. Use these measurements to distinguish packaging
+and compression bottlenecks from application compilation or file staging.
+
 The Windows build also requires current `build\pico_wifi_dmx.uf2` and
 `build\pico_wifi_dmx_wifi_firmware.uf2` artifacts plus Raspberry Pi
 `picotool` 2.3.0. The build refuses a stale application version, an unexpected

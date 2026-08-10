@@ -912,6 +912,51 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterC).toBe(result.beforeC);
   });
 
+  test('Group Edit Default and Blackout stop playback on every selected fixture output before recalling DMX', async ({ page }) => {
+    const requests = [];
+    await page.route(/http:\/\/127\.0\.0\.1:1899[12]\/.*$/, async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      const fixtureA = fixtures.find(fixture => fixture.id === 101);
+      const fixtureB = fixtures.find(fixture => fixture.id === 102);
+      const controlA = fixtureProfile(fixtureA).controls.find(control => control.label === 'Dimmer');
+      const controlB = fixtureProfile(fixtureB).controls.find(control => control.label === 'Dimmer');
+      controlA.defaultValue = 80;
+      controlA.blackoutValue = 0;
+      controlB.defaultValue = 90;
+      controlB.blackoutValue = 0;
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtureA.outputId = 'front';
+      fixtureB.outputId = 'rear';
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      drawSurface();
+      openGroupModal();
+    });
+
+    const expectedStops = [
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ];
+    await page.locator('#defaultGroupBtn').click();
+    await expect.poll(() => page.evaluate(() => [values['101:11'], values['102:21']])).toEqual([80, 90]);
+    expect(requests).toEqual(expect.arrayContaining(expectedStops));
+    const firstDmx = requests.findIndex(url => url.includes('/dmx/set/'));
+    expectedStops.forEach(url => expect(requests.indexOf(url)).toBeLessThan(firstDmx));
+
+    requests.length = 0;
+    await page.locator('#blackoutGroupBtn').click();
+    await expect.poll(() => page.evaluate(() => [values['101:11'], values['102:21']])).toEqual([0, 0]);
+    expect(requests).toEqual(expect.arrayContaining(expectedStops));
+  });
+
   test('Group Edit can edit a single selected fixture', async ({ page }) => {
     await page.locator('[data-fixture-card="101"] .fixture-head').click();
     await expect(page.locator('#editSelectedGroups')).toBeEnabled();
@@ -1519,6 +1564,31 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
   });
 
+  test('saved plane recall preserves and displays optional calibration points', async ({ page }) => {
+    await page.evaluate(() => {
+      controllerPlanes = [normalizeControllerPlane({
+        id: 'plane_five_points',
+        name: 'Plane 5',
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 },
+          { id: 'D', x: 10, y: 10, z: 0 },
+          { id: 'E', x: 5, y: 5, z: 0 }
+        ],
+        target: { x: 4, y: 6, z: 0 },
+        fixtures: []
+      }, 0)];
+      renderControllerPlanes();
+    });
+
+    await page.locator('[data-controller-plane="plane_five_points"]').click();
+
+    await expect(page.locator('#controllerPlaneModal')).toBeVisible();
+    await expect(page.locator('#controllerPlanePad .controller-plane-point')).toHaveText(['A', 'B', 'C', 'D', 'E']);
+    expect(await page.evaluate(() => activeControllerPlane.points.map(point => point.id))).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
   test('Controller Planes toolbox exposes layout controls and moves tiles by slot', async ({ page }) => {
     const roomPlaneWrites = [];
     await page.unroute('**/room_plane_setup.php**');
@@ -1726,6 +1796,131 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
     await expect(page.locator('#profilesBody')).toBeHidden();
     await expect(page.locator('#patchBody')).toBeVisible();
+  });
+
+  test('wide toolbox is re-clamped after viewport resize so the Show card is not clipped', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDmxPage(page, '');
+    await page.evaluate(() => {
+      localStorage.removeItem('toolboxRailWidth');
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+    });
+    const resizer = page.locator('#fixtureToolboxRail .toolbox-rail-resizer');
+    const resizerBox = await resizer.boundingBox();
+    await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(540, resizerBox.y + 100, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => page.locator('#fixtureToolboxRail').evaluate(rail => Math.round(rail.getBoundingClientRect().width))).toBeGreaterThanOrEqual(890);
+
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.waitForTimeout(50);
+
+    const layout = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      const rail = document.getElementById('fixtureToolboxRail');
+      const show = document.querySelector('main > .setup-files-card');
+      const mainRect = main.getBoundingClientRect();
+      const railRect = rail.getBoundingClientRect();
+      const showRect = show.getBoundingClientRect();
+      return {
+        mainWidth: mainRect.width,
+        mainRight: mainRect.right,
+        railLeft: railRect.left,
+        showLeft: showRect.left,
+        showRight: showRect.right,
+        showClientWidth: show.clientWidth,
+        showScrollWidth: show.scrollWidth,
+        overflowing: Array.from(show.querySelectorAll('*')).map(element => ({
+          tag: element.tagName,
+          id: element.id,
+          className: typeof element.className === 'string' ? element.className : '',
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth
+        })).filter(element => element.scrollWidth > element.clientWidth + 1)
+      };
+    });
+
+    expect(layout.mainWidth).toBeGreaterThanOrEqual(360);
+    expect(layout.mainRight).toBeLessThanOrEqual(layout.railLeft + 1);
+    expect(layout.showLeft).toBeGreaterThanOrEqual(0);
+    expect(layout.showRight).toBeLessThanOrEqual(layout.mainRight + 1);
+    expect(layout.showScrollWidth, JSON.stringify(layout.overflowing)).toBeLessThanOrEqual(layout.showClientWidth + 1);
+  });
+
+  test('Patch Fixtures tiles stay fully inside their card after toolbox and viewport resizing', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDmxPage(page, '');
+    await injectControllerCompactSetup(page);
+    await page.evaluate(() => {
+      localStorage.removeItem('toolboxRailWidth');
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+      setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', false);
+      setSectionCollapsed('patchCollapseBtn', 'patchBody', 'patchCollapsed', false);
+      dmxOutputs = [{
+        id: 'pico-stage-right',
+        name: 'Pico Stage Right Wireless DMX Output',
+        universe: 1,
+        baseUrl: ''
+      }];
+      fixtures[0].name = 'picoSpot LED20 Stage Right';
+      fixtures.forEach(fixture => { fixture.outputId = 'pico-stage-right'; });
+      drawPatched();
+    });
+
+    const resizer = page.locator('#fixtureToolboxRail .toolbox-rail-resizer');
+    const resizerBox = await resizer.boundingBox();
+    await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(540, resizerBox.y + 100, { steps: 6 });
+    await page.mouse.up();
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.waitForTimeout(50);
+
+    const layout = await page.locator('#patchSection').evaluate(section => {
+      const sectionRect = section.getBoundingClientRect();
+      const tiles = [...section.querySelectorAll('#patched .item')].map(tile => {
+        const tileRect = tile.getBoundingClientRect();
+        const grid = tile.closest('.patched-row-grid');
+        const overflowingChildren = [...tile.querySelectorAll('*')].filter(element => {
+          const rect = element.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) return false;
+          return rect.left < tileRect.left - 1 || rect.right > tileRect.right + 1
+            || (element.tagName !== 'SELECT' && element.scrollWidth > element.clientWidth + 1);
+        }).map(element => ({
+          tag: element.tagName,
+          className: typeof element.className === 'string' ? element.className : '',
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth
+        }));
+        return {
+          tileLeft: tileRect.left,
+          tileRight: tileRect.right,
+          tileClientWidth: tile.clientWidth,
+          tileScrollWidth: tile.scrollWidth,
+          gridClientWidth: grid.clientWidth,
+          gridScrollWidth: grid.scrollWidth,
+          overflowingChildren
+        };
+      });
+      return {
+        sectionLeft: sectionRect.left,
+        sectionRight: sectionRect.right,
+        sectionClientWidth: section.clientWidth,
+        sectionScrollWidth: section.scrollWidth,
+        tiles
+      };
+    });
+
+    expect(layout.tiles.length).toBeGreaterThan(0);
+    expect(layout.sectionScrollWidth, JSON.stringify(layout.tiles)).toBeLessThanOrEqual(layout.sectionClientWidth + 1);
+    for (const tile of layout.tiles) {
+      expect(tile.tileLeft).toBeGreaterThanOrEqual(layout.sectionLeft - 1);
+      expect(tile.tileRight).toBeLessThanOrEqual(layout.sectionRight + 1);
+      expect(tile.gridScrollWidth).toBeLessThanOrEqual(tile.gridClientWidth + 1);
+      expect(tile.tileScrollWidth, JSON.stringify(tile.overflowingChildren)).toBeLessThanOrEqual(tile.tileClientWidth + 1);
+      expect(tile.overflowingChildren).toEqual([]);
+    }
   });
 
   test('DMX Outputs opens while the Show card remains collapsed', async ({ page }) => {
@@ -2504,6 +2699,51 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.textFormat).toBe('Red=11-21|#ff0000|kind=WheelSlot|slot=2');
     expect(state.activeButtonText).toContain('Red');
     expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
+  });
+
+  test('split-color wheel slots expose an adjustable split-position slider', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const wheel = {
+        id: 8871,
+        type: 'wheel',
+        label: 'Color Wheel',
+        channel: 1,
+        options: [
+          { name: 'Red', value: 16, range: [11, 21], kind: 'WheelSlot', colors: ['#ff0000'] },
+          { name: 'Red / Orange', value: 104, range: [99, 109], kind: 'WheelSlot', colors: ['#ff0000', '#ff9900'] },
+          { name: 'Rotation', value: 216, range: [176, 255], kind: 'WheelRotation', speedStart: 'slow', speedEnd: 'fast' }
+        ]
+      };
+      profiles.splice(0, profiles.length, { id: 8870, name: 'Split color wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8872, name: 'Split color fixture', profileId: 8870, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8872:8871'] = 104;
+      drawSurface();
+
+      const sliderState = () => {
+        const host = document.querySelector('[data-wheel-range-host="8872:8871"]');
+        const slider = host?.querySelector('input[type="range"]');
+        return {
+          min: slider?.getAttribute('min'),
+          max: slider?.getAttribute('max'),
+          label: host?.textContent || ''
+        };
+      };
+      const split = sliderState();
+      values['8872:8871'] = 16;
+      updateControlDisplay(fixtures[0], wheel);
+      const single = sliderState();
+      values['8872:8871'] = 216;
+      updateControlDisplay(fixtures[0], wheel);
+      const rotation = sliderState();
+      return { split, single, rotation };
+    });
+
+    expect(state.split.min).toBe('99');
+    expect(state.split.max).toBe('109');
+    expect(state.split.label).toContain('Split position');
+    expect(state.single.min).toBeUndefined();
+    expect(state.rotation.label).toContain('Rotation speed');
   });
 
   test('manual wheel option editor supports ranges and OFL-style metadata', async ({ page }) => {

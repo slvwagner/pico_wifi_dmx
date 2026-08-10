@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.0-15">
-<script src="assets/dmx-common.js?v=1.2.0-15"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -81,9 +81,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=1.2.0">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.2.0#5-chaser" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.3.0#chaser" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -256,7 +256,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
-    <button id="btnPicoRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
+    <button id="btnPicoRestoreAll">&#x21BA; Synchronize Saved Slots to Picos</button>
+    <button id="btnPicoMigrateSlots" style="display:none">Normalize Legacy Slots</button>
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
@@ -938,7 +939,10 @@ function openChaserGroupModal(){
   DmxCommon.showModal('chaserGroupModal');
 }
 function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
-function recallChaserGroupFixtureValues(which){
+async function recallChaserGroupFixtureValues(which){
+  const selectedFixtures=chaserGroupEditState().fixtures;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,outputs,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
   const controls=getChaserGroupEditableControls();
   let changed=0;
   ensureChaserGroupStep();
@@ -1947,8 +1951,8 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
-document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue');
-document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue');
+document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
 chaserGroupModalBody.onclick=handleChaserGroupClick;
@@ -3713,24 +3717,22 @@ function nudgeChaserPlaneTarget(axis,dir,kind){
   if(!activeChaserPlane)return;
   const target={...activeChaserPlane.target};target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*chaserPlaneNudgeStep(axis,kind);setChaserPlaneTarget(target);setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
 }
-function chaserPlaneDrawLine(host,a,b){
-  const line=document.createElement('div'),dx=b.x-a.x,dy=b.y-a.y;line.className='controller-plane-line';line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';host.appendChild(line);
-}
 function renderChaserPlanePreview(){
   const plane=activeChaserPlane,pad=document.getElementById('chaserPlanePad');if(!plane||!pad)return;
   pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
   const selected=chaserPlaneSelectedIds(),rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(plane),screens=plane.points.map(point=>chaserPlaneToScreen(point,bounds,rect));
+  const weights=DmxCommon.roomPlaneWeights(plane),activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean),triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('chaserPlaneTriangle');
-  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  [['--ax',triangleScreens[0].x],['--ay',triangleScreens[0].y],['--bx',triangleScreens[1].x],['--by',triangleScreens[1].y],['--cx',triangleScreens[2].x],['--cy',triangleScreens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
   screens.forEach((screen,index)=>{const point=document.createElement('div');point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);});
   const targetScreen=chaserPlaneToScreen(plane.target,bounds,rect),target=document.getElementById('chaserPlaneTarget');target.style.left=targetScreen.x+'%';target.style.top=targetScreen.y+'%';
-  plane.fixtures.forEach((fixture,index)=>{const screen=chaserPlaneToScreen(fixture,bounds,rect),point=document.createElement('div');point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);chaserPlaneDrawLine(pad,screen,targetScreen);});
+  plane.fixtures.forEach((fixture,index)=>{const screen=chaserPlaneToScreen(fixture,bounds,rect),point=document.createElement('div');point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen);});
 }
 function renderChaserPlaneModal(){
   const plane=activeChaserPlane;if(!plane)return;
   const selected=chaserPlaneSelectedIds(),weights=DmxCommon.roomPlaneWeights(plane);
   document.getElementById('chaserPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   document.getElementById('chaserPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{const isSelected=selected.has(String(fixture.id)),isPatched=(setup.fixtures||[]).some(item=>String(item.id)===String(fixture.id));const status=isSelected?(isPatched?'selected':'not patched'):(isPatched?'available':'not patched');return '<div class="controller-plane-fixture-row'+(isSelected?' selected':'')+'"><strong>'+DmxCommon.escapeHtml(fixture.name)+'</strong><span class="small">'+status+'</span></div>';}).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
   renderChaserPlanePreview();
 }
@@ -3767,7 +3769,9 @@ document.getElementById('chaserPlaneZoomIn').onclick=()=>zoomChaserPlaneView(1.2
 document.getElementById('chaserPlaneZoomOut').onclick=()=>zoomChaserPlaneView(1/1.25);
 document.getElementById('chaserPlaneResetView').onclick=resetChaserPlaneView;
 document.getElementById('chaserPlanePanView').onclick=()=>setChaserPlanePanMode(!chaserPlanePanMode);
-document.getElementById('chaserPlanePad').addEventListener('pointerdown',event=>{
+const chaserPlanePad=document.getElementById('chaserPlanePad');
+DmxCommon.observeElementResize(chaserPlanePad,queueChaserPlaneRender);
+chaserPlanePad.addEventListener('pointerdown',event=>{
   if(!activeChaserPlane)return;event.preventDefault();const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(activeChaserPlane);
   if(chaserPlanePanMode||event.button===1||event.button===2||event.shiftKey){chaserPlaneView.auto=false;chaserPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};}
   else{chaserPlaneTargetDrag={pointerId:event.pointerId,bounds};setChaserPlaneTarget(chaserPlaneScreenToRoom(event,rect,bounds));}
@@ -4026,12 +4030,33 @@ function updatePicoChaserPauseResumeButton(){
 let savedPicoChaserSlotInfo = Array.from({length:PICO_SLOT_COUNT},()=>null);
 let linkedChaserPlaybacks=[];
 
+function updateChaserSlotMigrationButton(){
+  const button=document.getElementById('btnPicoMigrateSlots');
+  const count=DmxCommon.legacyLinkedPicoPlaybacks(linkedChaserPlaybacks).length;
+  button.style.display=count?'':'none';
+  button.textContent=count?'Normalize '+count+' Legacy Chaser Slot'+(count===1?'':'s'):'Normalize Legacy Slots';
+}
+
+async function migrateLegacyChaserSlots(){
+  const legacy=DmxCommon.legacyLinkedPicoPlaybacks(linkedChaserPlaybacks);
+  if(!legacy.length){updateChaserSlotMigrationButton();return;}
+  if(!confirm('Normalize '+legacy.length+' legacy linked chaser slot'+(legacy.length===1?'':'s')+'?\n\nA server backup will be created first. Each linked chase will then use its logical slot number on every Pico. Conflicts with unmanaged Pico data cancel the migration.'))return;
+  setPicoStatus('Backing up and normalizing legacy chaser slots…','var(--warn)');
+  try{
+    const result=await DmxCommon.migrateLinkedPicoPlaybacks({kind:'chaser',playbacks:linkedChaserPlaybacks,serverEndpoint:'chaser_setup.php'});
+    linkedChaserPlaybacks=result.playbacks;
+    updateChaserSlotMigrationButton();
+    setPicoStatus('Normalized '+result.count+' linked chaser slot'+(result.count===1?'':'s')+' · backup '+(result.backup||'created'),'var(--accent)');
+    pollPicoStatus();
+  }catch(error){setPicoStatus('Migration error: '+error.message,'var(--bad)');}
+}
+
 function linkedChaserPlaybackForSlot(slot){
   const preferredRoot=baseUrlEl.value.replace(/\/+$/,'');
   return linkedChaserPlaybacks.find(playback=>{
     const members=Array.isArray(playback?.members)?playback.members:[];
     const coordinator=members.find(member=>String(member.baseUrl||'').replace(/\/+$/,'')===preferredRoot)||members[0];
-    return Number(coordinator?.slot)===Number(slot);
+    return Number(playback?.logicalSlot??coordinator?.slot)===Number(slot);
   })||null;
 }
 
@@ -4115,7 +4140,7 @@ function mergeSavedChaserSlotInfo(slot){
 function renderChaserSlotStrip(slots, activeMask) {
   const strip = document.getElementById('chaserSlotStrip');
   if (!strip) return;
-  _lastChaserReportedSlotCount=slots.length;
+  if(!slots.some(slot=>slot?.fleetState))_lastChaserReportedSlotCount=slots.length;
   slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,step_count:0,speed_mult:1.0,unsupported:i>=_lastChaserReportedSlotCount});
   const selected = selectedChaserSlot();
   strip.innerHTML = '';
@@ -4126,6 +4151,9 @@ function renderChaserSlotStrip(slots, activeMask) {
     const loaded = s.loaded;
     const sel    = (s.slot === selected);
     const unsupported = !!s.unsupported;
+    const fleetState=s.fleetState||null;
+    const uncertain=fleetState==='unknown';
+    const partial=fleetState==='partial';
     const d = document.createElement('div');
     d.style.cssText = [
       'background:#0a0d10',
@@ -4136,11 +4164,14 @@ function renderChaserSlotStrip(slots, activeMask) {
       'cursor:pointer','opacity:' + (unsupported ? '0.35' : loaded ? '1' : '0.45'),
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
-    const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
+    const stepsLabel = unsupported ? 'FW old' : uncertain ? 'Fleet unknown' : partial ? 'Mixed occupancy' : loaded ? s.step_count + ' steps' : '\u2014';
     const modeLine = chaserSlotModeLine(s);
     const fadeLine = chaserSlotFadeLine(s);
     const dirLine = chaserSlotDirectionLine(s);
     const linkedPlayback=linkedChaserPlaybackForSlot(s.slot);
+    const playbackLabel=linkedPlayback?.label
+      ? '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;color:inherit;line-height:1.25;margin-bottom:3px">'+DmxCommon.escapeHtml(linkedPlayback.label)+'</div>'
+      : '';
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
       : '';
@@ -4148,8 +4179,10 @@ function renderChaserSlotStrip(slots, activeMask) {
       ? '<button type="button" data-delete-chaser-slot="' + s.slot + '" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
     d.innerHTML =
+      DmxCommon.slotVisualHtml(linkedPlayback) +
       deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
+      playbackLabel +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
       (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLine + '</div>' + (fadeLine?'<div style="font-size:10px;color:var(--muted);margin-top:2px">' + fadeLine + '</div>':'') + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' + linkedLine : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
@@ -4157,10 +4190,13 @@ function renderChaserSlotStrip(slots, activeMask) {
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
       '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:' +
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
-        (unsupported ? 'NEEDS FW' : alive ? 'LIVE' : paused ? 'PAUSED' : loaded ? 'READY' : 'EMPTY') + '</span>' +
+        (unsupported ? 'NEEDS FW' : uncertain ? 'UNKNOWN' : partial ? 'PARTIAL' : alive ? 'LIVE' : paused ? 'PAUSED' : loaded ? 'READY' : 'EMPTY') + '</span>' +
       '</div>';
+    const playbackVisualStyle=DmxCommon.slotVisualStyle(linkedPlayback);
+    if(playbackVisualStyle)d.style.cssText+=';'+playbackVisualStyle;
     d.onclick = () => {
       if(unsupported){setPicoStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(uncertain){setPicoStatus('Slot '+s.slot+' cannot be changed because not every configured Pico responded','var(--warn)');return;}
       const wasSelected=selectedChaserSlot()===s.slot;
       document.getElementById('picoSlot').value = s.slot;
       renderChaserSlotStrip(slots, activeMask);
@@ -4184,26 +4220,22 @@ function renderChaserSlotStrip(slots, activeMask) {
 
 async function deleteChaserSlot(slot){
   const linked=linkedChaserPlaybackForSlot(slot);
-  if(!confirm(linked?'Delete linked chase from all '+linked.members.length+' Picos?':'Delete chaser slot '+slot+'?'))return;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value).filter(output=>DmxCommon.dmxOutputEndpoint(output));
+  if(!confirm('Delete logical chaser slot '+slot+' from all '+outputs.length+' configured Pico'+(outputs.length===1?'':'s')+'?'))return;
   try{
+    if(!outputs.length)throw new Error('No configured Pico URLs');
+    await DmxCommon.requestDmxOutputs(outputs,'/chaser/clear/'+slot,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
     if(linked){
-      await DmxCommon.commandLinkedPicoPlayback(linked,member=>'/chaser/clear/'+member.slot);
       const response=await fetch('chaser_setup.php?delete_playback='+encodeURIComponent(linked.id),{method:'POST'});
       const data=await response.json();
       if(!response.ok||!data.ok)throw new Error(data.error||'Delete failed');
       linkedChaserPlaybacks=linkedChaserPlaybacks.filter(playback=>playback.id!==linked.id);
-      setPicoStatus('Deleted linked chase from '+linked.members.length+' Picos','var(--accent)');
+      setPicoStatus('Deleted logical chaser slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }else{
     const r=await fetch('chaser_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'Delete failed');
-    const root=baseUrlEl.value.replace(/\/+$/,'');
-    if(root){
-      try{await fetch(root+'/chaser/clear/'+slot,{cache:'no-store'});}catch(_){}
-      setPicoStatus('Deleted slot '+slot,'var(--accent)');
-    }else{
-      setPicoStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
-    }
+    setPicoStatus('Deleted logical chaser slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }
     if(_lastChaserSlots){
       _lastChaserSlots[slot]={slot:slot,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,step_count:0,speed_mult:1.0};
@@ -4231,8 +4263,11 @@ async function pollPicoStatus(){
         ?'Slots '+pausedSlots.join(',')+' paused'
         :'Stopped';
       setPicoStatus(s,activeSlots.length>0?'var(--accent)':pausedSlots.length>0?'var(--warn)':'var(--muted)');
-      const sl=await fetch(root+'/chaser/slots').then(r=>r.json());
-      if(sl.ok) renderChaserSlotStrip(sl.slots,j.active_mask);
+      const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+      const fleet=await DmxCommon.fetchFleetPicoSlots('chaser',outputs,{slotCount:PICO_SLOT_COUNT,legacyBaseUrl:setup.baseUrl||baseUrlEl.value,playbacks:linkedChaserPlaybacks});
+      const supportedCounts=fleet.reports.filter(report=>report.ok).map(report=>report.slots.length);
+      _lastChaserReportedSlotCount=supportedCounts.length?Math.min(...supportedCounts):0;
+      renderChaserSlotStrip(fleet.slots,j.active_mask);
     }
   }catch(e){setPicoStatus('No response','var(--bad)');}
 }
@@ -4259,46 +4294,42 @@ async function loadSavedChaserSlotInfo(){
     if(!j.ok)return;
     const slots=Array.isArray(j.pico_slots)?j.pico_slots:[];
     linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
+    updateChaserSlotMigrationButton();
     savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
     if(_lastChaserSlots)renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask);
   }catch(_){}
 }
 async function restoreAllChaserSlots(){
-  const root=baseUrlEl.value.replace(/\/+$/,'');
   let j;
-  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Restore error: '+e.message,'var(--bad)');return;}
-    if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
-    const slots=j.pico_slots||[];
-    linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-    savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
-    let count=0;
-  if(linkedChaserPlaybacks.length){
-    for(const playback of linkedChaserPlaybacks){
-      for(const member of playback.members||[]){
-        const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-        if(!memberRoot||!member.payload)continue;
-        try{
-          const response=await fetch(memberRoot+'/chaser/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});
-          const data=await response.json();
-          if(data.ok)count++;
-        }catch(_){}
-      }
-    }
-    setPicoStatus(count+' linked slot member(s) restored','var(--accent)');
+  setPicoStatus('Inspecting every Pico before synchronization…','var(--warn)');
+  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Synchronization error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoStatus('Synchronization error','var(--bad)');return;}
+  const slots=j.pico_slots||[];
+  linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
+  updateChaserSlotMigrationButton();
+  if(DmxCommon.legacyLinkedPicoPlaybacks(linkedChaserPlaybacks).length){setPicoStatus('Normalize legacy chaser slots before synchronizing them','var(--warn)');return;}
+  savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
+  try{
+    const result=await DmxCommon.synchronizeSavedPicoSlots({
+      kind:'chaser',
+      slotCount:PICO_SLOT_COUNT,
+      outputs:setup.dmxOutputs,
+      legacyBaseUrl:setup.baseUrl||baseUrlEl.value,
+      legacyPicoUrl:j.pico_url||baseUrlEl.value,
+      legacySlots:slots,
+      playbacks:linkedChaserPlaybacks,
+      confirmPlan:summary=>confirm(
+        'Synchronize saved Chaser slots with all '+summary.outputCount+' configured Picos?\n\n'+
+        'Saved logical slots: '+summary.logicalSlotCount+'\n'+
+        'Payloads to upload: '+summary.uploadCount+'\n'+
+        'Stale loaded slots to clear: '+summary.clearCount+'\n\n'+
+        'Pico-only slot data is not stored by the controller application and cannot be recovered after synchronization.'
+      )
+    });
+    if(result.cancelled){setPicoStatus('Synchronization cancelled; no slots were changed','var(--muted)');return;}
+    setPicoStatus('Synchronized '+result.logicalSlotCount+' logical chaser slots across '+result.outputCount+' Picos · cleared '+result.clearCount+' stale slot'+(result.clearCount===1?'':'s'),'var(--accent)');
     pollPicoStatus();
-    return;
-  }
-  if(!root){setPicoStatus('No linked playbacks and no primary Pico URL configured','var(--warn)');return;}
-  for(let i=0;i<slots.length;i++){
-    if(!slots[i])continue;
-    try{
-      const r=await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
-      const rj=await r.json();
-      if(rj.ok)count++;
-    }catch(_){}
-  }
-  setPicoStatus(count+' slot(s) restored to Pico','var(--accent)');
-  pollPicoStatus();
+  }catch(error){setPicoStatus('Synchronization error: '+error.message,'var(--bad)');}
 }
 
 async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
@@ -4316,17 +4347,30 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
     output=>serializeChaserForPico(output.id),
     {legacyBaseUrl:setup.baseUrl||baseUrlEl.value,preferredBaseUrl:baseUrlEl.value}
   );
-  setPicoStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
+  setPicoStatus('Checking logical slot '+slot+' on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const playback=await DmxCommon.uploadLinkedPicoPlayback({
+    const existing=linkedChaserPlaybackForSlot(slot);
+    const recalled=activeRecalledChase();
+    const upload=allowOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'chaser',
       members,
       preferredSlot:slot,
       slotCount:PICO_SLOT_COUNT,
-      allowCoordinatorOverwrite:!!confirmOverwrite,
-      label:'Chase '+(document.getElementById('chaseName')?.value||('slot '+slot)),
+      allowOverwrite,
+      id:existing?.id,
+      label:recalled?.name||('Chase slot '+slot),
+      visual:recalled?.visual||currentChaseVisualForSave(),
       serverEndpoint:'chaser_setup.php'
     });
+    let playback;
+    try{
+      playback=await upload(!!confirmOverwrite);
+    }catch(e){
+      if(e?.code!=='LOGICAL_SLOT_OCCUPIED'||!confirm(
+        e.outputName+' already contains chaser slot '+slot+'. Overwrite logical slot '+slot+' on every involved Pico?\n\nExisting chases in that slot will be replaced.'
+      ))throw e;
+      playback=await upload(true);
+    }
     linkedChaserPlaybacks=linkedChaserPlaybacks.filter(item=>item.id!==playback.id);
     linkedChaserPlaybacks.push(playback);
     savedPicoChaserSlotInfo[slot]=parseChaserPicoSlotPayload(playback.members[0]?.payload,slot);
@@ -4336,6 +4380,7 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 }
 document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
+document.getElementById('btnPicoMigrateSlots').onclick=migrateLegacyChaserSlots;
 
 async function commandSelectedChaserSlot(action,slot,suffix=''){
   const playback=linkedChaserPlaybackForSlot(slot);
@@ -4422,34 +4467,17 @@ renderFanToolbox();
 drawStepList();
 drawStepEditor();
 (async()=>{
-  // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+  // Load saved slot metadata only. Physical Pico memory changes require explicit synchronization.
   const root=baseUrlEl.value.replace(/\/+$/,'');
   try{
     const r=await fetch('chaser_setup.php?slots');
     const j=await r.json();
     if(j.ok){
       linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-      if(linkedChaserPlaybacks.length){
-        for(const playback of linkedChaserPlaybacks){
-          for(const member of playback.members||[]){
-            const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-            if(!memberRoot||!member.payload)continue;
-            try{await fetch(memberRoot+'/chaser/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});}catch(_){}
-          }
-        }
-        pollPicoStatus();
-      }else if(root){
-        const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
-        if(!savedUrl||savedUrl===root){
-          const slots=j.pico_slots||[];
-          savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
-          for(let i=0;i<slots.length;i++){
-            if(!slots[i])continue;
-            try{await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
-          }
-          pollPicoStatus();
-        }
-      }
+      updateChaserSlotMigrationButton();
+      const slots=j.pico_slots||[];
+      savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
+      if(root)pollPicoStatus();
     }
   }catch(_){}
 })();

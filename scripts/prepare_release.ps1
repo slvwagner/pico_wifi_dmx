@@ -21,7 +21,9 @@ param(
     [string]$WslDistribution = "",
     [string]$WslPicotoolPath = "",
     [string]$WindowsSigningCertificateThumbprint = "",
-    [string]$WindowsSignToolPath = ""
+    [string]$WindowsSignToolPath = "",
+    [ValidateSet("Fast", "Small")]
+    [string]$WindowsInstallerCompression = "Small"
 )
 
 $ErrorActionPreference = "Stop"
@@ -199,7 +201,7 @@ if (-not $SkipManual) {
         if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }
         if ($ChromePath) { $manualArgs.ChromePath = $ChromePath }
         if ($ScreenshotBaseUrl) { $manualArgs.ScreenshotBaseUrl = $ScreenshotBaseUrl }
-        & (Join-Path $PSScriptRoot "update_user_manual.ps1") @manualArgs
+        & (Join-Path $PSScriptRoot "build_user_manual.ps1") @manualArgs
     }
 }
 
@@ -277,7 +279,10 @@ if (-not $SkipTests) {
         # dedicated serial step prevents unrelated UI workers from disturbing
         # playback state and timing measurements on the physical Pico.
         $env:DMX_RUN_HARDWARE_TESTS = "false"
-        Invoke-Native "UI regression tests" { npm run test:ui }
+        # UI specs share the isolated XAMPP JSON stores and intentionally write
+        # test setup. Keep the release gate serial so one spec cannot replace
+        # another spec's fixtures or Show layout while assertions are running.
+        Invoke-Native "UI regression tests" { npm run test:ui -- --workers=1 }
     }
 
     if ($RunHardwareTests) {
@@ -330,6 +335,7 @@ if ($isWindowsHost -and -not $SkipWindowsInstaller) {
             OutputDir = $releaseDir
             ApplicationUf2 = (Join-Path $BuildDir "pico_wifi_dmx.uf2")
             WifiFirmwareUf2 = (Join-Path $BuildDir "pico_wifi_dmx_wifi_firmware.uf2")
+            Compression = $WindowsInstallerCompression
         }
         if ($WindowsSigningCertificateThumbprint) {
             $installerArgs.SigningCertificateThumbprint = $WindowsSigningCertificateThumbprint

@@ -71,7 +71,103 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
   });
 
-  test('uploads one linked effect payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
+  test('Effects exposes synchronized browser and Pico play modes with Loop as the default', async ({ page }) => {
+    await expect(page.locator('#motionPlayMode')).toHaveValue('loop');
+    await expect(page.locator('#picoMotionMode')).toHaveValue('loop');
+    await expect(page.locator('#motionLoopCountField')).toBeHidden();
+    await expect(page.locator('#picoMotionLoopCountField')).toBeHidden();
+
+    await page.locator('#motionPlayMode').selectOption('loop_n');
+    await page.locator('#motionLoopCount').fill('4');
+    await expect(page.locator('#picoMotionMode')).toHaveValue('loop_n');
+    await expect(page.locator('#motionLoopCountField')).toBeVisible();
+    await expect(page.locator('#picoMotionLoopCountField')).toBeVisible();
+    await expect(page.locator('#picoMotionLoopCount')).toHaveValue('4');
+
+    const saved = await page.evaluate(() => ({
+      body: serializeMotionForPico(),
+      params: currentMotionEffectRecipe().params
+    }));
+    expect(saved.body).toContain('MODE loop_n');
+    expect(saved.body).toContain('LOOPS 4');
+    expect(saved.params.playMode).toBe('loop_n');
+    expect(saved.params.loopCount).toBe(4);
+  });
+
+  test('Browser Effect pause and resume preserve elapsed phase and Loop N stops after its cycles', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"ok":true}'
+    }));
+
+    const state = await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      motionFixtures[0].enabled = true;
+      document.getElementById('bpm').value = '60';
+      document.getElementById('motionPlayMode').value = 'loop_n';
+      document.getElementById('motionLoopCount').value = '2';
+      await startMotion();
+      startTime = performance.now() - 650;
+      pauseMotion();
+      const pausedElapsed = motionElapsedSeconds();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      resumeMotion();
+      const resumedElapsed = motionElapsedSeconds();
+      startTime = performance.now() - 2050;
+      tick();
+      return {
+        pausedElapsed,
+        resumedElapsed,
+        running,
+        paused: motionPaused,
+        button: document.getElementById('motionPauseResume').textContent,
+        status: document.getElementById('status').textContent
+      };
+    });
+
+    expect(state.pausedElapsed).toBeGreaterThan(0.5);
+    expect(Math.abs(state.resumedElapsed - state.pausedElapsed)).toBeLessThan(0.1);
+    expect(state.running).toBe(false);
+    expect(state.paused).toBe(false);
+    expect(state.button).toContain('Pause');
+    expect(state.status).toContain('Completed 2 loops');
+  });
+
+  test('Pico Effect slot tiles report Single and Loop N modes', async ({ page }) => {
+    const texts = await page.evaluate(() => {
+      renderMotionSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, type: 0, bpm: 60, mode: 0, loop_count: 1, target_count: 1 },
+        { slot: 1, loaded: true, active: true, paused: false, type: 1, bpm: 90, mode: 2, loop_count: 3, completed_loops: 1, target_count: 2 }
+      ], 1 << 1, 0);
+      return Array.from(document.querySelectorAll('#motionSlotStrip > div')).slice(0, 2).map(tile => tile.innerText);
+    });
+
+    expect(texts[0]).toContain('Mode Single');
+    expect(texts[1]).toContain('Mode Loop N (3x)');
+  });
+
+  test('Pico Effect slot tiles show the saved effect name and icon', async ({ page }) => {
+    const visual = { type: 'visual', color: '#1d6b8f', image: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E' };
+    await page.evaluate(savedVisual => {
+      linkedMotionPlaybacks = [{
+        id: 'named-effect',
+        logicalSlot: 3,
+        label: 'Blue Orbit',
+        visual: savedVisual,
+        members: [{ outputId: 'primary', slot: 3, payload: 'FX 1\nEND' }]
+      }];
+      const slots = Array.from({ length: 4 }, (_, slot) => ({ slot, loaded: false, active: false, paused: false }));
+      slots[3] = { slot: 3, loaded: true, active: false, paused: false, type: 1, bpm: 90, mode: 1, loop_count: 1, target_count: 2 };
+      renderMotionSlotStrip(slots, 0, 0);
+    }, visual);
+
+    const tile = page.locator('#motionSlotStrip > div').nth(3);
+    await expect(tile).toContainText('Blue Orbit');
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
+  test('uploads one linked effect payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
     const routePico = async (route, outputId) => {
@@ -108,31 +204,229 @@ test.describe('Effects established rules', () => {
       selectedMotionTargetKey = motionControlKey(dimmers[0].control);
       motionFixtures.forEach(mf => mf.enabled = dimmers.includes(mf));
       document.getElementById('motionControlFilter').value = selectedMotionTargetKey;
+      motionEffects = [{ slot: 2, name: 'Blue Orbit', visual: { type: 'visual', color: '#1d6b8f', image: '' } }];
+      activeRecalledMotionEffectSlot = 2;
     });
 
     await page.evaluate(() => uploadCurrentMotionToSlot(4, false));
 
     expect(picoCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/motion/load/4' }),
-      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/motion/load/1' })
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/motion/load/4' })
     ]));
     const frontBody = picoCalls.find(call => call.url.endsWith('/motion/load/4')).body;
-    const rearBody = picoCalls.find(call => call.url.endsWith('/motion/load/1')).body;
+    const rearBody = picoCalls.find(call => call.outputId === 'rear' && call.url.endsWith('/motion/load/4')).body;
     expect(frontBody).toContain('TARGET scalar8 1 1 ');
     expect(frontBody).not.toContain('TARGET scalar8 1 21 ');
     expect(rearBody).toContain('TARGET scalar8 1 21 ');
     expect(rearBody).not.toContain('TARGET scalar8 1 1 ');
     expect(savedPlayback.members.map(member => ({ outputId: member.outputId, slot: member.slot }))).toEqual([
       { outputId: 'front', slot: 4 },
-      { outputId: 'rear', slot: 1 }
+      { outputId: 'rear', slot: 4 }
     ]);
+    expect(savedPlayback.label).toBe('Blue Orbit');
+    expect(savedPlayback.visual).toEqual({ type: 'visual', color: '#1d6b8f', image: '' });
 
     picoCalls.length = 0;
     await page.locator('#btnPicoMotionStartSlot').click();
     await expect.poll(() => picoCalls.map(call => call.url)).toEqual(expect.arrayContaining([
       'http://front-pico.test/motion/start/4',
-      'http://rear-pico.test/motion/start/1'
+      'http://rear-pico.test/motion/start/4'
     ]));
+  });
+
+  test('offers to overwrite the matching peer slot when a linked Pico has no empty slots', async ({ page }) => {
+    const picoCalls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        const slots = Array.from({ length: 64 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear',
+          active: false,
+          paused: false
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      picoCalls.push({ outputId, url });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/motion_setup.php?playback', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    page.on('dialog', dialog => dialog.accept());
+
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      setup.fixtures.find(f => f.id === 101).outputId = 'front';
+      setup.fixtures.find(f => f.id === 102).outputId = 'rear';
+      baseUrlEl.value = 'http://front-pico.test';
+      const dimmers = motionFixtures.filter(mf => mf.control.label === 'Dimmer');
+      selectedMotionTargetKey = motionControlKey(dimmers[0].control);
+      motionFixtures.forEach(mf => mf.enabled = dimmers.includes(mf));
+    });
+
+    await page.evaluate(() => uploadCurrentMotionToSlot(24, false));
+
+    expect(picoCalls).toEqual(expect.arrayContaining([
+      { outputId: 'front', url: 'http://front-pico.test/motion/load/24' },
+      { outputId: 'rear', url: 'http://rear-pico.test/motion/load/24' }
+    ]));
+  });
+
+  test('normalizes legacy linked effect slots only after creating a backup', async ({ page }) => {
+    const calls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        const slots = Array.from({ length: 64 }, (_, slot) => ({ slot, loaded: (outputId === 'front' && slot === 4) || (outputId === 'rear' && slot === 1) }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      calls.push(url);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/motion_setup.php?backup_playbacks', async route => {
+      calls.push('backup');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"backup":"backups/motion.json"}' });
+    });
+    await page.route('**/motion_setup.php?playback', async route => {
+      calls.push(JSON.parse(route.request().postData() || '{}'));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    const result = await page.evaluate(() => DmxCommon.migrateLinkedPicoPlaybacks({
+      kind: 'motion',
+      serverEndpoint: 'motion_setup.php',
+      playbacks: [{
+        id: 'legacy',
+        kind: 'motion',
+        members: [
+          { outputId: 'front', baseUrl: 'http://front-pico.test/', slot: 4, payload: 'FX 1\nEND' },
+          { outputId: 'rear', baseUrl: 'http://rear-pico.test/', slot: 1, payload: 'FX 1\nEND' }
+        ]
+      }]
+    }));
+
+    expect(calls.indexOf('backup')).toBeLessThan(calls.indexOf('http://rear-pico.test/motion/clear/1'));
+    expect(calls).toContain('http://rear-pico.test/motion/load/4');
+    expect(result.playbacks[0].logicalSlot).toBe(4);
+    expect(result.playbacks[0].members.map(member => member.slot)).toEqual([4, 4]);
+    expect(calls.find(call => typeof call === 'object').members.map(member => member.slot)).toEqual([4, 4]);
+  });
+
+  test('reports a manifest-matched logical slot as ready without requiring uninvolved Picos to load it', async ({ page }) => {
+    await page.route('http://front-pico.test/motion/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: Array.from({ length: 64 }, (_, slot) => ({ slot, loaded: slot === 7 })) })
+    }));
+    await page.route('http://rear-pico.test/motion/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: Array.from({ length: 64 }, (_, slot) => ({ slot, loaded: false })) })
+    }));
+    const states = await page.evaluate(async () => {
+      const outputs = [
+        { id: 'front', name: 'Front', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      const playback = { logicalSlot: 7, members: [{ baseUrl: 'http://front-pico.test/', slot: 7 }] };
+      const matched = await DmxCommon.fetchFleetPicoSlots('motion', outputs, { slotCount: 64, playbacks: [playback] });
+      const unmanaged = await DmxCommon.fetchFleetPicoSlots('motion', outputs, { slotCount: 64, playbacks: [] });
+      return { matched: matched.slots[7].fleetState, unmanaged: unmanaged.slots[7].fleetState };
+    });
+    expect(states).toEqual({ matched: 'ready', unmanaged: 'partial' });
+  });
+
+  test('synchronizes saved effects and clears stale physical slots across the Pico fleet', async ({ page }) => {
+    const calls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        const slots = Array.from({ length: 64 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear' && (slot === 3 || slot === 9)
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      calls.push({ outputId, url, body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/motion_setup.php?slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        pico_slots: Array(64).fill(null),
+        pico_playbacks: [{
+          id: 'effect-3',
+          logicalSlot: 3,
+          members: [{ outputId: 'front', baseUrl: 'http://front-pico.test/', slot: 3, payload: 'FX 1\nEND' }]
+        }]
+      })
+    }));
+    page.on('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      baseUrlEl.value = 'http://front-pico.test';
+      return restoreAllMotionSlots();
+    });
+    expect(calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/motion/load/3', body: 'FX 1\nEND' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/motion/clear/3' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/motion/clear/9' })
+    ]));
+  });
+
+  test('cancels slot synchronization before writes when a configured Pico is unreachable', async ({ page }) => {
+    const mutations = [];
+    await page.route('http://front-pico.test/**', async route => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, slots: Array.from({ length: 64 }, (_, slot) => ({ slot, loaded: false })) })
+        });
+        return;
+      }
+      mutations.push(url);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://rear-pico.test/**', route => route.abort('failed'));
+    const error = await page.evaluate(async () => {
+      try {
+        await DmxCommon.synchronizeSavedPicoSlots({
+          kind: 'motion',
+          slotCount: 64,
+          outputs: [
+            { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+            { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+          ],
+          playbacks: [{ logicalSlot: 3, members: [{ baseUrl: 'http://front-pico.test/', slot: 3, payload: 'FX 1\nEND' }] }],
+          legacySlots: []
+        });
+        return '';
+      } catch (caught) {
+        return caught.message;
+      }
+    });
+    expect(error).toContain('cancelled before changes');
+    expect(error).toContain('Rear Pico');
+    expect(mutations).toEqual([]);
   });
 
   test('recalling an Effect tile restores its preview parameters after changing target family', async ({ page }) => {
@@ -302,6 +596,13 @@ test.describe('Effects established rules', () => {
         id: 'plane_modal',
         name: 'Modal Plane',
         slot: 0,
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 5, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 3, z: 0 },
+          { id: 'D', x: 5, y: 3, z: 0 },
+          { id: 'E', x: 2.5, y: 1.5, z: 0 }
+        ],
         target: { x: 1, y: 1, z: 0 },
         fixtures: [{
           id: panTilt.fixture.id,
@@ -325,6 +626,7 @@ test.describe('Effects established rules', () => {
     await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
 
     await expect(page.locator('#motionPlaneModal')).toBeVisible();
+    await expect(page.locator('#motionPlanePad .controller-plane-point:not(.controller-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     const afterOpen = await page.evaluate(() => {
       const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
       return { basePan: panTilt.basePan, baseTilt: panTilt.baseTilt };
@@ -558,8 +860,71 @@ test.describe('Effects established rules', () => {
       return { panOptions, scalarOptions };
     });
 
-    expect(result.panOptions).toEqual(['circle', 'figure8', 'panSwing', 'tiltSwing']);
+    expect(result.panOptions).toEqual(['circle', 'figure8', 'panSwing', 'tiltSwing', 'panPulse', 'tiltPulse']);
     expect(result.scalarOptions).toEqual(['sine', 'pulse']);
+  });
+
+  test('pan and tilt pulse effects preview and upload only their selected axis', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(pan.control));
+      const effect = document.getElementById('effectType');
+      const sample = type => {
+        effect.value = type;
+        effect.dispatchEvent(new Event('change'));
+        return {
+          offsetHigh: effectOffset(Math.PI / 2, type),
+          offsetLow: effectOffset(3 * Math.PI / 2, type),
+          typeLine: serializeMotionForPico().split('\n').find(line => line.startsWith('TYPE ')),
+          amp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
+          amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+        };
+      };
+      effect.value = 'panPulse';
+      effect.dispatchEvent(new Event('change'));
+      document.getElementById('pulsePositionOffset').value = -25;
+      document.getElementById('pulseDirection').value = -100;
+      const shaped = {
+        negative: pulsePositionValue(-1, -1, -.25),
+        positive: pulsePositionValue(1, -1, -.25),
+        midpoint: pulsePositionValue(1, -.5, 0),
+        offsetLine: serializeMotionForPico().split('\n').find(line => line.startsWith('PULSE_OFFSET ')),
+        directionLine: serializeMotionForPico().split('\n').find(line => line.startsWith('PULSE_DIRECTION ')),
+        params: motionData().params,
+        recipeParams: currentMotionEffectRecipe().params,
+        controlsVisible: getComputedStyle(document.getElementById('pulseShapeFields')).display !== 'none'
+      };
+      effect.value = 'panSwing';
+      effect.dispatchEvent(new Event('change'));
+      shaped.hiddenForSine = getComputedStyle(document.getElementById('pulseShapeFields')).display === 'none';
+      return { panPulse: sample('panPulse'), tiltPulse: sample('tiltPulse'), shaped };
+    });
+
+    expect(result.panPulse).toMatchObject({
+      offsetHigh: { pan: 1, tilt: 0 },
+      offsetLow: { pan: -1, tilt: 0 },
+      typeLine: 'TYPE 6',
+      amp2: 'AMP2 0.000000'
+    });
+    expect(result.panPulse.amp1).not.toBe('AMP1 0.000000');
+    expect(result.tiltPulse).toMatchObject({
+      offsetHigh: { pan: 0, tilt: 1 },
+      offsetLow: { pan: 0, tilt: -1 },
+      typeLine: 'TYPE 7',
+      amp1: 'AMP1 0.000000'
+    });
+    expect(result.tiltPulse.amp2).not.toBe('AMP2 0.000000');
+    expect(result.shaped).toMatchObject({
+      negative: -1.25,
+      positive: -0.25,
+      midpoint: 0.5,
+      offsetLine: 'PULSE_OFFSET -0.250000',
+      directionLine: 'PULSE_DIRECTION -1.000000',
+      controlsVisible: true,
+      hiddenForSine: true,
+      params: { pulsePositionOffset: -25, pulseDirection: -100 },
+      recipeParams: { pulsePositionOffset: -25, pulseDirection: -100 }
+    });
   });
 
   test('scalar targets show one amplitude slider and force hidden tilt amplitude to zero', async ({ page }) => {
@@ -1016,7 +1381,7 @@ test.describe('Effects navigation rules', () => {
     expect(state.groupEditDisabled).toBe(false);
   });
 
-  test('hard reload resets Effect Target to None even when a saved Effects setup exists', async ({ page }) => {
+  test('hard reload restores the saved Effect Target and participating fixtures', async ({ page }) => {
     const profiles = [{
       id: 1,
       name: 'Profile A',
@@ -1080,7 +1445,10 @@ test.describe('Effects navigation rules', () => {
     await page.locator('#btnMotionLoad').click();
     await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('#motionControlFilter')).toHaveValue('');
+    await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
     await expect(page.locator('#motionEffectMatrix .slot.filled')).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() =>
+      motionFixtures.filter(mf => mf.enabled && motionControlKey(mf.control) === selectedMotionTargetKey).length
+    )).toBe(2);
   });
 });

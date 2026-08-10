@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='1.2.0';
+  const APP_VERSION='1.3.0';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -22,6 +22,14 @@
   }
 
   if(isDocumentationCapture()){
+    const nativeDocumentationFetch=window.fetch.bind(window);
+    window.fetch=(input,init)=>{
+      const requestUrl=new URL(input instanceof Request?input.url:String(input),location.href);
+      if(requestUrl.origin!==location.origin){
+        return Promise.reject(new TypeError('Documentation capture blocked cross-origin request: '+requestUrl.origin));
+      }
+      return nativeDocumentationFetch(input,init);
+    };
     const style=document.createElement('style');
     style.dataset.dmxDocshotStability='';
     style.textContent='*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}';
@@ -82,6 +90,30 @@
       if(output?.id)selected.set(output.id,output);
     });
     return [...selected.values()];
+  }
+
+  async function stopPlaybackForFixtures(fixtures,outputs,options={}){
+    const list=normalizeDmxOutputs(outputs,options.legacyBaseUrl||'');
+    const affected=dmxOutputsForFixtures(fixtures,list).filter(output=>dmxOutputEndpoint(output));
+    const requests=[];
+    affected.forEach(output=>{
+      const root=dmxOutputEndpoint(output);
+      ['chaser','motion'].forEach(kind=>requests.push({
+        output,
+        kind,
+        request:fetch(root+'/'+kind+'/stop',{cache:'no-store'})
+      }));
+    });
+    const results=await Promise.allSettled(requests.map(item=>item.request));
+    const failures=[];
+    results.forEach((result,index)=>{
+      const item=requests[index];
+      if(result.status==='rejected'||!result.value?.ok){
+        failures.push((item.output.name||'Pico')+' '+item.kind);
+      }
+    });
+    if(failures.length)throw new Error('Could not stop playback on '+failures.join(', '));
+    return affected;
   }
 
   async function sendFixtureDmxRows(entries,outputs,options={}){
@@ -162,7 +194,7 @@
     const preferredSlot=Math.max(0,Math.round(Number(options.preferredSlot)||0));
     const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(kind==='motion'?64:32)));
 
-    const snapshots=await Promise.all(members.map(async(member,index)=>{
+    const snapshots=await Promise.all(members.map(async member=>{
       const root=dmxOutputEndpoint(member.output);
       if(!root)throw new Error('Set the Pico URL for '+(member.output.name||'DMX output'));
       const response=await fetch(root+slotPath,{cache:'no-store'});
@@ -170,21 +202,16 @@
       const data=await response.json();
       if(!data?.ok||!Array.isArray(data.slots))throw new Error((member.output.name||'DMX output')+': invalid slot response');
       const reportedCount=Math.min(slotCount,data.slots.length||slotCount);
-      let slot=-1;
-      if(index===0){
-        if(preferredSlot>=reportedCount)throw new Error((member.output.name||'DMX output')+' supports only '+reportedCount+' slots');
-        const occupied=!!data.slots[preferredSlot]?.loaded;
-        if(occupied&&!options.allowCoordinatorOverwrite){
-          throw new Error((member.output.name||'DMX output')+' slot '+preferredSlot+' is already occupied');
-        }
-        slot=preferredSlot;
-      }else{
-        for(let candidate=0;candidate<reportedCount;candidate++){
-          if(!data.slots[candidate]?.loaded){slot=candidate;break;}
-        }
-        if(slot<0)throw new Error('No empty '+kind+' slot is available on '+(member.output.name||'DMX output'));
+      if(preferredSlot>=reportedCount)throw new Error((member.output.name||'DMX output')+' supports only '+reportedCount+' slots');
+      const occupied=!!data.slots[preferredSlot]?.loaded;
+      if(occupied&&!options.allowOverwrite){
+        const error=new Error((member.output.name||'DMX output')+' slot '+preferredSlot+' is already occupied');
+        error.code='LOGICAL_SLOT_OCCUPIED';
+        error.outputName=member.output.name||'DMX output';
+        error.slot=preferredSlot;
+        throw error;
       }
-      return{...member,root,slot};
+      return{...member,root,slot:preferredSlot,wasOccupied:occupied};
     }));
 
     const uploaded=[];
@@ -202,7 +229,9 @@
       const playback={
         id:options.id||('playback_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)),
         kind,
+        logicalSlot:preferredSlot,
         label:String(options.label||((kind==='motion'?'Effect':'Chase')+' slot '+preferredSlot)),
+        visual:normalizeSlotVisual(options.visual),
         createdAt:new Date().toISOString(),
         members:snapshots.map(member=>({
           outputId:String(member.output.id),
@@ -224,9 +253,227 @@
       }
       return playback;
     }catch(error){
-      await Promise.allSettled(uploaded.map(member=>fetch(member.root+clearPath+member.slot,{cache:'no-store'})));
+      await Promise.allSettled(uploaded.filter(member=>!member.wasOccupied).map(member=>fetch(member.root+clearPath+member.slot,{cache:'no-store'})));
       throw error;
     }
+  }
+
+  async function fetchFleetPicoSlots(kind,outputs,options={}){
+    const normalizedKind=kind==='motion'?'motion':'chaser';
+    const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(normalizedKind==='motion'?64:32)));
+    const path=normalizedKind==='motion'?'/motion/slots':'/chaser/slots';
+    const unique=new Map();
+    normalizeDmxOutputs(outputs,options.legacyBaseUrl||'').forEach(output=>{
+      const root=dmxOutputEndpoint(output);
+      if(root)unique.set(output.id,{output,root});
+    });
+    const reports=await Promise.all([...unique.values()].map(async item=>{
+      try{
+        const response=await fetch(item.root+path,{cache:'no-store'});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||!data?.ok||!Array.isArray(data.slots))throw new Error('invalid slot response');
+        return{...item,ok:true,slots:data.slots};
+      }catch(error){
+        return{...item,ok:false,slots:[],error:error?.message||String(error)};
+      }
+    }));
+    const reachable=reports.filter(report=>report.ok);
+    const expectedBySlot=new Map();
+    (options.playbacks||[]).forEach(playback=>{
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      const roots=new Set((playback.members||[]).map(member=>String(member.baseUrl||'').trim().replace(/\/+$/,'')).filter(Boolean));
+      if(roots.size)expectedBySlot.set(logicalSlot,roots);
+    });
+    const slots=Array.from({length:slotCount},(_,slot)=>{
+      const slotReports=reachable.map(report=>({report,sample:report.slots[slot]})).filter(item=>item.sample);
+      const samples=slotReports.map(item=>item.sample);
+      const loadedReports=slotReports.filter(item=>item.sample.loaded);
+      const loadedCount=loadedReports.length;
+      const allReachable=reports.length>0&&reachable.length===reports.length;
+      const supported=samples.length===reachable.length&&samples.length>0;
+      const representative=samples.find(sample=>sample.loaded)||samples[0]||{slot,loaded:false,active:false,paused:false};
+      let fleetState='unknown';
+      if(allReachable&&supported){
+        const expected=expectedBySlot.get(slot);
+        if(expected){
+          const loadedRoots=new Set(loadedReports.map(item=>item.report.root));
+          const expectedLoaded=[...expected].every(root=>loadedRoots.has(root));
+          const unexpectedLoaded=[...loadedRoots].some(root=>!expected.has(root));
+          fleetState=expectedLoaded&&!unexpectedLoaded?'ready':'partial';
+        }else{
+          fleetState=loadedCount===0?'empty':loadedCount===reports.length?'ready':'partial';
+        }
+      }
+      return Object.assign({},representative,{
+        slot,
+        loaded:loadedCount>0,
+        active:samples.some(sample=>sample.active),
+        paused:samples.some(sample=>sample.paused),
+        fleetState,
+        fleetLoadedCount:loadedCount,
+        fleetOutputCount:reports.length,
+        unsupported:reachable.length>0&&!supported
+      });
+    });
+    return{slots,reports,reachableCount:reachable.length,outputCount:reports.length};
+  }
+
+  function linkedPlaybackLogicalSlot(playback){
+    const first=Array.isArray(playback?.members)?playback.members[0]:null;
+    return Math.max(0,Math.round(Number(playback?.logicalSlot??first?.slot)||0));
+  }
+
+  function legacyLinkedPicoPlaybacks(playbacks){
+    return(playbacks||[]).filter(playback=>{
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      return(playback.members||[]).some(member=>Number(member.slot)!==logicalSlot);
+    });
+  }
+
+  async function migrateLinkedPicoPlaybacks(options){
+    const kind=options.kind==='motion'?'motion':'chaser';
+    const slotPath=kind==='motion'?'/motion/slots':'/chaser/slots';
+    const loadPath=kind==='motion'?'/motion/load/':'/chaser/load/';
+    const clearPath=kind==='motion'?'/motion/clear/':'/chaser/clear/';
+    const playbacks=legacyLinkedPicoPlaybacks(options.playbacks);
+    if(!playbacks.length)return{count:0,backup:null,playbacks:options.playbacks||[]};
+    const entries=[];
+    const targets=new Set();
+    const oldKeys=new Set();
+    for(const playback of playbacks){
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      for(const member of playback.members||[]){
+        const root=String(member.baseUrl||'').trim().replace(/\/+$/,'');
+        const payload=String(member.payload||'');
+        if(!root||!payload)throw new Error('Legacy playback '+(playback.label||playback.id||'')+' is missing a Pico URL or saved payload');
+        const targetKey=root+'|'+logicalSlot;
+        if(targets.has(targetKey))throw new Error('Two saved playbacks would use '+root+' slot '+logicalSlot);
+        targets.add(targetKey);
+        oldKeys.add(root+'|'+Number(member.slot));
+        entries.push({playback,member,root,payload,oldSlot:Number(member.slot),logicalSlot,targetKey});
+      }
+    }
+    const roots=[...new Set(entries.map(entry=>entry.root))];
+    const reports=new Map();
+    for(const root of roots){
+      const response=await fetch(root+slotPath,{cache:'no-store'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||!data?.ok||!Array.isArray(data.slots))throw new Error(root+': could not inspect slots before migration');
+      reports.set(root,data.slots);
+    }
+    for(const entry of entries){
+      const target=reports.get(entry.root)?.[entry.logicalSlot];
+      if(!target)throw new Error(entry.root+' does not support slot '+entry.logicalSlot);
+      if(target.loaded&&entry.oldSlot!==entry.logicalSlot&&!oldKeys.has(entry.targetKey)){
+        throw new Error(entry.root+' slot '+entry.logicalSlot+' contains data not managed by the saved linked playbacks');
+      }
+    }
+    const backupResponse=await fetch(options.serverEndpoint+'?backup_playbacks',{method:'POST'});
+    const backupData=await backupResponse.json().catch(()=>null);
+    if(!backupResponse.ok||!backupData?.ok)throw new Error(backupData?.error||'Could not create the migration backup');
+    const request=async(url,init={})=>{
+      const response=await fetch(url,Object.assign({cache:'no-store'},init));
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+    };
+    const oldLocations=[...new Map(entries.filter(entry=>entry.oldSlot!==entry.logicalSlot).map(entry=>[entry.root+'|'+entry.oldSlot,entry])).values()];
+    const targetLocations=[...new Map(entries.map(entry=>[entry.targetKey,entry])).values()];
+    try{
+      for(const entry of oldLocations)await request(entry.root+clearPath+entry.oldSlot);
+      for(const entry of entries)await request(entry.root+loadPath+entry.logicalSlot,{method:'POST',body:entry.payload,headers:{'Content-Type':'text/plain'}});
+      const migrated=(options.playbacks||[]).map(playback=>{
+        if(!playbacks.includes(playback))return playback;
+        const logicalSlot=linkedPlaybackLogicalSlot(playback);
+        return Object.assign({},playback,{logicalSlot,migratedAt:new Date().toISOString(),members:(playback.members||[]).map(member=>Object.assign({},member,{slot:logicalSlot}))});
+      });
+      for(const playback of migrated.filter(item=>playbacks.some(old=>old.id===item.id))){
+        await request(options.serverEndpoint+'?playback',{method:'POST',body:JSON.stringify(playback),headers:{'Content-Type':'application/json'}});
+      }
+      return{count:playbacks.length,backup:backupData.backup||null,playbacks:migrated};
+    }catch(error){
+      await Promise.allSettled(targetLocations.map(entry=>fetch(entry.root+clearPath+entry.logicalSlot,{cache:'no-store'})));
+      await Promise.allSettled(entries.map(entry=>fetch(entry.root+loadPath+entry.oldSlot,{method:'POST',body:entry.payload,headers:{'Content-Type':'text/plain'}})));
+      throw new Error('Slot migration failed and the previous Pico layout was restored: '+error.message);
+    }
+  }
+
+  async function synchronizeSavedPicoSlots(options){
+    const kind=options.kind==='motion'?'motion':'chaser';
+    const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(kind==='motion'?64:32)));
+    const loadPath=kind==='motion'?'/motion/load/':'/chaser/load/';
+    const clearPath=kind==='motion'?'/motion/clear/':'/chaser/clear/';
+    const outputs=normalizeDmxOutputs(options.outputs,options.legacyBaseUrl||'').filter(output=>dmxOutputEndpoint(output));
+    if(!outputs.length)throw new Error('No configured Pico URLs');
+    const fleet=await fetchFleetPicoSlots(kind,outputs,{slotCount,legacyBaseUrl:options.legacyBaseUrl||''});
+    const failed=fleet.reports.filter(report=>!report.ok);
+    if(failed.length)throw new Error('Synchronization cancelled before changes because these Picos did not respond: '+failed.map(report=>report.output.name||report.root).join(', '));
+    const short=fleet.reports.filter(report=>report.slots.length<slotCount);
+    if(short.length)throw new Error('Synchronization cancelled before changes because these Picos support fewer than '+slotCount+' '+kind+' slots: '+short.map(report=>report.output.name||report.root).join(', '));
+
+    const configuredRoots=new Map(fleet.reports.map(report=>[report.root,report]));
+    const desired=new Map();
+    const logicalSlots=new Set();
+    const playbacks=Array.isArray(options.playbacks)?options.playbacks:[];
+    const playbackSlots=new Set(playbacks.map(linkedPlaybackLogicalSlot));
+    const addDesired=(root,slot,payload,label)=>{
+      const normalizedRoot=String(root||'').trim().replace(/\/+$/,'');
+      const report=configuredRoots.get(normalizedRoot);
+      if(!report)throw new Error((label||'Saved playback')+' refers to a Pico that is not in the current DMX Outputs: '+normalizedRoot);
+      if(slot<0||slot>=slotCount)throw new Error((label||'Saved playback')+' uses unsupported slot '+slot);
+      const key=normalizedRoot+'|'+slot;
+      if(desired.has(key))throw new Error('More than one saved payload targets '+(report.output.name||normalizedRoot)+' slot '+slot);
+      desired.set(key,{root:normalizedRoot,slot,payload:String(payload||''),output:report.output});
+      logicalSlots.add(slot);
+    };
+    for(const playback of playbacks){
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      for(const member of playback.members||[]){
+        if(Number(member.slot)!==logicalSlot)throw new Error('Normalize legacy slot mappings before synchronizing saved slots');
+        if(!String(member.payload||''))throw new Error((playback.label||playback.id||'Saved playback')+' has no saved payload');
+        addDesired(member.baseUrl,logicalSlot,member.payload,playback.label||playback.id);
+      }
+    }
+    const legacySlots=Array.isArray(options.legacySlots)?options.legacySlots:[];
+    const legacyRoot=String(options.legacyPicoUrl||options.legacyBaseUrl||'').trim().replace(/\/+$/,'');
+    for(let slot=0;slot<Math.min(slotCount,legacySlots.length);slot++){
+      const payload=legacySlots[slot];
+      if(!payload||playbackSlots.has(slot))continue;
+      if(!legacyRoot)throw new Error('Saved single-Pico slot '+slot+' has no Pico URL');
+      addDesired(legacyRoot,slot,payload,'Saved single-Pico slot '+slot);
+    }
+
+    const clears=[];
+    for(const report of fleet.reports){
+      report.slots.slice(0,slotCount).forEach((slotInfo,slot)=>{
+        if(slotInfo?.loaded&&!desired.has(report.root+'|'+slot))clears.push({root:report.root,slot,output:report.output});
+      });
+    }
+    const uploads=[...desired.values()];
+    const summary={
+      outputCount:fleet.reports.length,
+      logicalSlotCount:logicalSlots.size,
+      uploadCount:uploads.length,
+      clearCount:clears.length
+    };
+    if(typeof options.confirmPlan==='function'&&!options.confirmPlan(summary))return Object.assign({cancelled:true},summary);
+
+    const errors=[];
+    for(const upload of uploads){
+      try{
+        const response=await fetch(upload.root+loadPath+upload.slot,{method:'POST',body:upload.payload,headers:{'Content-Type':'text/plain'}});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+      }catch(error){errors.push((upload.output.name||upload.root)+' slot '+upload.slot+' upload: '+(error?.message||String(error)));}
+    }
+    for(const stale of clears){
+      try{
+        const response=await fetch(stale.root+clearPath+stale.slot,{cache:'no-store'});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+      }catch(error){errors.push((stale.output.name||stale.root)+' slot '+stale.slot+' clear: '+(error?.message||String(error)));}
+    }
+    if(errors.length)throw new Error('Synchronization was incomplete; rerun it after resolving: '+errors.join(' · '));
+    return Object.assign({cancelled:false},summary);
   }
 
   async function commandLinkedPicoPlayback(playback,pathForMember,options={}){
@@ -1500,16 +1747,23 @@
     return details.join(' · ');
   }
 
+  function wheelOptionIsSplitColor(option){
+    if(String(option&&option.kind||'')!=='WheelSlot')return false;
+    const colors=Array.isArray(option&&option.colors)?option.colors:[];
+    return colors.filter(color=>/^#[0-9a-f]{6}$/i.test(String(color))).length>1;
+  }
+
   function wheelOptionIsAdjustable(option){
     const range=wheelOptionRange(option);
     if(!range||range[0]===range[1])return false;
     const kind=String(option&&option.kind||'');
-    return kind==='WheelShake'||kind==='WheelRotation'||kind==='WheelSlotRotation'||
+    return wheelOptionIsSplitColor(option)||kind==='WheelShake'||kind==='WheelRotation'||kind==='WheelSlotRotation'||
       !!(option&&(option.speedStart||option.speedEnd||option.shakeSpeedStart||option.shakeSpeedEnd));
   }
 
   function wheelOptionRangeLabel(option){
     const kind=String(option&&option.kind||'');
+    if(wheelOptionIsSplitColor(option))return 'Split position';
     if(kind==='WheelShake')return 'Shake speed';
     if(kind==='WheelRotation')return 'Rotation speed';
     if(kind==='WheelSlotRotation')return 'Slot rotation';
@@ -1553,6 +1807,78 @@
   function fixtureGroupEditBytes16(value){
     const n=clampInt(value,0,65535);
     return{coarse:(n>>8)&255,fine:n&255};
+  }
+
+  function fixtureGroupEditIsScalar(control){
+    return control?.type==='slider8'||control?.type==='slider16';
+  }
+
+  function fixtureGroupEditIsColor(control){
+    return['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control?.type);
+  }
+
+  function fixtureGroupEditNormalizedLabel(control){
+    return String(control?.scope||control?.label||control?.name||'Control').trim().toLowerCase()
+      .replace(/\bcolour\b/g,'color')
+      .replace(/\bdimming\b|\bdimmer\b/g,'intensity')
+      .replace(/\bcct\b/g,'color temperature')
+      .replace(/\s+/g,' ');
+  }
+
+  function fixtureGroupEditNativeSignature(control){
+    const parts=fixtureGroupEditParts(control).map(part=>part.part+':'+part.max).join('|');
+    return String(control?.type||'slider8')+':'+fixtureGroupEditNormalizedLabel(control)+':'+parts;
+  }
+
+  function fixtureGroupEditCompatibilityKey(control){
+    if(fixtureGroupEditIsScalar(control))return'compatible:scalar:'+fixtureGroupEditNormalizedLabel(control);
+    if(control?.type==='panTilt8'||control?.type==='panTilt16')return'compatible:panTilt';
+    if(fixtureGroupEditIsColor(control))return'compatible:color';
+    return'';
+  }
+
+  function fixtureGroupEditValueMax(control){
+    return control?.type==='slider16'||control?.type==='panTilt16'?65535:255;
+  }
+
+  function fixtureGroupEditRepresentative(control,mergeCompatible=false){
+    return mergeCompatible&&fixtureGroupEditCompatibilityKey(control)==='compatible:color'?{...control,type:'rgb',label:'RGB'}:control;
+  }
+
+  function fixtureGroupEditPreferControl(current,candidate){
+    return fixtureGroupEditValueMax(candidate)>fixtureGroupEditValueMax(current)?candidate:current;
+  }
+
+  function fixtureGroupEditColorAsRgb(value,control){
+    if(!value||typeof value!=='object')return{a:0,b:0,c:0};
+    if(control?.type==='cmy'||control?.type==='cmyk')return{a:255-clampInt(value.a??0,0,255),b:255-clampInt(value.b??0,0,255),c:255-clampInt(value.c??0,0,255)};
+    return{a:clampInt(value.a??0,0,255),b:clampInt(value.b??0,0,255),c:clampInt(value.c??0,0,255)};
+  }
+
+  function fixtureGroupEditCloneValue(value){
+    if(!value||typeof value!=='object')return value;
+    return Array.isArray(value)?value.map(fixtureGroupEditCloneValue):Object.fromEntries(Object.entries(value).map(([key,item])=>[key,fixtureGroupEditCloneValue(item)]));
+  }
+
+  function fixtureGroupEditConvertValue(value,fromControl,toControl,currentTargetValue=null){
+    const fromMax=fixtureGroupEditValueMax(fromControl),toMax=fixtureGroupEditValueMax(toControl);
+    if(fixtureGroupEditIsScalar(fromControl)&&fixtureGroupEditIsScalar(toControl)&&typeof value==='number')return clampInt(Math.round(value/fromMax*toMax),0,toMax);
+    const fromPosition=fromControl?.type==='panTilt8'||fromControl?.type==='panTilt16';
+    const toPosition=toControl?.type==='panTilt8'||toControl?.type==='panTilt16';
+    if(fromPosition&&toPosition&&value&&typeof value==='object')return{pan:clampInt(Math.round(Number(value.pan||0)/fromMax*toMax),0,toMax),tilt:clampInt(Math.round(Number(value.tilt||0)/fromMax*toMax),0,toMax)};
+    if(fixtureGroupEditIsColor(fromControl)&&fixtureGroupEditIsColor(toControl)&&value&&typeof value==='object'){
+      const current=currentTargetValue&&typeof currentTargetValue==='object'?currentTargetValue:{};
+      const rgb=fixtureGroupEditColorAsRgb(value,fromControl);
+      return toControl.type==='cmy'||toControl.type==='cmyk'?{...current,a:255-rgb.a,b:255-rgb.b,c:255-rgb.c}:{...current,...rgb};
+    }
+    return fixtureGroupEditCloneValue(value);
+  }
+
+  function fixtureGroupEditConvertDelta(delta,fromControl,toControl,part='value'){
+    const scaled=Math.round(Number(delta||0)/fixtureGroupEditValueMax(fromControl)*fixtureGroupEditValueMax(toControl));
+    const fromSubtractive=fixtureGroupEditIsColor(fromControl)&&(fromControl.type==='cmy'||fromControl.type==='cmyk');
+    const toSubtractive=fixtureGroupEditIsColor(toControl)&&(toControl.type==='cmy'||toControl.type==='cmyk');
+    return['a','b','c'].includes(part)&&fromSubtractive!==toSubtractive?-scaled:scaled;
   }
 
   function createGroupEditRelativeStepStore(options={}){
@@ -2144,6 +2470,10 @@
       localStorage.removeItem(TOOLBOX_WIDTH_KEY);
       document.documentElement.style.removeProperty('--toolbox-rail-width');
       saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,null);
+    });
+    window.addEventListener('resize',()=>{
+      const preferred=parseInt(localStorage.getItem(TOOLBOX_WIDTH_KEY)||'',10);
+      if(preferred)setToolboxRailWidth(preferred);
     });
   }
 
@@ -3647,11 +3977,17 @@
   function normalizeRoomPlane(plane,index){
     const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
     const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+    const normalizedPoints=(sourcePoints.length?sourcePoints:fallbackPoints)
+      .map((point,i)=>normalizeRoomPlanePoint(point,fallbackPoints[i]));
+    for(const fallback of fallbackPoints){
+      if(normalizedPoints.length>=3)break;
+      if(!normalizedPoints.some(point=>point.id===fallback.id))normalizedPoints.push({...fallback});
+    }
     return {
       ...plane,
       id:plane?.id||('plane_'+index),
       name:String(plane?.name||('Plane '+(index+1))),
-      points:fallbackPoints.map((fallback,i)=>normalizeRoomPlanePoint(sourcePoints[i],fallback)),
+      points:normalizedPoints,
       target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
       fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeRoomPlaneFixture),
       view:{
@@ -3664,24 +4000,112 @@
     };
   }
 
-  function roomPlaneWeights(plane,target=plane?.target){
-    const [a,b,c]=plane?.points||[];
-    if(!a||!b||!c||!target)return {valid:false,wA:0,wB:0,wC:0};
+  function roomPlaneTriangleWeights(a,b,c,target){
+    if(!a||!b||!c||!target)return null;
     const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-    if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-    const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-    const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-    return {valid:true,wA,wB,wC:1-wA-wB};
+    if(Math.abs(det)<1e-9)return null;
+    const first=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+    const second=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+    return [first,second,1-first-second];
+  }
+
+  function roomPlaneCircumcircleContains(a,b,c,point){
+    const divisor=2*(a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y));
+    if(Math.abs(divisor)<1e-9)return false;
+    const a2=a.x*a.x+a.y*a.y,b2=b.x*b.x+b.y*b.y,c2=c.x*c.x+c.y*c.y;
+    const x=(a2*(b.y-c.y)+b2*(c.y-a.y)+c2*(a.y-b.y))/divisor;
+    const y=(a2*(c.x-b.x)+b2*(a.x-c.x)+c2*(b.x-a.x))/divisor;
+    const radius=(x-a.x)*(x-a.x)+(y-a.y)*(y-a.y);
+    const distance=(x-point.x)*(x-point.x)+(y-point.y)*(y-point.y);
+    return distance<=radius+Math.max(1,radius)*1e-9;
+  }
+
+  function roomPlaneTriangles(sourcePoints){
+    const points=[];
+    (Array.isArray(sourcePoints)?sourcePoints:[]).forEach(point=>{
+      const normalized={...point,x:Number(point?.x)||0,y:Number(point?.y)||0};
+      if(!points.some(existing=>Math.abs(existing.x-normalized.x)<1e-9&&Math.abs(existing.y-normalized.y)<1e-9))points.push(normalized);
+    });
+    if(points.length<3)return [];
+    const xs=points.map(point=>point.x),ys=points.map(point=>point.y);
+    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    const span=Math.max(maxX-minX,maxY-minY,1),midX=(minX+maxX)/2,midY=(minY+maxY)/2;
+    const all=[...points,
+      {id:'__super1',x:midX-32*span,y:midY-16*span},
+      {id:'__super2',x:midX,y:midY+32*span},
+      {id:'__super3',x:midX+32*span,y:midY-16*span}
+    ];
+    const superStart=points.length;
+    let triangles=[[superStart,superStart+1,superStart+2]];
+    for(let pointIndex=0;pointIndex<points.length;pointIndex++){
+      const bad=triangles.filter(triangle=>roomPlaneCircumcircleContains(all[triangle[0]],all[triangle[1]],all[triangle[2]],all[pointIndex]));
+      const edges=new Map();
+      bad.forEach(triangle=>[[triangle[0],triangle[1]],[triangle[1],triangle[2]],[triangle[2],triangle[0]]].forEach(edge=>{
+        const ordered=edge[0]<edge[1]?edge:[edge[1],edge[0]];
+        const key=ordered[0]+':'+ordered[1];
+        const entry=edges.get(key)||{edge:ordered,count:0};
+        entry.count++;
+        edges.set(key,entry);
+      }));
+      const rejected=new Set(bad);
+      triangles=triangles.filter(triangle=>!rejected.has(triangle));
+      edges.forEach(entry=>{
+        if(entry.count!==1)return;
+        const candidate=[entry.edge[0],entry.edge[1],pointIndex];
+        if(roomPlaneTriangleWeights(all[candidate[0]],all[candidate[1]],all[candidate[2]],all[pointIndex]))triangles.push(candidate);
+      });
+    }
+    return triangles
+      .filter(triangle=>triangle.every(index=>index<superStart))
+      .map(triangle=>triangle.map(index=>points[index]));
+  }
+
+  function roomPlaneSelectTriangle(points,target){
+    if(!target)return null;
+    let selected=null;
+    roomPlaneTriangles(points).forEach(triangle=>{
+      const values=roomPlaneTriangleWeights(triangle[0],triangle[1],triangle[2],target);
+      if(!values)return;
+      const minWeight=Math.min(...values);
+      const inside=minWeight>=-1e-7;
+      const score=inside?1+minWeight:minWeight;
+      if(!selected||score>selected.score)selected={triangle,values,inside,score};
+    });
+    return selected;
+  }
+
+  function roomPlaneWeights(plane,target=plane?.target){
+    const selected=roomPlaneSelectTriangle(plane?.points,target);
+    if(!selected)return {valid:false,inside:false,target,wA:0,wB:0,wC:0,ids:[],values:[]};
+    const ids=selected.triangle.map(point=>String(point.id));
+    const byId=Object.fromEntries(ids.map((id,index)=>[id,selected.values[index]]));
+    return {
+      valid:true,
+      inside:selected.inside,
+      target:{x:Number(target.x)||0,y:Number(target.y)||0,z:Number(target.z)||0},
+      ids,
+      values:selected.values,
+      wA:byId.A||0,
+      wB:byId.B||0,
+      wC:byId.C||0
+    };
   }
 
   function roomPlaneInterpolateFixture(plane,fixture,weights){
-    if(!weights?.valid)return null;
-    const ids=(plane?.points||[]).map(point=>point.id);
-    if(ids.length<3||ids.some(id=>!fixture?.cal?.[id]?.calibrated))return null;
+    const calibratedPoints=(plane?.points||[]).filter(point=>fixture?.cal?.[point.id]?.calibrated);
+    if(calibratedPoints.length<3)return null;
+    const selected=roomPlaneSelectTriangle(calibratedPoints,weights?.target||plane?.target);
+    if(!selected)return null;
+    const ids=selected.triangle.map(point=>point.id);
     return {
-      pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-      tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+      pan:selected.values.reduce((total,value,index)=>total+value*fixture.cal[ids[index]].pan,0),
+      tilt:selected.values.reduce((total,value,index)=>total+value*fixture.cal[ids[index]].tilt,0)
     };
+  }
+
+  function roomPlaneWeightText(weights,digits=3){
+    if(!weights?.valid)return 'invalid';
+    return (weights.ids||[]).map((id,index)=>id+' '+Number(weights.values?.[index]||0).toFixed(digits)).join(' / ');
   }
 
   function roomPlaneAutoBounds(plane){
@@ -3694,6 +4118,33 @@
     const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
     const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
     return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+  }
+
+  function drawRoomPlaneLine(host,a,b,className='controller-plane-line'){
+    if(!host||!a||!b)return null;
+    const line=document.createElement('div');
+    const width=Math.max(1,host.clientWidth||host.getBoundingClientRect?.().width||1);
+    const height=Math.max(1,host.clientHeight||host.getBoundingClientRect?.().height||1);
+    const dx=(Number(b.x)-Number(a.x))*width/100;
+    const dy=(Number(b.y)-Number(a.y))*height/100;
+    line.className=className;
+    line.style.left=Number(a.x)+'%';
+    line.style.top=Number(a.y)+'%';
+    line.style.width=Math.sqrt(dx*dx+dy*dy)+'px';
+    line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+    host.appendChild(line);
+    return line;
+  }
+
+  function observeElementResize(element,callback){
+    if(!element||typeof callback!=='function')return null;
+    if(window.ResizeObserver){
+      const observer=new ResizeObserver(()=>callback());
+      observer.observe(element);
+      return observer;
+    }
+    window.addEventListener('resize',callback);
+    return {disconnect:()=>window.removeEventListener('resize',callback)};
   }
 
   function initSavedPlaneToolbox(options){
@@ -3981,9 +4432,9 @@
       '    <label>Dimmer<input type="range" min="0" max="255" data-ptd-dimmer-range></label>',
       '    <label>Dimmer value<input type="number" min="0" max="255" data-ptd-dimmer></label>',
       '    <div class="small" data-ptd-readout></div>',
+      '    <div data-ptd-extra-actions></div>',
       '  </div>',
       '  <div class="modal-actions">',
-      '    <span data-ptd-extra-actions></span>',
       '    <button type="button" data-ptd-close>Close</button>',
       '  </div>',
       '</div>'
@@ -3996,6 +4447,7 @@
   function closePanTiltDimmerEditor(modal){
     const el=modal||document.getElementById('commonPanTiltDimmerModal');
     if(!el)return;
+    el.querySelector('.modal-body')?.classList.remove('ptd-pad-editing');
     hideModal(el);
     const onClose=el._dmxPanTiltDimmerOnClose;
     el._dmxPanTiltDimmerOnClose=null;
@@ -4004,6 +4456,7 @@
 
   function openPanTiltDimmerEditor(options){
     const modal=ensurePanTiltDimmerEditorModal();
+    const modalBody=modal.querySelector('.modal-body');
     const max=Math.max(1,Math.round(Number(options?.max)||255));
     const title=modal.querySelector('#commonPanTiltDimmerTitle');
     const pad=modal.querySelector('[data-ptd-xy]');
@@ -4017,6 +4470,8 @@
     const extraActions=modal.querySelector('[data-ptd-extra-actions]');
     const onChange=typeof options?.onChange==='function'?options.onChange:()=>{};
     const onAction=typeof options?.onAction==='function'?options.onAction:()=>{};
+    const relativeStepValue=typeof options?.relativeStepValue==='function'?options.relativeStepValue:(_axis,_kind,step)=>step;
+    const onRelativeStepChange=typeof options?.onRelativeStepChange==='function'?options.onRelativeStepChange:()=>{};
     modal._dmxPanTiltDimmerOnClose=typeof options?.onClose==='function'?options.onClose:null;
     let value={
       pan:clampInt(options?.value?.pan??Math.round(max/2),0,max),
@@ -4025,10 +4480,17 @@
     };
     title.textContent=options?.title||'Edit Fixture Control';
     const actions=Array.isArray(options?.actions)?options.actions:[];
-    extraActions.innerHTML=actions.map(action=>{
+    const actionGroups=[];
+    actions.forEach(action=>{
+      const group=String(action.group||'default');
+      let entry=actionGroups[actionGroups.length-1];
+      if(!entry||entry.name!==group){entry={name:group,actions:[]};actionGroups.push(entry);}
+      entry.actions.push(action);
+    });
+    extraActions.innerHTML=actionGroups.map(group=>'<span class="ptd-action-group" data-ptd-action-group="'+escapeHtml(group.name)+'">'+group.actions.map(action=>{
       const classes=[action.primary?'primary':'',action.className||''].filter(Boolean).join(' ');
       return '<button type="button" data-ptd-action="'+escapeHtml(action.id||action.label||'')+'" '+(classes?'class="'+escapeHtml(classes)+'"':'')+'>'+escapeHtml(action.label||action.id||'Action')+'</button>';
-    }).join('');
+    }).join('')+'</span>').join('');
     extraActions.onclick=event=>{
       const btn=event.target.closest('[data-ptd-action]');
       if(!btn)return;
@@ -4049,23 +4511,32 @@
     const is16=max>255;
     relativeHost.innerHTML=is16
       ? [
-        relativeControlHtml('pan','Pan coarse relative',256,max),
-        relativeControlHtml('pan','Pan fine relative',1,max),
-        relativeControlHtml('tilt','Tilt coarse relative',256,max),
-        relativeControlHtml('tilt','Tilt fine relative',1,max)
+        relativeControlHtml('pan','coarse','Pan coarse relative',256,max),
+        relativeControlHtml('pan','fine','Pan fine relative',1,max),
+        relativeControlHtml('tilt','coarse','Tilt coarse relative',256,max),
+        relativeControlHtml('tilt','fine','Tilt fine relative',1,max)
       ].join('')
       : [
-        relativeControlHtml('pan','Pan relative',1,max),
-        relativeControlHtml('tilt','Tilt relative',1,max)
+        relativeControlHtml('pan','default','Pan relative',1,max),
+        relativeControlHtml('tilt','default','Tilt relative',1,max)
       ].join('');
 
-    function relativeControlHtml(axis,label,step,limit){
+    function relativeControlHtml(axis,kind,label,step,limit){
+      const current=clampInt(relativeStepValue(axis,kind,step,limit),1,limit);
       return '<div class="relative-control">'+
         '<button type="button" data-ptd-relative-dir="-1" data-ptd-axis="'+axis+'" title="Decrease relative to the current value">-</button>'+
-        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+step+'" data-ptd-relative-step data-ptd-axis="'+axis+'"></label>'+
+        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+current+'" data-ptd-relative-step data-ptd-axis="'+axis+'" data-ptd-relative-kind="'+kind+'"></label>'+
         '<button type="button" data-ptd-relative-dir="1" data-ptd-axis="'+axis+'" title="Increase relative to the current value">+</button>'+
       '</div>';
     }
+
+    relativeHost.oninput=event=>{
+      const input=event.target.closest('[data-ptd-relative-step]');
+      if(!input)return;
+      const next=clampInt(input.value,1,max);
+      input.value=String(next);
+      onRelativeStepChange(input.dataset.ptdAxis,input.dataset.ptdRelativeKind||'default',next,max);
+    };
 
     function emit(){
       onChange({...value});
@@ -4115,13 +4586,33 @@
       renderEditor();
       emit();
     };
+    if(!pad._dmxTouchScrollGuard){
+      pad._dmxTouchScrollGuard=event=>event.preventDefault();
+      pad.addEventListener('touchmove',pad._dmxTouchScrollGuard,{passive:false});
+    }
     pad.onpointerdown=event=>{
       event.preventDefault();
-      pad.setPointerCapture?.(event.pointerId);
+      event.stopPropagation();
+      const pointerId=event.pointerId;
+      const lockedScrollTop=modalBody.scrollTop;
+      modalBody.classList.add('ptd-pad-editing');
+      modalBody.scrollTop=lockedScrollTop;
+      try{pad.setPointerCapture?.(pointerId);}catch(_error){}
       setFromPad(event);
-      pad.onpointermove=setFromPad;
-      pad.onpointerup=pad.onpointercancel=()=>{
-        pad.releasePointerCapture?.(event.pointerId);
+      pad.onpointermove=moveEvent=>{
+        if(moveEvent.pointerId!==pointerId)return;
+        moveEvent.preventDefault();
+        moveEvent.stopPropagation();
+        modalBody.scrollTop=lockedScrollTop;
+        setFromPad(moveEvent);
+      };
+      pad.onpointerup=pad.onpointercancel=endEvent=>{
+        if(endEvent.pointerId!==pointerId)return;
+        endEvent.preventDefault();
+        endEvent.stopPropagation();
+        try{pad.releasePointerCapture?.(pointerId);}catch(_error){}
+        modalBody.classList.remove('ptd-pad-editing');
+        modalBody.scrollTop=lockedScrollTop;
         pad.onpointermove=null;
         pad.onpointerup=null;
         pad.onpointercancel=null;
@@ -4144,11 +4635,17 @@
     dmxOutputForFixture,
     dmxOutputEndpoint,
     dmxOutputsForFixtures,
+    stopPlaybackForFixtures,
     sendFixtureDmxRows,
     requestDmxOutputs,
     linkedPlaybackMembersForFixtures,
     uploadLinkedPicoPlayback,
     commandLinkedPicoPlayback,
+    fetchFleetPicoSlots,
+    linkedPlaybackLogicalSlot,
+    legacyLinkedPicoPlaybacks,
+    migrateLinkedPicoPlaybacks,
+    synchronizeSavedPicoSlots,
     showUsedDmxOutputs,
     checkPicoFleetOutput,
     refreshPicoFleetStatus,
@@ -4198,6 +4695,16 @@
     wheelOptionRangeText,
     wheelRangeSliderHtml,
     fixtureGroupEditParts,
+    fixtureGroupEditIsScalar,
+    fixtureGroupEditIsColor,
+    fixtureGroupEditNormalizedLabel,
+    fixtureGroupEditNativeSignature,
+    fixtureGroupEditCompatibilityKey,
+    fixtureGroupEditValueMax,
+    fixtureGroupEditRepresentative,
+    fixtureGroupEditPreferControl,
+    fixtureGroupEditConvertValue,
+    fixtureGroupEditConvertDelta,
     createGroupEditRelativeStepStore,
     fixtureGroupEditControlHtml,
     updateFixtureGroupEditWheelRangeHost,
@@ -4225,7 +4732,10 @@
     normalizeRoomPlane,
     roomPlaneWeights,
     roomPlaneInterpolateFixture,
+    roomPlaneWeightText,
     roomPlaneAutoBounds,
+    drawRoomPlaneLine,
+    observeElementResize,
     initSavedPlaneToolbox,
     panTiltMax,
     panTiltDefault,

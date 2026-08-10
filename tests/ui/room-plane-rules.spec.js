@@ -178,6 +178,94 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#insideReadout')).toHaveText('Inside plane: yes');
   });
 
+  test('keeps edit and delete controls visible on every occupied Plane tile', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const occupiedTiles = page.locator('#planeLibrary [data-recall-plane]');
+    await expect(occupiedTiles).not.toHaveCount(0);
+    await expect(page.locator('#planeLibrary [data-visual-plane]')).toHaveCount(await occupiedTiles.count());
+    await expect(page.locator('#planeLibrary [data-del-plane]')).toHaveCount(await occupiedTiles.count());
+    await expect(page.locator('#planeLibrary [data-visual-plane]').first()).toBeVisible();
+    await expect(page.locator('#planeLibrary [data-del-plane]').first()).toBeVisible();
+  });
+
+  test('uses every calibration point available to each fixture while keeping three-point fixtures usable', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const result = await page.evaluate(() => {
+      const plane = DmxCommon.normalizeRoomPlane({
+        id: 'variable_points',
+        name: 'Variable points',
+        points: [
+          { id: 'A', x: 0, y: 0 },
+          { id: 'B', x: 10, y: 0 },
+          { id: 'C', x: 0, y: 10 },
+          { id: 'D', x: 10, y: 10 },
+          { id: 'E', x: 5, y: 5 }
+        ],
+        target: { x: 5, y: 5 },
+        fixtures: []
+      }, 0);
+      const basicFixture = {
+        cal: {
+          A: { calibrated: true, pan: 0, tilt: 0 },
+          B: { calibrated: true, pan: 100, tilt: 200 },
+          C: { calibrated: true, pan: 200, tilt: 100 }
+        }
+      };
+      const detailedFixture = {
+        cal: {
+          ...basicFixture.cal,
+          D: { calibrated: true, pan: 300, tilt: 300 },
+          E: { calibrated: true, pan: 240, tilt: 180 }
+        }
+      };
+      const weights = DmxCommon.roomPlaneWeights(plane);
+      return {
+        pointCount: plane.points.length,
+        basic: DmxCommon.roomPlaneInterpolateFixture(plane, basicFixture, weights),
+        detailed: DmxCommon.roomPlaneInterpolateFixture(plane, detailedFixture, weights)
+      };
+    });
+
+    expect(result.pointCount).toBe(5);
+    expect(result.basic).toMatchObject({ pan: 150, tilt: 150 });
+    expect(result.detailed).toMatchObject({ pan: 240, tilt: 180 });
+  });
+
+  test('adds and removes optional calibration points at the current target without invalidating three-point fixtures', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#targetX').fill('2');
+    await page.locator('#targetY').fill('2');
+    await page.locator('#addCalibrationPoint').click();
+
+    await expect(page.locator('#planePointInputs')).toContainText('D');
+    await expect(page.locator('#fixtureHeaderRow')).toContainText('D pan');
+    await expect(page.locator('#fixtureRows .cal-state').first()).toContainText('3 points');
+    await expect.poll(() => page.evaluate(() => ({
+      points: points.map(point => ({ ...point })),
+      calibrated: fixtures.map(fixture => fixture.cal.D?.calibrated)
+    }))).toEqual({
+      points: [
+        { id: 'A', x: 0, y: 0, z: 0 },
+        { id: 'B', x: 5, y: 0, z: 0 },
+        { id: 'C', x: 0, y: 3, z: 0 },
+        { id: 'D', x: 2, y: 2, z: 0 }
+      ],
+      calibrated: [false, false]
+    });
+
+    await page.locator('#addCalibrationPoint').click();
+    await expect(page.locator('#status')).toContainText('already calibration point D');
+    await expect.poll(() => page.evaluate(() => points.length)).toBe(4);
+
+    await page.locator('[data-remove-point="3"]').click();
+    await expect(page.locator('#planePointInputs')).not.toContainText('D');
+    await expect(page.locator('[data-remove-point]')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => points.length)).toBe(3);
+  });
+
   test('updates calculated pan and tilt when the target moves', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -216,7 +304,7 @@ test.describe('Room Plane rules', () => {
     await expect.poll(() => {
       const active = posts.at(-1)?.planes?.find(plane => plane.id === posts.at(-1)?.activePlaneId);
       return active?.target;
-    }).toEqual({ x: 1.25, y: 2.75, z: 0 });
+    }).toEqual({ x: 2.5, y: 1.5, z: 0 });
   });
 
   test('drags the red target point responsively across the plane', async ({ page }) => {
@@ -259,53 +347,13 @@ test.describe('Room Plane rules', () => {
     await expect.poll(async () => Number(await page.locator('#targetX').inputValue())).toBeGreaterThan(maxVisibleX);
   });
 
-  test('nudges target with coarse and fine controls below the plane', async ({ page }) => {
-    const sent = [];
-    await page.route('**/fixture_setup.php**', async route => {
-      const url = route.request().url();
-      if (url.includes('livevalues')) {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, values: {} }) });
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ok: true,
-          exists: true,
-          setup: {
-            baseUrl: 'http://localhost/dmx-test',
-            profiles: [{
-              id: 1,
-              name: 'Moving Profile',
-              mode: '16-bit',
-              channels: 8,
-              controls: [
-                { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, scope: 'dimmer' },
-                { id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }
-              ]
-            }],
-            fixtures: [{ id: 101, name: 'Moving 1', profileId: 1, start: 10 }],
-            values: {}
-          }
-        })
-      });
-    });
-    await page.route('**/dmx/b**', async route => {
-      sent.push(route.request().postData() || '');
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"updated":5}' });
-    });
+  test('keeps target entry available without a dedicated nudge section', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
-    await page.locator('#loadPatchedFixtures').click();
-    await page.locator('#targetStepXCoarse').fill('0.5');
-    await page.locator('[data-target-nudge-axis="x"][data-target-nudge-step="coarse"][data-target-nudge-dir="1"]').click();
-    await expect(page.locator('#targetX')).toHaveValue('3');
-
-    await page.locator('#targetStepYFine').fill('0.05');
-    await page.locator('[data-target-nudge-axis="y"][data-target-nudge-step="fine"][data-target-nudge-dir="-1"]').click();
-    await expect(page.locator('#targetY')).toHaveValue('1.45');
-    await expect.poll(() => sent.length).toBeGreaterThan(0);
+    await expect(page.locator('#targetNudgeControls')).toHaveCount(0);
+    await expect(page.getByText('Target nudge', { exact: true })).toHaveCount(0);
+    await expect(page.locator('#targetX')).toBeVisible();
+    await expect(page.locator('#targetY')).toBeVisible();
   });
 
   test('removes manual apply and auto-apply remains active', async ({ page }) => {
@@ -375,9 +423,215 @@ test.describe('Room Plane rules', () => {
   test('reset calibration marks fixtures incomplete', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
+    await expect(page.locator('#resetDemo')).toHaveCount(0);
+    await expect(page.locator('#resetCalibration')).toHaveText('Reset plane and calibration');
     await page.locator('#resetCalibration').click();
 
     await expect(page.locator('tbody tr').first()).toContainText('Missing A, B, C');
+  });
+
+  test('resetting the working calibration and recalling planes do not edit saved plane snapshots', async ({ page }) => {
+    const posts = [];
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: route.request().method() === 'GET'
+          ? JSON.stringify({ ok: true, exists: false, setup: null })
+          : JSON.stringify({ ok: true })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await page.locator('#planeVisualName').fill('Saved calibration');
+    await page.locator('#planeVisualSave').click();
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Calibrated');
+
+    await page.evaluate(() => {
+      points.splice(0, points.length,
+        { id: 'A', x: 10, y: 20, z: 1 },
+        { id: 'B', x: 30, y: 20, z: 1 },
+        { id: 'C', x: 10, y: 40, z: 1 },
+        { id: 'D', x: 30, y: 40, z: 1 },
+        { id: 'E', x: 20, y: 30, z: 1 }
+      );
+      fixtures.forEach(fixture => {
+        fixture.cal.D = { pan: 1234, tilt: 2345, calibrated: true };
+        fixture.cal.E = { pan: 3456, tilt: 4567, calibrated: true };
+      });
+      targetX.value = '17';
+      targetY.value = '29';
+      planeView = { auto: false, centerX: 20, centerY: 30, zoom: 3 };
+      syncTables();
+    });
+
+    await page.locator('#resetCalibration').click();
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Missing A, B, C');
+    await expect(page.locator('#planeLibrary .slot.active')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => activePlaneId)).toBe('');
+    await expect.poll(() => posts.length).toBeGreaterThan(0);
+    await expect.poll(() => posts.at(-1)?.activePlaneId).toBe('');
+    expect(posts.at(-1).fixtures[0].cal.A.calibrated).toBe(false);
+    expect(posts.at(-1).points).toEqual([
+      { id: 'A', x: 0, y: 0, z: 0 },
+      { id: 'B', x: 5, y: 0, z: 0 },
+      { id: 'C', x: 0, y: 3, z: 0 }
+    ]);
+    expect(posts.at(-1).target).toEqual({ x: 2.5, y: 1.5, z: 0 });
+    expect(Object.keys(posts.at(-1).fixtures[0].cal)).toEqual(['A', 'B', 'C']);
+    expect(posts.at(-1).view).toMatchObject({ auto: true, zoom: 1 });
+    expect(posts.at(-1).planes.every(plane =>
+      plane.fixtures.every(fixture => ['A', 'B', 'C'].every(point => fixture.cal?.[point]?.calibrated))
+    )).toBe(true);
+
+    await page.locator('[data-recall-plane]').first().click();
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Calibrated');
+
+    await page.locator('[data-recall-plane]').filter({ hasText: 'Saved calibration' }).click();
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Calibrated');
+    await expect.poll(() => page.evaluate(() => planeDefinitions.every(plane =>
+      plane.fixtures.every(fixture => ['A', 'B', 'C'].every(point => fixture.cal?.[point]?.calibrated))
+    ))).toBe(true);
+  });
+
+  test('deleting the final saved plane leaves an empty library and keeps the working calibration after reload', async ({ page }) => {
+    let savedSetup = null;
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') {
+        savedSetup = route.request().postDataJSON();
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(savedSetup
+          ? { ok: true, exists: true, setup: savedSetup }
+          : { ok: true, exists: false, setup: null })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const fixtureAPan = page.locator('input[data-fixture="0"][data-point="A"][data-axis="pan"]');
+    const workingPan = await fixtureAPan.inputValue();
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('[data-del-plane]').click();
+
+    await expect(page.locator('#planeLibrary .slot.filled')).toHaveCount(0);
+    await expect(fixtureAPan).toHaveValue(workingPan);
+    await expect.poll(() => savedSetup?.planes?.length).toBe(0);
+
+    await page.reload();
+    await expect(page.locator('#planeLibrary .slot.filled')).toHaveCount(0);
+    await expect(fixtureAPan).toHaveValue(workingPan);
+  });
+
+  test('removes the final fixture and keeps the working fixture list empty after reload', async ({ page }) => {
+    let savedSetup = null;
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') {
+        savedSetup = route.request().postDataJSON();
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(savedSetup
+          ? { ok: true, exists: true, setup: savedSetup }
+          : { ok: true, exists: false, setup: null })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(2);
+    await page.locator('#removeFixture').click();
+    await page.locator('#removeFixture').click();
+
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(0);
+    await expect.poll(() => savedSetup?.fixtures?.length).toBe(0);
+
+    await page.reload();
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(0);
+  });
+
+  test('Remove selected deletes only the selected fixtures', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('#removeFixture')).toHaveText('Remove selected');
+    await page.locator('[data-select-fixture="0"]').uncheck();
+    await page.locator('[data-select-fixture="1"]').check();
+    await page.locator('#removeFixture').click();
+
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(1);
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Spot 1');
+    await expect(page.locator('#fixtureRows tr').first()).not.toContainText('Spot 2');
+  });
+
+  test('Add patched fixtures selects available Controller moving lights without replacing the working list', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.route('**/fixture_setup.php**', async route => {
+      if (route.request().url().includes('livevalues')) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, values: {} }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            profiles: [
+              { id: 1, name: 'Mover', controls: [{ id: 11, type: 'panTilt16', label: 'Position', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }] },
+              { id: 2, name: 'Dimmer', controls: [{ id: 21, type: 'slider8', label: 'Dimmer', channel: 1 }] }
+            ],
+            fixtures: [
+              { id: 101, name: 'Moving 1', profileId: 1, start: 1 },
+              { id: 102, name: 'Moving 2', profileId: 1, start: 11 },
+              { id: 103, name: 'Static 1', profileId: 2, start: 21 }
+            ],
+            values: {}
+          }
+        })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('[data-select-fixture="1"]').check();
+    await page.locator('#removeFixture').click();
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(0);
+    await expect(page.locator('#addFixture')).toHaveText('Add patched fixtures');
+
+    await page.locator('#addFixture').click();
+    await expect(page.locator('#addPatchedFixturesModal')).toBeVisible();
+    await expect(page.locator('[data-add-patched-fixture]')).toHaveCount(2);
+    await expect(page.locator('#addPatchedFixturesList input[type="checkbox"]')).toHaveCount(0);
+    await expect(page.locator('#addPatchedFixturesList .fixture-picker-card__indicator')).toHaveCount(0);
+    await expect(page.locator('#addPatchedFixturesModal')).not.toContainText('Static 1');
+    const moving2Card=page.locator('[data-add-patched-fixture="102"]');
+    const cardBounds=await moving2Card.boundingBox();
+    expect(cardBounds?.height).toBeGreaterThanOrEqual(88);
+    expect(cardBounds?.width).toBeGreaterThan(220);
+    await expect(moving2Card).toHaveAttribute('aria-pressed','false');
+    await expect(page.locator('#confirmAddPatchedFixtures')).toBeDisabled();
+    await moving2Card.click();
+    await expect(moving2Card).toHaveAttribute('aria-pressed','true');
+    await expect(moving2Card).toHaveClass(/selected/);
+    await expect(page.locator('#confirmAddPatchedFixtures')).toHaveText('Add selected (1)');
+    await expect(page.locator('#confirmAddPatchedFixtures')).toBeEnabled();
+    await page.locator('#confirmAddPatchedFixtures').click();
+
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(1);
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Moving 2');
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Missing A, B, C');
+    await expect(page.locator('#fixtureRows')).not.toContainText('Moving 1');
   });
 
   test('saves and recalls multiple plane definitions from the library', async ({ page }) => {
@@ -390,18 +644,21 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#roomPlaneLibraryBox #deletePlaneDefinition')).toHaveCount(0);
     await expect(page.locator('#roomPlaneLibraryBox')).toContainText('Planes');
 
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('[data-del-plane]').first().click();
+
     await page.locator('#targetX').fill('1');
     await page.locator('#targetY').fill('1');
-    await page.locator('[data-visual-plane]').first().click();
+    await page.locator('[data-save-plane-slot="0"]').click();
     await page.locator('#planeVisualName').fill('Front truss');
     await page.locator('#planeVisualSave').click();
 
+    await page.locator('#targetX').fill('4');
+    await page.locator('#targetY').fill('2');
     await page.locator('[data-save-plane-slot="1"]').click();
     await expect(page.locator('#planeVisualModal')).toBeVisible();
     await page.locator('#planeVisualName').fill('Back truss');
     await page.locator('#planeVisualSave').click();
-    await page.locator('#targetX').fill('4');
-    await page.locator('#targetY').fill('2');
 
     await expect(page.locator('#planeLibrary')).toContainText('Front truss');
     await expect(page.locator('#planeLibrary')).toContainText('Back truss');
@@ -415,6 +672,150 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#targetX')).toHaveValue('1');
     await expect(page.locator('#targetY')).toHaveValue('1');
     await expect(page.locator('#status')).toContainText('Recalled plane Front truss');
+  });
+
+  test('stores and recalls additional points and their fixture calibration in a Plane tile', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#targetX').fill('2');
+    await page.locator('#targetY').fill('2');
+    await page.locator('#addCalibrationPoint').click();
+    await page.locator('input[data-fixture="0"][data-point="D"][data-axis="pan"]').fill('12345');
+    await page.locator('input[data-fixture="0"][data-point="D"][data-axis="tilt"]').fill('54321');
+
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await page.locator('#planeVisualName').fill('Four-point plane');
+    await page.locator('#planeVisualSave').click();
+    const savedId = await page.evaluate(() => String(activePlaneId));
+
+    await page.locator('[data-recall-plane="default"]').dispatchEvent('click');
+    await expect(page.locator('#planePointInputs')).not.toContainText('D');
+    await page.locator(`[data-recall-plane="${savedId}"]`).dispatchEvent('click');
+
+    await expect(page.locator('#planePointInputs')).toContainText('D');
+    await expect.poll(() => page.evaluate(() => ({
+      point: points.find(point => point.id === 'D'),
+      calibration: fixtures[0]?.cal?.D
+    }))).toEqual({
+      point: { id: 'D', x: 2, y: 2, z: 0 },
+      calibration: { pan: 12345, tilt: 54321, calibrated: true }
+    });
+  });
+
+  test('keeps the Planes toolbox anchored on iPad when recalled planes have different point counts', async ({ page }) => {
+    const makePoints = count => Array.from({ length: count }, (_, index) => ({
+      id: String.fromCharCode(65 + index),
+      x: 1 + (index % 3) * 1.5,
+      y: 1 + Math.floor(index / 3) * 1.2,
+      z: 0
+    }));
+    const setup = {
+      activePlaneId: 'three-points',
+      planeCols: 3,
+      planeRows: 3,
+      planes: [
+        { id: 'three-points', name: 'Three points', slot: 0, points: makePoints(3), fixtures: [], target: { x: 2, y: 2, z: 0 } },
+        { id: 'nine-points', name: 'Nine points', slot: 1, points: makePoints(9), fixtures: [], target: { x: 2, y: 2, z: 0 } }
+      ]
+    };
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, setup })
+      });
+    });
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const scrollHost = page.locator('#roomPlaneToolboxRail .toolbox-rail-scroll');
+    const recalledTile = page.locator('[data-recall-plane="nine-points"]');
+    await scrollHost.evaluate((element, tileElement) => {
+      element.style.overflowAnchor = 'none';
+      element.scrollTop += tileElement.getBoundingClientRect().top - element.getBoundingClientRect().top - 35;
+    }, await recalledTile.elementHandle());
+    const before = await recalledTile.evaluate(element => element.getBoundingClientRect().top);
+
+    await recalledTile.dispatchEvent('click');
+    await expect(page.locator('#planeName')).toHaveValue('Nine points');
+    await page.waitForTimeout(50);
+
+    const after = await page.locator('[data-recall-plane="nine-points"]').evaluate(element => element.getBoundingClientRect().top);
+    expect(Math.abs(after - before)).toBeLessThan(2);
+  });
+
+  test('allows partial calibration saves and warns which fixtures and points are unusable', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#resetCalibration').click();
+    await page.locator('input[data-fixture="0"][data-point="A"][data-axis="pan"]').fill('123');
+    await page.locator('[data-save-plane-slot="1"]').click();
+
+    await expect(page.locator('#planeLibrary .slot.filled')).toHaveCount(2);
+    await expect(page.locator('#planeVisualModal')).toBeVisible();
+    await expect(page.locator('#planeVisualHint')).toContainText('cannot be used for all fixtures');
+    await expect(page.locator('#planeVisualHint')).toContainText('Spot 1: B, C');
+    await expect(page.locator('#planeVisualHint')).toContainText('Spot 2: A, B, C');
+  });
+
+  test('saved planes independently recall room geometry and fixture calibration', async ({ page }) => {
+    let savedSetup = null;
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') {
+        savedSetup = route.request().postDataJSON();
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: Boolean(savedSetup), setup: savedSetup })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const fixtureAPan = page.locator('input[data-fixture="0"][data-point="A"][data-axis="pan"]');
+    const roomPointBX = page.locator('input[data-point="1"][data-axis="x"]');
+    await fixtureAPan.fill('111');
+    await roomPointBX.fill('6.5');
+    await page.locator('#targetX').fill('1.1');
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await page.locator('#planeVisualName').fill('First calibration');
+    await page.locator('#planeVisualSave').click();
+
+    await fixtureAPan.fill('222');
+    await roomPointBX.fill('8.5');
+    await page.locator('#targetX').fill('2.2');
+    await page.locator('[data-save-plane-slot="2"]').click();
+    await page.locator('#planeVisualName').fill('Second calibration');
+    await page.locator('#planeVisualSave').click();
+
+    await expect.poll(() => savedSetup?.planes?.find(plane => plane.name === 'First calibration')).toMatchObject({
+      points: expect.arrayContaining([expect.objectContaining({ id: 'B', x: 6.5 })]),
+      target: expect.objectContaining({ x: 1.1 }),
+      fixtures: expect.arrayContaining([
+        expect.objectContaining({ cal: expect.objectContaining({ A: expect.objectContaining({ pan: 111 }) }) })
+      ])
+    });
+    await expect.poll(() => savedSetup?.planes?.find(plane => plane.name === 'Second calibration')).toMatchObject({
+      points: expect.arrayContaining([expect.objectContaining({ id: 'B', x: 8.5 })]),
+      target: expect.objectContaining({ x: 2.2 }),
+      fixtures: expect.arrayContaining([
+        expect.objectContaining({ cal: expect.objectContaining({ A: expect.objectContaining({ pan: 222 }) }) })
+      ])
+    });
+
+    await page.reload();
+    await page.locator('[data-recall-plane]').filter({ hasText: 'First calibration' }).click();
+    await expect(fixtureAPan).toHaveValue('111');
+    await expect(roomPointBX).toHaveValue('6.5');
+    await expect(page.locator('#targetX')).toHaveValue('1.1');
+    await page.locator('[data-recall-plane]').filter({ hasText: 'Second calibration' }).click();
+    await expect(fixtureAPan).toHaveValue('222');
+    await expect(roomPointBX).toHaveValue('8.5');
+    await expect(page.locator('#targetX')).toHaveValue('2.2');
   });
 
   test('saved planes use a configurable tile matrix layout', async ({ page }) => {
@@ -582,6 +983,37 @@ test.describe('Room Plane rules', () => {
     expect(Math.abs(scale.xPerUnit - scale.yPerUnit)).toBeLessThan(0.5);
   });
 
+  test('desktop fixture lines end at the rendered target position', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const lineErrors = () => page.evaluate(() => {
+      const pad = document.getElementById('planePad');
+      const target = document.getElementById('planeTarget');
+      const targetX = parseFloat(target.style.left) * pad.clientWidth / 100;
+      const targetY = parseFloat(target.style.top) * pad.clientHeight / 100;
+      return [...pad.querySelectorAll('.plane-line')].map(line => {
+        const startX = parseFloat(line.style.left) * pad.clientWidth / 100;
+        const startY = parseFloat(line.style.top) * pad.clientHeight / 100;
+        const length = parseFloat(getComputedStyle(line).width);
+        const transform = new DOMMatrix(getComputedStyle(line).transform);
+        const endX = startX + transform.a * length;
+        const endY = startY + transform.b * length;
+        return Math.hypot(endX - targetX, endY - targetY);
+      });
+    });
+
+    const initialWidth = await page.locator('#planePad').evaluate(element => element.clientWidth);
+    const errors = await lineErrors();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(Math.max(...errors)).toBeLessThan(2);
+
+    await page.evaluate(() => document.documentElement.style.setProperty('--toolbox-rail-width', '700px'));
+    await expect.poll(() => page.locator('#planePad').evaluate(element => element.clientWidth)).toBeLessThan(initialWidth - 100);
+
+    await expect.poll(async () => Math.max(...await lineErrors())).toBeLessThan(2);
+  });
+
   test('clears fixture edit state when the edit modal closes', async ({ page }) => {
     await page.setViewportSize({ width: 1300, height: 900 });
     await openDmxPage(page, 'dmx_room_plane.html');
@@ -613,17 +1045,6 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('input[data-fixture="0"][data-field="x"]')).toHaveValue(String(before));
   });
 
-  test('selects a newly added fixture for editing', async ({ page }) => {
-    await openDmxPage(page, 'dmx_room_plane.html');
-
-    await page.locator('#addFixture').click();
-
-    await expect(page.locator('[data-edit-fixture="2"]')).toHaveText('Editing');
-    await expect(page.locator('.plane-point.fixture').nth(2)).toHaveClass(/editing/);
-    await expect(page.locator('#commonPanTiltDimmerModal')).toBeVisible();
-    await expect(page.locator('#commonPanTiltDimmerTitle')).toHaveText('Edit Spot 3');
-  });
-
   test('opens the common pan tilt dimmer editor from the fixture Edit button', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -644,6 +1065,16 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-ptd-relative-dir][data-ptd-axis="pan"]')).toHaveCount(4);
     await expect(page.locator('[data-ptd-relative-dir][data-ptd-axis="tilt"]')).toHaveCount(4);
 
+    const panFineStep = page.locator('.relative-control').filter({ hasText: 'Pan fine relative' }).locator('[data-ptd-relative-step]');
+    await panFineStep.fill('7');
+    await page.locator('#commonPanTiltDimmerModal [data-ptd-close][aria-label="Close"]').click();
+    await page.locator('[data-edit-fixture="0"]').click();
+    await expect(panFineStep).toHaveValue('7');
+    await page.locator('#commonPanTiltDimmerModal [data-ptd-close][aria-label="Close"]').click();
+    await page.reload();
+    await page.locator('[data-edit-fixture="0"]').click();
+    await expect(panFineStep).toHaveValue('7');
+
     await page.locator('[data-ptd-dimmer]').fill('72');
     await expect(page.locator('[data-live-dimmer="0"]')).toHaveText('72');
 
@@ -656,7 +1087,7 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
 
     await page.locator('.relative-control').filter({ hasText: 'Pan fine relative' }).locator('[data-ptd-relative-dir="1"]').click();
-    await expect(page.locator('[data-live-pan="0"]')).toHaveText('49152');
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText('49158');
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
     await expect(page.locator('[data-ptd-action="recall-A"]')).toHaveText('Recall A');
     await expect(page.locator('[data-ptd-action="recall-A"]')).toHaveClass(/success/);
@@ -666,26 +1097,118 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-ptd-action="store-B"]')).toHaveText('Store B');
     await expect(page.locator('[data-ptd-action="recall-C"]')).toHaveText('Recall C');
     await expect(page.locator('[data-ptd-action="store-C"]')).toHaveText('Store C');
+    const recallActions = page.locator('[data-ptd-action-group="recall"]');
+    const storeActions = page.locator('[data-ptd-action-group="store"]');
+    await expect(recallActions).toContainText('Recall A');
+    await expect(storeActions).toContainText('Store A');
+    await expect(page.locator('[data-ptd-action-group="recall"] + [data-ptd-action-group="store"]')).toHaveCount(1);
+    await expect.poll(() => storeActions.evaluate(element => getComputedStyle(element).borderTopWidth)).not.toBe('0px');
 
     await page.locator('[data-ptd-action="store-B"]').click();
-    await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="pan"]')).toHaveValue('49152');
+    await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="pan"]')).toHaveValue('49158');
     await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="tilt"]')).toHaveValue('49151');
     await expect(page.locator('[data-ptd-action="store-B"]')).toHaveText('Stored B');
     await expect(page.locator('#status')).toContainText('Stored Spot 1 calibration point B');
 
-    await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.25);
+    await pad.scrollIntoViewIfNeeded();
+    const dragBox = await pad.boundingBox();
+    expect(dragBox).toBeTruthy();
+    await page.mouse.move(dragBox.x + dragBox.width * 0.75, dragBox.y + dragBox.height * 0.25);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.8, { steps: 8 });
+    await page.mouse.move(dragBox.x + dragBox.width * 0.2, dragBox.y + dragBox.height * 0.8, { steps: 8 });
     await page.mouse.up();
 
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('13107');
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('13107');
 
     await page.locator('[data-ptd-action="recall-B"]').click();
-    await expect(page.locator('[data-live-pan="0"]')).toHaveText('49152');
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText('49158');
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
-    await expect(page.locator('[data-ptd-position-readout]')).toHaveText('Pan 49152 · Tilt 49151');
+    await expect(page.locator('[data-ptd-position-readout]')).toHaveText('Pan 49158 · Tilt 49151');
     await expect(page.locator('#status')).toContainText('Recalled Spot 1 calibration point B');
+  });
+
+  test('scrolls all calibration actions into reach in an iPad-sized fixture modal', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    for (let index = 0; index < 6; index++) {
+      await page.locator('#targetX').fill(String(1 + index * 0.4));
+      await page.locator('#targetY').fill(String(1.2 + index * 0.2));
+      await page.locator('#addCalibrationPoint').click();
+    }
+    await page.locator('[data-edit-fixture="0"]').click();
+
+    const body = page.locator('#commonPanTiltDimmerModal .modal-body');
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    const metrics = await body.evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }));
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+
+    await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(page.locator('[data-ptd-action="store-I"]')).toBeInViewport();
+  });
+
+  test('locks modal scrolling while an iPad Pan/Tilt gesture is active', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 600 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    for (let index = 0; index < 6; index++) {
+      await page.locator('#targetX').fill(String(1 + index * 0.4));
+      await page.locator('#targetY').fill(String(1.2 + index * 0.2));
+      await page.locator('#addCalibrationPoint').click();
+    }
+    await page.locator('[data-edit-fixture="0"]').click();
+
+    const body = page.locator('#commonPanTiltDimmerModal .modal-body');
+    const pad = page.locator('[data-ptd-xy]');
+    await body.evaluate(element => { element.scrollTop = 120; });
+    const initialScrollTop = await body.evaluate(element => element.scrollTop);
+
+    await pad.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      element.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.25,
+        clientY: rect.top + rect.height * 0.25
+      }));
+    });
+
+    await expect(body).toHaveClass(/ptd-pad-editing/);
+    await expect(body).toHaveCSS('overflow-y', 'hidden');
+    expect(await body.evaluate(element => element.scrollTop)).toBe(initialScrollTop);
+
+    await pad.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      element.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.75,
+        clientY: rect.top + rect.height * 0.75
+      }));
+      element.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 91,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: rect.left + rect.width * 0.75,
+        clientY: rect.top + rect.height * 0.75
+      }));
+    });
+
+    await expect(body).not.toHaveClass(/ptd-pad-editing/);
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    expect(await body.evaluate(element => element.scrollTop)).toBe(initialScrollTop);
   });
 
   test('loads patched moving lights and sends modal movement to DMX channels', async ({ page }) => {
@@ -733,10 +1256,16 @@ test.describe('Room Plane rules', () => {
     });
     await openDmxPage(page, 'dmx_room_plane.html');
 
+    await page.locator('#resetCalibration').click();
+    await page.locator('#removeFixture').click();
+    await page.locator('#removeFixture').click();
+    await expect(page.locator('#fixtureRows tr')).toHaveCount(0);
+
     await page.locator('#loadPatchedFixtures').click();
     await expect(page.locator('[data-edit-fixture="0"]')).toBeVisible();
     await expect(page.locator('input[data-field="name"]')).toHaveCount(0);
     await expect(page.locator('#fixtureRows tr').first()).toContainText('Moving 1');
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Missing A, B, C');
     await expect(page.locator('thead')).toContainText('Live Pan');
     await expect(page.locator('thead')).toContainText('Last send / channels');
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('32768');
@@ -1140,6 +1669,11 @@ test.describe('Room Plane rules', () => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
     await page.locator('#loadPatchedFixtures').click();
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Moving 1');
+    await page.evaluate(() => {
+      fixtures.forEach((fixture, index) => { fixture.cal = defaultCalibration(index); });
+      renderFixtureRows();
+    });
     await page.locator('[data-select-fixture="0"]').check();
     await page.locator('[data-select-fixture="1"]').check();
     await page.locator('#targetX').fill('1');

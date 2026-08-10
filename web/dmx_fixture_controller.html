@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=1.2.0">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.2.0">
-<link rel="manifest" href="assets/manifest.webmanifest?v=1.2.0">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.0-15">
-<script src="assets/dmx-common.js?v=1.2.0-15"></script>
+<link rel="icon" href="assets/favicon.ico?v=1.3.0">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.3.0">
+<link rel="manifest" href="assets/manifest.webmanifest?v=1.3.0">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -77,17 +77,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #savedGroupsList .group-tile-content{position:relative;z-index:1;display:grid;gap:3px;min-width:0}
 #savedGroupsList .group-tile-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #savedGroupsList .group-tile-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#patchSection,#patchBody,#patched{min-width:0;max-width:100%}
 #patched{display:grid;gap:12px}
 #patchBody>#patched{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
-#patched .patched-row{display:grid;gap:8px}
+#patched .patched-row{display:grid;gap:8px;min-width:0;max-width:100%}
 #patched .patched-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
-#patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
-#patched .item{align-content:start}
+#patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:8px;min-width:0;max-width:100%}
+#patched .item{align-content:start;min-width:0;max-width:100%}
+#patched .patched-item-head{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+#patched .patched-item-head strong{min-width:0;overflow-wrap:anywhere}
+#patched .patched-item-head .small{flex:0 0 auto}
+#patched .item>.small{min-width:0;overflow-wrap:anywhere}
+#patched .item label,#patched .item select{min-width:0;max-width:100%}
+#patched .item select{width:100%}
 .show-setup-body{display:grid;gap:16px;margin-top:12px}
 .show-setup-body>.panel{margin:0;background:#10161b}
-.show-title-stack{display:grid;gap:4px;min-width:min(320px,75vw)}
-.show-name-field{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:700}
-.show-name-field input{width:min(360px,58vw);min-width:140px;padding:5px 8px}
+.show-title-stack{display:grid;gap:4px;min-width:0;flex:1 1 auto}
+.show-name-field{display:grid;grid-template-columns:auto minmax(0,360px);align-items:center;gap:7px;min-width:0;color:var(--muted);font-size:12px;font-weight:700}
+.show-name-field input{width:100%;min-width:0;padding:5px 8px}
 .show-file-actions{padding-bottom:4px}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
@@ -173,9 +180,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface,.surface.surface-columns-fixed{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
 @media(max-width:900px){.fixture-library-layout{grid-template-columns:1fr}}
+@container dmx-workspace (max-width:700px){.fixture-library-layout{grid-template-columns:minmax(0,1fr)}}
 #groupBar{display:grid;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
 #groupBar .group-bar-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}
 #groupBar .group-bar-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.groups-edit-btn.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#103b30;color:var(--accent);font-weight:700}
+.group-edit-mode{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.group-edit-mode .groups-edit-btn{width:100%}
 .fixture-card .control{cursor:auto;user-select:auto}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 .dmx-output-list{display:grid;gap:10px}
 .dmx-output-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(90px,.45fr) minmax(240px,2fr) auto;gap:10px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
@@ -201,9 +212,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=1.2.0">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=1.2.0#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=1.3.0#fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -437,6 +448,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="modal-head">
 <button id="closeGroupModal" type="button" aria-label="Close">x</button>
 <h2 id="groupModalTitle">Group Edit</h2>
+</div>
+<div class="group-edit-mode">
+<button id="mergeGroupControls" class="groups-edit-btn" type="button" aria-pressed="false" title="Merge compatible color modes and matching 8-bit/16-bit controls">Merge Controls</button>
+<span id="mergeGroupControlsHint" class="small">Exact profile control matching is active.</span>
 </div>
 <div id="groupModalBody" class="modal-body"></div>
 <div class="modal-actions">
@@ -2560,7 +2575,6 @@ function applyData(data){
     if(cached&&typeof cached==='object')Object.assign(values,cached);
   }catch(_){}
   activeProfileId=profiles[0]?.id||0;
-  if(!profiles.length)addDefaultProfile();
   renderPixelMatrixList();
   draw();
   DmxCommon.refreshPicoFleetStatus({force:true,setup:saveData()});
@@ -2646,7 +2660,7 @@ function drawPatched(){
       const fp=fixtureProfile(f);
       const output=fixtureDmxOutput(f);
       const item=document.createElement('div');item.className='item';
-      item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
+      item.innerHTML=`<div class="patched-item-head"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
         <div class="small">${escHtml(output.name)} · Universe ${output.universe} · ${escHtml(fp?.name||'Missing profile')} · channels ${f.start}-${f.start+(fp?.channels||1)-1}</div>
         <label class="small">DMX output<select data-fixture-output="${f.id}">${dmxOutputs.map(candidate=>`<option value="${escHtml(candidate.id)}"${candidate.id===output.id?' selected':''}>${escHtml(candidate.name)} · Universe ${candidate.universe}</option>`).join('')}</select></label>
         <div class="patch-actions-grid"><button class="minor warn" data-remove-fixture="${f.id}">Remove</button></div>`;
@@ -3523,6 +3537,51 @@ function normalizeFullSetupPayload(data){
 function fullSetupFormatVersion(data){
   return parseInt(data?.setupFormatVersion??data?.schemaVersion??1,10)||1;
 }
+function parseSemanticVersion(value){
+  const match=String(value??'').trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+  if(!match)return null;
+  const prerelease=match[4]?match[4].split('.'):[];
+  if(prerelease.some(identifier=>!identifier||(/^\d+$/.test(identifier)&&identifier.length>1&&identifier.startsWith('0'))))return null;
+  return {major:Number(match[1]),minor:Number(match[2]),patch:Number(match[3]),prerelease};
+}
+function compareSemanticVersions(leftValue,rightValue){
+  const left=parseSemanticVersion(leftValue);
+  const right=parseSemanticVersion(rightValue);
+  if(!left||!right)return null;
+  for(const key of ['major','minor','patch']){
+    if(left[key]!==right[key])return left[key]<right[key]?-1:1;
+  }
+  if(!left.prerelease.length&&!right.prerelease.length)return 0;
+  if(!left.prerelease.length)return 1;
+  if(!right.prerelease.length)return -1;
+  const length=Math.max(left.prerelease.length,right.prerelease.length);
+  for(let index=0;index<length;index++){
+    const leftIdentifier=left.prerelease[index];
+    const rightIdentifier=right.prerelease[index];
+    if(leftIdentifier===undefined)return -1;
+    if(rightIdentifier===undefined)return 1;
+    if(leftIdentifier===rightIdentifier)continue;
+    const leftNumeric=/^\d+$/.test(leftIdentifier);
+    const rightNumeric=/^\d+$/.test(rightIdentifier);
+    if(leftNumeric&&rightNumeric)return Number(leftIdentifier)<Number(rightIdentifier)?-1:1;
+    if(leftNumeric!==rightNumeric)return leftNumeric?-1:1;
+    return leftIdentifier<rightIdentifier?-1:1;
+  }
+  return 0;
+}
+function assertFullSetupAppCompatibility(setup){
+  const requiredVersion=String(setup?.minimumAppVersion??'').trim();
+  const installedVersion=String(DmxCommon.appVersion()??'').trim();
+  if(!parseSemanticVersion(requiredVersion)){
+    throw new Error('Setup file has an invalid minimum application version: '+(requiredVersion||'(missing)')+'.');
+  }
+  if(!parseSemanticVersion(installedVersion)){
+    throw new Error('Could not verify Show Import compatibility because the installed application version is invalid: '+(installedVersion||'(missing)')+'.');
+  }
+  if(compareSemanticVersions(installedVersion,requiredVersion)<0){
+    throw new Error('This show requires Pico WiFi DMX '+requiredVersion+' or newer; the installed version is '+installedVersion+'. Please update the application before importing.');
+  }
+}
 function fullSetupMetadata(){
   return {
     type:FULL_SETUP_TYPE,
@@ -3905,7 +3964,6 @@ function resetShowLocalState(){
   ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows','pixelMatrixCols','pixelMatrixRows'].forEach(key=>localStorage.removeItem(key));
   Object.keys(localStorage).filter(key=>key.startsWith('dmxShowRun.')).forEach(key=>localStorage.removeItem(key));
   DmxCommon.saveSharedGroupSelection([]);
-  addDefaultProfile();
   resetControlEditor();
   document.getElementById('slotCols').value=slotCols;
   document.getElementById('slotRows').value=slotRows;
@@ -3984,6 +4042,7 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
+  assertFullSetupAppCompatibility(migrated);
   const importedShowName=normalizeShowName(migrated.fixture?.showName||migrated.showName);
   if(!confirm('Import '+importedShowName+'?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
   let fixtureSetup={...migrated.fixture,showName:importedShowName};
@@ -4340,6 +4399,7 @@ let selectedFixtureIds=new Set();
 let sourceFixtureId=null;
 let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
 let groupValues={};
+let mergeCompatibleGroupControls=false;
 const GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
 const groupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'fixture',stateKey:GROUP_RELATIVE_STEPS_KEY,localStorageKey:GROUP_RELATIVE_STEPS_KEY});
 function groupCompatibilitySignature(c){
@@ -4349,6 +4409,49 @@ function groupCompatibilitySignature(c){
   return '';
 }
 function groupKey(c){return c.type+':'+c.label+groupCompatibilitySignature(c);}
+function compatibleGroupKey(c){return DmxCommon.fixtureGroupEditCompatibilityKey(c);}
+function groupEditKey(c){
+  const compatibleKey=compatibleGroupKey(c);
+  if(mergeCompatibleGroupControls&&compatibleKey)return compatibleKey;
+  return groupKey(c);
+}
+function hasCompatibleGroupControls(){
+  const counts=new Map();
+  [...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean).forEach(f=>{
+    const fixtureKeys=new Map();
+    (fixtureProfile(f)?.controls||[]).forEach(c=>{
+      const key=compatibleGroupKey(c);if(key)fixtureKeys.set(key,(fixtureKeys.get(key)||0)+1);
+    });
+    fixtureKeys.forEach((matches,key)=>{if(matches===1)counts.set(key,(counts.get(key)||0)+1);});
+  });
+  return[...counts.values()].some(count=>count>=2);
+}
+function groupControlValueMax(c){return DmxCommon.fixtureGroupEditValueMax(c);}
+function convertGroupControlValue(value,fromControl,toControl,currentTargetValue=null){
+  const current=currentTargetValue??defaultValueForControl(toControl);
+  return DmxCommon.fixtureGroupEditConvertValue(value,fromControl,toControl,current);
+}
+function convertGroupControlDelta(delta,fromControl,toControl,part='value'){
+  return DmxCommon.fixtureGroupEditConvertDelta(delta,fromControl,toControl,part);
+}
+function preferGroupEditControl(current,candidate){
+  if(groupEditKey(current)!==groupEditKey(candidate))return current;
+  return DmxCommon.fixtureGroupEditPreferControl(current,candidate);
+}
+function groupEditRepresentative(c){
+  return DmxCommon.fixtureGroupEditRepresentative(c,mergeCompatibleGroupControls);
+}
+function isMergedGroupControl(c){
+  if(!mergeCompatibleGroupControls)return false;
+  const key=groupEditKey(c);
+  const signatures=new Set();
+  [...selectedFixtureIds].forEach(id=>{
+    const fixture=fixtures.find(item=>item.id===id);if(!fixture)return;
+    const control=findMatchingControl(fixture,key);
+    if(control&&isGroupControlInScope(fixture,control))signatures.add(DmxCommon.fixtureGroupEditNativeSignature(control));
+  });
+  return signatures.size>1;
+}
 const fanOut=DmxCommon.createFanOutController({
   state:fanState,
   controlsFor:f=>fixtureProfile(f)?.controls||[],
@@ -4362,7 +4465,8 @@ const fanOut=DmxCommon.createFanOutController({
   setValue
 });
 function findMatchingControl(f,key){
-  return(fixtureProfile(f)?.controls||[]).find(c=>groupKey(c)===key)||null;
+  const matches=(fixtureProfile(f)?.controls||[]).filter(c=>c.type!=='matrixRgb'&&groupEditKey(c)===key);
+  return matches.length===1?matches[0]:null;
 }
 function firstSelectedGroupFixtureId(){
   for(const {g} of selectedSavedGroupEntries()){
@@ -4394,10 +4498,18 @@ function getGroupCommonControls(){
   const controls=new Map();
   fxList.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
+    const fixtureControls=new Map();
     p.controls.forEach(c=>{
       if(c.type==='matrixRgb')return;
-      const key=groupKey(c);
-      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      const key=groupEditKey(c);
+      if(!fixtureControls.has(key))fixtureControls.set(key,[]);
+      fixtureControls.get(key).push(c);
+    });
+    fixtureControls.forEach((matches,key)=>{
+      if(matches.length!==1)return;
+      const c=matches[0];
+      if(!controls.has(key))controls.set(key,{control:groupEditRepresentative(c),count:0});
+      else controls.get(key).control=preferGroupEditControl(controls.get(key).control,c);
       controls.get(key).count++;
     });
   });
@@ -4422,18 +4534,26 @@ function getGroupEditableControls(){
   const controls=new Map();
   fxList.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
+    const fixtureControls=new Map();
     p.controls.forEach(c=>{
       if(c.type==='matrixRgb')return;
       if(!scope.has(controlKey(f,c)))return;
-      const key=groupKey(c);
-      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      const key=groupEditKey(c);
+      if(!fixtureControls.has(key))fixtureControls.set(key,[]);
+      fixtureControls.get(key).push(c);
+    });
+    fixtureControls.forEach((matches,key)=>{
+      if(matches.length!==1)return;
+      const c=matches[0];
+      if(!controls.has(key))controls.set(key,{control:groupEditRepresentative(c),count:0});
+      else controls.get(key).control=preferGroupEditControl(controls.get(key).control,c);
       controls.get(key).count++;
     });
   });
   return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
 function firstSelectedFixtureWithGroupControl(c){
-  const key=groupKey(c);
+  const key=groupEditKey(c);
   const sourceId=ensureGroupSourceFixture();
   if(sourceId){
     const source=fixtures.find(fx=>String(fx.id)===String(sourceId));
@@ -4448,7 +4568,7 @@ function firstSelectedFixtureWithGroupControl(c){
   return null;
 }
 function groupControlTargets(c){
-  const key=groupKey(c);
+  const key=groupEditKey(c);
   return[...selectedFixtureIds].map(id=>fixtures.find(fx=>fx.id===id)).filter(Boolean).filter(f=>{
     const fc=findMatchingControl(f,key);
     return fc&&isGroupControlInScope(f,fc);
@@ -4460,44 +4580,44 @@ function groupControlScopeText(c){
   return targets.length+' matching fixture'+(targets.length===1?'':'s')+(names.length?' · '+names.join(', '):'');
 }
 function getGroupValue(c){
-  const key=groupKey(c);
+  const key=groupEditKey(c);
   if(groupValues[key]===undefined)groupValues[key]=defaultValueForControl(c);
   return groupValues[key];
 }
 function setGroupValue(c,v){
-  groupValues[groupKey(c)]=v;
+  groupValues[groupEditKey(c)]=v;
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
-    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    const fc=findMatchingControl(f,groupEditKey(c));if(!fc)return;
     if(!isGroupControlInScope(f,fc))return;
-    setValue(f,fc,v);
+    setValue(f,fc,convertGroupControlValue(v,c,fc,getValue(f,fc,defaultValueForControl(fc))));
   });
 }
 function applyRelativeToGroup(c,part,delta){
-  const key=groupKey(c);
+  const key=groupEditKey(c);
   let changed=0;
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
     const fc=findMatchingControl(f,key);if(!fc)return;
     if(!isGroupControlInScope(f,fc))return;
-    if(applyRelativeToFixture(f,fc,part,delta))changed++;
+    if(applyRelativeToFixture(f,fc,part,convertGroupControlDelta(delta,c,fc,part)))changed++;
   });
   const match=firstSelectedFixtureWithGroupControl(c);
-  if(match)groupValues[key]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)));
+  if(match)groupValues[key]=convertGroupControlValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)),match.control,c);
   return changed;
 }
 function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
   common.forEach(c=>{
     const match=firstSelectedFixtureWithGroupControl(c);
     if(!match)return;
-    groupValues[groupKey(c)]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)));
+    groupValues[groupEditKey(c)]=convertGroupControlValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)),match.control,c);
   });
 }
 async function sendGroupControl(c){
   const entries=[];
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
-    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    const fc=findMatchingControl(f,groupEditKey(c));if(!fc)return;
     if(!isGroupControlInScope(f,fc))return;
     resolveDmxBytes(f,fc).forEach(row=>entries.push({fixture:f,row}));
   });
@@ -4548,7 +4668,7 @@ function clearGroupSelection(){
   drawSurface();
 }
 function renderGroupControl(c){
-  const key=groupKey(c);
+  const key=groupEditKey(c);
   const safeKey=escHtml(key);
   const base=`data-gc="${safeKey}"`;
   const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
@@ -4556,6 +4676,7 @@ function renderGroupControl(c){
     control:c,key,value:getGroupValue(c),scopeText:groupControlScopeText(c),escape:escHtml,
     relativeStepValue:(part,kind,step,max)=>groupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
+      if(role==='control')return isMergedGroupControl(c)?'data-group-edit-merged="true"':'';
       if(role==='xy')return `data-gxy="${safeKey}"`;
       if(role==='readout')return `data-gc-readout="${safeKey}"`;
       if(role==='partReadout')return `data-gc-part="${safeKey}" data-part="${detail.part}"`;
@@ -4574,7 +4695,7 @@ function renderGroupControl(c){
   });
 }
 function updateGroupControlDisplay(c){
-  const key=groupKey(c);const v=getGroupValue(c);
+  const key=groupEditKey(c);const v=getGroupValue(c);
   if(c.type==='panTilt16'){
     const pad=document.querySelector(`[data-gxy="${key}"]`);
     const dot=pad?.querySelector('.xy-dot');
@@ -4630,14 +4751,21 @@ function updateGroupControlDisplay(c){
     document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
   }
 }
-function openGroupModal(){
-  const common=getGroupEditableControls();if(!common.length)return;
+function renderGroupModalContent(){
+  const common=getGroupEditableControls();
   ensureGroupSourceFixture();
   syncGroupValuesFromFirstSelected(common);
   const n=selectedFixtureIds.size;
   const scoped=!!getActiveGroupControlScope();
   document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' selected · '+common.length+' '+(scoped?'scoped':'editable')+' control'+(common.length===1?'':'s');
-  document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
+  document.getElementById('groupModalBody').innerHTML=common.length
+    ? common.map(c=>renderGroupControl(c)).join('')
+    : '<div class="small">No exact controls match across the selected fixtures. Enable Merge Controls above to combine color modes or matching 8-bit/16-bit controls.</div>';
+  updateGroupActionButtons();
+}
+function openGroupModal(){
+  if(selectedFixtureIds.size<1)return;
+  renderGroupModalContent();
   DmxCommon.showModal('groupModal');
 }
 function closeGroupModal(){DmxCommon.hideModal('groupModal');drawSurface();}
@@ -4645,14 +4773,16 @@ document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 async function recallGroupFixtureValues(which){
   const ids=[...selectedFixtureIds];
-  const editableKeys=new Set(getGroupEditableControls().map(c=>groupKey(c)));
+  const selectedFixtures=ids.map(id=>fixtures.find(fixture=>fixture.id===id)).filter(Boolean);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,dmxOutputs,{legacyBaseUrl:baseUrl.value});
+  const editableKeys=new Set(getGroupEditableControls().map(c=>groupEditKey(c)));
   const errors=[];
   let controls=0;
   for(const id of ids){
     const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
     const p=fixtureProfile(f);if(!p)continue;
     for(const c of p.controls){
-      if(!editableKeys.has(groupKey(c))||!isGroupControlInScope(f,c))continue;
+      if(!editableKeys.has(groupEditKey(c))||!isGroupControlInScope(f,c))continue;
       const v=c[which];
       if(v===null||v===undefined)continue;
       controls++;
@@ -4670,8 +4800,8 @@ async function recallGroupFixtureValues(which){
   if(errors.length)setStatus(errors.slice(0,3).join(', ')+(errors.length>3?' ...':''),true);
   else setStatus('Group '+label+' recalled for '+ids.length+' fixture'+(ids.length===1?'':'s'));
 }
-document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
-document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
+document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   if(e.target.dataset.relativeStep&&e.target.dataset.relativeGc){
@@ -4681,7 +4811,7 @@ groupModalBody.oninput=e=>{
   const target=e.target.closest('[data-gc]')||e.target;
   const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
-  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  const c=common.find(cc=>groupEditKey(cc)===key);if(!c)return;
   if(e.target.dataset.relativeStep)return;
   let v=getGroupValue(c);
   if(e.target.dataset.colorPicker){
@@ -4711,7 +4841,7 @@ groupModalBody.addEventListener('click',e=>{
     if(stepInput)groupRelativeStepStore.rememberInput(stepInput);
     const key=relativeTarget.dataset.relativeGc;
     const common=getGroupEditableControls();
-    const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+    const c=common.find(cc=>groupEditKey(cc)===key);if(!c)return;
     const part=relativeTarget.dataset.relativePart||'value';
     const step=relativeStepFromButton(relativeTarget);
     const dir=parseInt(relativeTarget.dataset.relativeDir,10)<0?-1:1;
@@ -4727,7 +4857,7 @@ groupModalBody.addEventListener('click',e=>{
   const target=e.target.closest('[data-gc]')||e.target;
   const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
-  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  const c=common.find(cc=>groupEditKey(cc)===key);if(!c)return;
   if(target.dataset.gcCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
     setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
@@ -4756,7 +4886,7 @@ groupModalBody.addEventListener('pointermove',e=>{
 function setGroupXY(e,pad){
   const key=pad.dataset.gxy;
   const common=getGroupEditableControls();
-  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  const c=common.find(cc=>groupEditKey(cc)===key);if(!c)return;
   const r=pad.getBoundingClientRect();
   const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
   const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
@@ -4964,7 +5094,23 @@ function selectedSavedGroupEntries(){
 }
 function updateGroupActionButtons(){
   const editBtn=document.getElementById('editSelectedGroups');
-  if(editBtn)editBtn.disabled=selectedFixtureIds.size<1||!getGroupEditableControls().length;
+  if(editBtn)editBtn.disabled=selectedFixtureIds.size<1||(!getGroupEditableControls().length&&!hasCompatibleGroupControls());
+  const mergeBtn=document.getElementById('mergeGroupControls');
+  if(mergeBtn){
+    mergeBtn.classList.toggle('active',mergeCompatibleGroupControls);
+    mergeBtn.setAttribute('aria-pressed',mergeCompatibleGroupControls?'true':'false');
+    mergeBtn.title=(mergeCompatibleGroupControls?'Use exact profile control matching':'Merge compatible color modes and matching 8-bit/16-bit controls');
+  }
+  const hint=document.getElementById('mergeGroupControlsHint');
+  if(hint)hint.textContent=mergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls are merged.':'Exact profile control matching is active.';
+}
+function toggleCompatibleGroupControls(){
+  mergeCompatibleGroupControls=!mergeCompatibleGroupControls;
+  groupValues={};
+  updateGroupActionButtons();
+  updateGroupBar();
+  if(getComputedStyle(document.getElementById('groupModal')).display!=='none')renderGroupModalContent();
+  setStatus(mergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls will be merged in Group Edit.':'Group Edit restored exact profile control matching.');
 }
 function saveSavedGroupsToServer(){
   if(!savedGroupsLoaded){
@@ -5163,7 +5309,7 @@ function renameGroup(i){
 }
 function editSelectedGroups(){
   const common=getGroupEditableControls();
-  if(selectedFixtureIds.size<1||!common.length){
+  if(selectedFixtureIds.size<1||(!common.length&&!hasCompatibleGroupControls())){
     setStatus('Select at least one fixture with editable controls',true);
     return;
   }
@@ -5195,6 +5341,7 @@ if(document.getElementById('exportGroupsJson'))document.getElementById('exportGr
 if(document.getElementById('importGroupsJson'))document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile')?.click();
 if(document.getElementById('importGroupsFile'))document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
 document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
+document.getElementById('mergeGroupControls').onclick=toggleCompatibleGroupControls;
 document.getElementById('moveGroupsBtn').onclick=toggleGroupMoveMode;
 (()=>{
   const gc=localStorage.getItem('groupsBoxCols'),gr=localStorage.getItem('groupsBoxRows');
@@ -6181,42 +6328,8 @@ let controllerPlaneLiveSendBusy=false;
 let controllerPlaneLiveSendPending=false;
 let controllerPlaneLastLiveStatus='';
 
-function normalizeControllerPlanePoint(point,fallback){
-  return {
-    id:String(point?.id||fallback?.id||'A'),
-    x:Number(point?.x??fallback?.x??0)||0,
-    y:Number(point?.y??fallback?.y??0)||0,
-    z:Number(point?.z??fallback?.z??0)||0
-  };
-}
-function normalizeControllerPlaneFixture(fixture,index){
-  return {
-    id:fixture?.id,
-    name:String(fixture?.name||('Fixture '+(index+1))),
-    x:Number(fixture?.x)||0,
-    y:Number(fixture?.y)||0,
-    z:Number(fixture?.z)||0,
-    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
-  };
-}
 function normalizeControllerPlane(plane,index){
-  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
-  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
-  return {
-    ...plane,
-    id:plane?.id||('plane_'+index),
-    name:String(plane?.name||('Plane '+(index+1))),
-    points:fallbackPoints.map((fallback,i)=>normalizeControllerPlanePoint(sourcePoints[i],fallback)),
-    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
-    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeControllerPlaneFixture),
-    view:{
-      auto:plane?.view?.auto!==false,
-      centerX:Number(plane?.view?.centerX)||0,
-      centerY:Number(plane?.view?.centerY)||0,
-      zoom:Math.max(0.25,Math.min(8,Number(plane?.view?.zoom)||1))
-    },
-    visual:plane?.visual
-  };
+  return DmxCommon.normalizeRoomPlane(plane,index);
 }
 function cloneControllerPlane(plane){
   return JSON.parse(JSON.stringify(plane));
@@ -6385,21 +6498,10 @@ function normalizeControllerRoomPlaneSetup(data){
   };
 }
 function controllerPlaneWeights(plane,target=plane.target){
-  const [a,b,c]=plane.points;
-  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-  return {valid:true,wA,wB,wC:1-wA-wB};
+  return DmxCommon.roomPlaneWeights(plane,target);
 }
 function controllerPlaneInterpolateFixture(plane,fixture,weights){
-  if(!weights.valid)return null;
-  const ids=plane.points.map(point=>point.id);
-  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
-  return {
-    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
-  };
+  return DmxCommon.roomPlaneInterpolateFixture(plane,fixture,weights);
 }
 function controllerPlaneAutoBounds(plane){
   const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
@@ -6548,16 +6650,6 @@ function nudgeControllerPlaneTarget(axis,dir,kind){
   setControllerPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
 }
-function controllerPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  line.className='controller-plane-line';
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.style.left=a.x+'%';
-  line.style.top=a.y+'%';
-  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
-  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderControllerPlanePreview(){
   const plane=activeControllerPlane;
   const pad=document.getElementById('controllerPlanePad');
@@ -6567,13 +6659,16 @@ function renderControllerPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=controllerPlaneBounds(plane);
   const screens=plane.points.map(point=>controllerPlaneToScreen(point,bounds,rect));
+  const weights=controllerPlaneWeights(plane);
+  const activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean);
+  const triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('controllerPlaneTriangle');
-  triangle.style.setProperty('--ax',screens[0].x+'%');
-  triangle.style.setProperty('--ay',screens[0].y+'%');
-  triangle.style.setProperty('--bx',screens[1].x+'%');
-  triangle.style.setProperty('--by',screens[1].y+'%');
-  triangle.style.setProperty('--cx',screens[2].x+'%');
-  triangle.style.setProperty('--cy',screens[2].y+'%');
+  triangle.style.setProperty('--ax',triangleScreens[0].x+'%');
+  triangle.style.setProperty('--ay',triangleScreens[0].y+'%');
+  triangle.style.setProperty('--bx',triangleScreens[1].x+'%');
+  triangle.style.setProperty('--by',triangleScreens[1].y+'%');
+  triangle.style.setProperty('--cx',triangleScreens[2].x+'%');
+  triangle.style.setProperty('--cy',triangleScreens[2].y+'%');
   screens.forEach((screen,index)=>{
     const el=document.createElement('div');
     el.className='controller-plane-point';
@@ -6595,7 +6690,7 @@ function renderControllerPlanePreview(){
     el.style.left=screen.x+'%';
     el.style.top=screen.y+'%';
     pad.appendChild(el);
-    controllerPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen);
   });
 }
 function renderControllerPlaneModal(){
@@ -6604,7 +6699,7 @@ function renderControllerPlaneModal(){
   const selected=controllerPlaneSelectedIds();
   const weights=controllerPlaneWeights(plane);
   document.getElementById('controllerPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights '+DmxCommon.roomPlaneWeightText(weights);
   const list=document.getElementById('controllerPlaneFixtures');
   list.innerHTML=plane.fixtures.map(fixture=>{
     const selectedClass=selected.has(String(fixture.id))?' selected':'';
@@ -6683,7 +6778,7 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   if(!plane)return {applied:0,errors:['No plane selected']};
   const weights=controllerPlaneWeights(plane);
   if(!weights.valid){
-    const message='Cannot send plane because A/B/C are invalid';
+    const message='Cannot send plane because it needs at least three non-collinear points';
     if(manual)setStatus(message,true);
     return {applied:0,errors:[message]};
   }
@@ -6702,7 +6797,7 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
     if(!planeFixture){errors.push(currentFixture.name+': not saved in plane');continue;}
     if(!control){errors.push(currentFixture.name+': no Pan/Tilt control');continue;}
     const out=controllerPlaneInterpolateFixture(plane,planeFixture,weights);
-    if(!out){errors.push(currentFixture.name+': calibration incomplete');continue;}
+    if(!out){errors.push(currentFixture.name+': fewer than three usable calibration points');continue;}
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     updateControlDisplay(currentFixture,control);
@@ -6764,6 +6859,7 @@ document.getElementById('controllerPlanePanView').onclick=()=>setControllerPlane
 let controllerPlaneTargetDrag=null;
 let controllerPlaneViewDrag=null;
 const controllerPlanePad=document.getElementById('controllerPlanePad');
+DmxCommon.observeElementResize(controllerPlanePad,queueControllerPlaneRender);
 let controllerPlanePinchTarget=null;
 DmxCommon.initPinchZoom(controllerPlanePad,{
   getZoom:()=>controllerPlaneView.zoom,

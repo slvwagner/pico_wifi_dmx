@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.0-15">
-<script src="assets/dmx-common.js?v=1.2.0-15"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -59,9 +59,32 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .header-toolbar input[type=url],.header-toolbar input:not([type]){min-width:160px;width:180px;padding:7px 8px}
 .grid{display:grid;gap:10px;width:100%;justify-items:stretch;align-items:stretch}
 .card-grid{display:grid;gap:14px;width:100%;justify-items:stretch;align-items:stretch}
+.card-grid>.panel,.sidebar-card-grid>.panel{scroll-margin-top:150px}
 .card-grid.card-move-mode .panel{position:relative}
 .card-grid.card-move-mode .panel-head{cursor:grab}
 .card-grid.card-move-mode .panel-head:active{cursor:grabbing}
+.show-card-workspace{display:block;min-width:0}
+body.show-sidebar-active>header,body.show-sidebar-active>main{width:calc(100% - var(--toolbox-rail-width,max(380px,33vw)))}
+body.show-sidebar-active.toolbox-rail-collapsed>header,body.show-sidebar-active.toolbox-rail-collapsed>main{width:calc(100% - 48px)}
+.show-sidebar{position:fixed;z-index:180;top:0;right:0;bottom:0;width:var(--toolbox-rail-width,max(380px,33vw));height:100vh;min-width:0;border-left:1px solid var(--line);background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));box-shadow:-12px 0 30px rgba(0,0,0,.38);padding:20px 16px 20px 12px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;align-content:start;overflow:hidden;overscroll-behavior:contain;touch-action:pan-y;direction:ltr}
+.show-sidebar[hidden]{display:none}
+.show-sidebar-head{position:relative;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;padding:0 4px 2px;background:#0a0d10;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.show-sidebar-head h2{font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;margin:0}
+.show-sidebar-controls{display:none;align-items:center;gap:6px}
+body.layout-editing .show-sidebar-controls{display:flex}
+.show-sidebar-controls label{display:flex;align-items:center;gap:5px}
+.show-sidebar-controls select{width:68px;min-height:44px;padding:6px 7px}
+.show-sidebar-action{width:84px;min-width:84px}
+.sidebar-card-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;min-height:0;align-content:start;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch}
+.sidebar-card-grid.card-move-mode .panel{position:relative}
+.sidebar-card-grid.card-move-mode .panel-head{cursor:grab}
+.sidebar-card-grid.card-move-mode .panel-head:active{cursor:grabbing}
+.show-sidebar-resizer{position:fixed;z-index:250;top:0;bottom:0;right:calc(var(--toolbox-rail-width,max(380px,33vw)) - 24px);width:24px;cursor:ew-resize;touch-action:none;background:transparent}
+.show-sidebar-resizer::after{content:"";position:absolute;top:0;bottom:0;left:7px;width:8px;background:rgba(139,154,166,.5)}
+.show-sidebar-resizer:hover::after,body.show-sidebar-resizing .show-sidebar-resizer::after,body.toolbox-rail-resizing .show-sidebar-resizer::after{background:var(--accent)}
+body.show-sidebar-resizing{cursor:ew-resize;user-select:none}
+.card-area-move{display:none;position:absolute;top:6px;right:36px;z-index:5;min-height:24px;height:24px;padding:0 8px;font-size:11px;background:#103b30;border-color:#2f9e7d;color:#bff7df}
+body.layout-editing .card-area-move{display:inline-flex;align-items:center;justify-content:center}
 .card-empty{min-height:120px;border:1px dashed var(--line);border-radius:8px;background:rgba(255,255,255,.025);display:grid;place-items:end start;padding:10px;color:var(--muted);position:relative}
 body.layout-editing .card-empty{cursor:pointer}
 body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -119,6 +142,7 @@ body.layout-editing .midi-map-edit{display:inline-flex}
 .playback-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
+.playback-card>h3,.playback-card>.small,.playback-card>.playback-actions{position:relative;z-index:1}
 body.layout-editing .playback-card h3{padding-left:18px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
@@ -179,11 +203,16 @@ body.layout-editing .master-edit-actions{display:flex}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
+.show-group-edit-mode{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.show-group-edit-mode button{width:100%}
+.show-group-edit-mode button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#103b30;color:var(--accent);font-weight:700}
 body.layout-editing .card-delete.slot-del{display:flex;background:rgba(60,27,27,.94);border:1px solid #ff7a7a;color:#ffd4d4;opacity:1}
 body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
 .hidden-tile-row .small{min-width:0}
-@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
+@media(pointer:coarse) and (min-width:901px){.show-sidebar{height:100dvh}}
+@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}body.show-sidebar-active>header,body.show-sidebar-active>main{width:100%}body.show-sidebar-active>main{padding-bottom:45vh}.show-sidebar{top:auto;left:0;width:100%;height:42vh;border-left:0;border-top:1px solid var(--line)}.show-sidebar-resizer{display:none}body.show-sidebar-active.toolbox-rail-collapsed>main{padding-bottom:48px}body.toolbox-rail-collapsed .show-sidebar{top:auto;left:auto;right:0;bottom:0;width:48px;height:48px;border-top:1px solid var(--line);padding:10px 6px}}
+@media(max-width:640px){body.show-sidebar-active>main{padding-bottom:51vh}.show-sidebar{height:48vh}}
 </style>
 </head>
 <body>
@@ -199,11 +228,9 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=1.2.0">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.3.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.2.0#4-show-run" target="_blank">Manual</a>
-    <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
-    <button id="editLayoutBtn" type="button">Edit</button>
+    <a class="nav" href="user-manual.html?v=1.3.0#show-run" target="_blank">Manual</a>
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions"></div>
@@ -213,6 +240,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <div id="showCardLayoutControls" class="matrix-tools"></div>
   </section>
 
+  <div id="showCardWorkspace" class="show-card-workspace sidebar-hidden">
   <div id="cardGrid" class="card-grid">
   <section class="panel" id="cardMaster" data-show-card="master">
     <div class="panel-head">
@@ -403,6 +431,8 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div class="pico-control-strip">
         <label>Slot<input id="motionControlSlot" type="number" min="0" max="63" step="1" value="0"></label>
         <label>BPM<input id="motionControlBpm" type="number" min="1" max="600" step="1" value="30"></label>
+        <label>Mode<select id="motionControlMode" disabled><option>Single</option><option selected>Loop</option><option>Loop N</option></select></label>
+        <label>Loops<input id="motionControlLoops" type="number" min="1" max="999" step="1" value="1" disabled></label>
         <button id="motionControlStart" class="primary">Start Slot</button>
         <button id="motionControlPauseResume">Pause</button>
         <button id="motionControlSetBpm">Set BPM</button>
@@ -434,6 +464,22 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       </div>
       <div id="liveControlGrid" class="live-control-grid"></div>
     </section>
+  </div>
+  <aside id="showSidebar" class="show-sidebar toolbox-rail" aria-label="Configurable show sidebar" hidden>
+    <div id="showSidebarResizer" class="show-sidebar-resizer toolbox-rail-resizer" role="separator" aria-label="Resize show sidebar" aria-orientation="vertical" tabindex="0"></div>
+    <div class="show-sidebar-head toolbox-rail-header">
+      <h2 class="toolbox-rail-title">Show Sidebar</h2>
+      <div class="toolbox-rail-actions">
+        <div class="show-sidebar-controls">
+          <label>Rows<select id="sidebarRows"></select></label>
+        </div>
+        <button id="editLayoutBtn" class="toolbox-rail-edit show-sidebar-action" type="button" title="Edit Show Run layout" aria-pressed="false">Edit</button>
+        <button id="fullscreenBtn" class="toolbox-rail-edit show-sidebar-action" type="button" title="Enter fullscreen" aria-pressed="false" hidden>Fullscreen</button>
+        <button id="showSidebarToggle" class="toolbox-rail-toggle" type="button" title="Hide Show Sidebar" aria-expanded="true">›</button>
+      </div>
+    </div>
+    <div id="sidebarCardGrid" class="sidebar-card-grid toolbox-rail-scroll"></div>
+  </aside>
   </div>
 </main>
 
@@ -496,6 +542,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <div class="modal-head">
 <button id="showGroupModalClose" type="button" aria-label="Close">x</button>
 <h2 id="showGroupModalTitle">Group Edit</h2>
+</div>
+<div class="show-group-edit-mode">
+<button id="showMergeGroupControls" type="button" aria-pressed="false" title="Merge compatible color modes and matching 8-bit/16-bit controls">Merge Controls</button>
+<span id="showMergeGroupControlsHint" class="small">Exact profile control matching is active.</span>
 </div>
 <div id="showGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
@@ -607,16 +657,19 @@ let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],pixelMatrices=[],pla
 let dmxOutputs=[];
 let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,matrixCols=4,matrixRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
-let cardCols=2,cardRows=5;
+let cardCols=2,cardRows=5,sidebarRows=3,sidebarWidth=380;
 let chaserSlots=[],motionSlots=[];
 let chaserSelectedSlot=0;
 let motionSelectedSlot=0;
 const selectedGroupIds=new Set();
 const selectedFixtureIds=new Set();
+let showMergeCompatibleGroupControls=false;
 const masterFactors={grand:1,target:1};
 let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
+const SHARED_TOOLBOX_WIDTH_KEY='toolboxRailWidth';
+const SHARED_TOOLBOX_COLLAPSED_KEY='toolboxRailCollapsed';
 let showUiState={};
 const SHOW_GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
 const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
@@ -632,11 +685,14 @@ const cardIds=['group','scene','palette','plane','chaser','motion','live','midi'
 const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',matrix:'Pixel Matrices',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
+let sidebarOrder=[];
 let cardMoveMode=false;
 let layoutEditing=false;
+let showSidebarCollapsed=localStorage.getItem(SHARED_TOOLBOX_COLLAPSED_KEY)==='1';
 let hiddenTileModalDismissed=false;
 let liveControls=[];
 let addCardTargetIndex=null;
+let addCardTargetArea='main';
 let showLoadPromise=null;
 let lastShowLoadAt=0;
 let autoShowRefreshTimer=null;
@@ -659,6 +715,8 @@ const midiContinuousQueue=new Map();
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
 let liveTimerVisualInterval=null;
+let playbackStatePollTimer=null;
+let playbackStatePollBusy=false;
 const hiddenCardBin=document.createElement('div');
 hiddenCardBin.hidden=true;
 document.body.appendChild(hiddenCardBin);
@@ -791,12 +849,26 @@ function showGroupEditFixtureRows(){
   const ids=activeTargetFixtureIds();
   return fixtures.filter(f=>ids.has(String(f.id))).map(f=>({fixture:f,profile:fixtureProfile(f)})).filter(row=>row.profile);
 }
-function showGroupControlIdentity(c){
+function showExactGroupControlIdentity(c){
   const label=String(c.scope||c.label||c.name||c.type||'Control').trim().toLowerCase();
   if(c.type==='panTilt16'||c.type==='panTilt8')return 'panTilt';
   if(c.type==='matrixRgb')return '';
   const parts=scalarControlParts(c).map(part=>part.part+':'+part.max).join('|');
   return (c.type||'slider8')+':'+label+':'+parts;
+}
+function showCompatibleGroupControlIdentity(c){return DmxCommon.fixtureGroupEditCompatibilityKey(c);}
+function showGroupControlIdentity(c){
+  const compatible=showCompatibleGroupControlIdentity(c);
+  return showMergeCompatibleGroupControls&&compatible?compatible:showExactGroupControlIdentity(c);
+}
+function showPreferGroupControl(current,candidate){return DmxCommon.fixtureGroupEditPreferControl(current,candidate);}
+function showGroupRepresentative(c){return DmxCommon.fixtureGroupEditRepresentative(c,showMergeCompatibleGroupControls);}
+function convertShowGroupControlValue(value,fromControl,toControl,currentTargetValue=null){
+  const current=currentTargetValue??defaultValueForControl(toControl);
+  return DmxCommon.fixtureGroupEditConvertValue(value,fromControl,toControl,current);
+}
+function convertShowGroupControlDelta(delta,fromControl,toControl,part){
+  return DmxCommon.fixtureGroupEditConvertDelta(delta,fromControl,toControl,part);
 }
 function showGroupControlLabel(c){
   if(c.type==='panTilt16'||c.type==='panTilt8')return 'Pan / Tilt';
@@ -806,14 +878,23 @@ function showGroupEditControls(){
   const rows=showGroupEditFixtureRows();
   const map=new Map();
   rows.forEach(row=>{
+    const fixtureControls=new Map();
     (row.profile.controls||[]).forEach(control=>{
       if(control.type==='matrixRgb')return;
       const parts=scalarControlParts(control);
       if(!parts.length)return;
       const key=showGroupControlIdentity(control);
       if(!key)return;
-      if(!map.has(key))map.set(key,{key,control,targets:[]});
-      map.get(key).targets.push({fixture:row.fixture,control});
+      if(!fixtureControls.has(key))fixtureControls.set(key,[]);
+      fixtureControls.get(key).push(control);
+    });
+    fixtureControls.forEach((matches,key)=>{
+      if(showMergeCompatibleGroupControls&&matches.length!==1)return;
+      matches.forEach(control=>{
+        if(!map.has(key))map.set(key,{key,control:showGroupRepresentative(control),targets:[]});
+        else map.get(key).control=showGroupRepresentative(showPreferGroupControl(map.get(key).control,control));
+        map.get(key).targets.push({fixture:row.fixture,control});
+      });
     });
   });
   return [...map.values()];
@@ -837,12 +918,15 @@ function showGroupControlHtml(row){
   const c=row.control;
   const sourceName=target?.fixture?.name||'Source';
   const key=esc(row.key);
-  const value=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
+  const value=target?convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,c):defaultValueForControl(c);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key:row.key,value,label:showGroupControlLabel(c),scopeText:row.targets.length+' matching fixture'+(row.targets.length===1?'':'s')+' · source '+sourceName,escape:esc,
     relativeStepValue:(part,kind,step,max)=>showGroupRelativeStepStore.value(row.key,part,kind,step,max),
     attributes:(role,detail={})=>{
-      if(role==='control')return `data-show-group-control="${key}"`;
+      if(role==='control'){
+        const merged=showMergeCompatibleGroupControls&&new Set(row.targets.map(item=>DmxCommon.fixtureGroupEditNativeSignature(item.control))).size>1;
+        return `data-show-group-control="${key}"${merged?' data-group-edit-merged="true"':''}`;
+      }
       if(role==='xy')return `data-show-group-xy="${key}"`;
       if(role==='readout')return c.type==='panTilt16'||c.type==='panTilt8'?`data-show-group-xy-readout="${key}"`:(c.type==='wheel'?`data-show-group-wheel-readout="${key}"`:`data-show-group-readout="${key}:value"`);
       if(role==='partReadout')return `data-show-group-readout="${key}:${detail.part}"`;
@@ -864,19 +948,20 @@ function refreshShowGroupControlRow(rowKey,part){
   const row=showGroupEditControls().find(item=>item.key===rowKey);
   const target=showGroupSourceTarget(row);
   if(!row||!target)return;
-  const value=getControlPartValue(target.fixture,target.control,part);
+  const representativeValue=convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,row.control);
+  const value=part==='value'&&typeof representativeValue==='number'?representativeValue:(representativeValue?.[part]??0);
   document.querySelectorAll(`[data-show-group-slider="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"],[data-show-group-number="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"]`).forEach(input=>{input.value=value;});
   document.querySelectorAll(`[data-show-group-readout="${CSS.escape(rowKey+':'+part)}"]`).forEach(el=>{el.textContent=value;});
   if(part==='pan'||part==='tilt'){
-    const pan=getControlPartValue(target.fixture,target.control,'pan');
-    const tilt=getControlPartValue(target.fixture,target.control,'tilt');
-    const max=target.control.type==='panTilt8'?255:65535;
+    const pan=representativeValue.pan??0;
+    const tilt=representativeValue.tilt??0;
+    const max=row.control.type==='panTilt8'?255:65535;
     document.querySelectorAll(`[data-show-group-xy="${CSS.escape(rowKey)}"] .xy-dot`).forEach(dot=>{dot.style.left=(pan/max*100)+'%';dot.style.top=(100-tilt/max*100)+'%';});
     document.querySelectorAll(`[data-show-group-xy-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Pan '+pan+' · Tilt '+tilt;});
   }
   if(['a','b','c','w','amber','k'].includes(part)){
-    const valueObject=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-    const color=(target.control.type==='rgb'||target.control.type==='rgbw'||target.control.type==='rgbwa')?rgbHex(valueObject):(target.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
+    const valueObject=representativeValue;
+    const color=(row.control.type==='rgb'||row.control.type==='rgbw'||row.control.type==='rgbwa')?rgbHex(valueObject):(row.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
     document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
   }
   if(part==='value'&&target.control.type==='wheel'){
@@ -888,7 +973,7 @@ function refreshShowGroupControlRow(rowKey,part){
       button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
     });
   }
-  if(part==='value'&&target.control.type==='slider16'){
+  if(part==='value'&&row.control.type==='slider16'){
     const b=bytes16(value);
     document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(input=>{input.value=b.coarse;});
     document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(input=>{input.value=b.fine;});
@@ -910,7 +995,24 @@ function openShowGroupEditModal(){
   if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
   document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
   document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  updateShowMergeGroupControls();
   DmxCommon.showModal('showGroupModal');
+}
+function updateShowMergeGroupControls(){
+  const button=document.getElementById('showMergeGroupControls');
+  button.classList.toggle('active',showMergeCompatibleGroupControls);
+  button.setAttribute('aria-pressed',showMergeCompatibleGroupControls?'true':'false');
+  button.title=showMergeCompatibleGroupControls?'Use exact profile control matching':'Merge compatible color modes and matching 8-bit/16-bit controls';
+  document.getElementById('showMergeGroupControlsHint').textContent=showMergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls are merged.':'Exact profile control matching is active.';
+}
+function toggleShowMergeGroupControls(){
+  showMergeCompatibleGroupControls=!showMergeCompatibleGroupControls;
+  const controls=showGroupEditControls();
+  const targets=showGroupEditFixtureRows();
+  document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
+  document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  updateShowMergeGroupControls();
+  setStatus(showMergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls will be merged in Show Group Edit.':'Show Group Edit restored exact profile control matching.');
 }
 function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
 async function recallShowGroupFixtureValues(which){
@@ -953,6 +1055,8 @@ function savedNumber(key,fallback,min,max){
 function applySavedLayout(){
   cardCols=savedNumber('cardCols',cardCols,1,5);
   cardRows=savedNumber('cardRows',cardRows,1,5);
+  sidebarRows=savedNumber('sidebarRows',sidebarRows,1,12);
+  sidebarWidth=savedNumber('sidebarWidth',sidebarWidth,280,720);
   groupCols=savedNumber('groupCols',groupCols,1,8);
   groupRows=savedNumber('groupRows',groupRows,1,12);
   fixtureCols=savedNumber('fixtureCols',fixtureCols,1,32);
@@ -974,9 +1078,15 @@ function saveCardLayout(){
   localStorage.setItem(layoutKey('cardCols'),cardCols);
   localStorage.setItem(layoutKey('cardRows'),cardRows);
   localStorage.setItem(layoutKey('cardOrder'),JSON.stringify(cardOrder));
+  localStorage.setItem(layoutKey('sidebarRows'),sidebarRows);
+  localStorage.setItem(layoutKey('sidebarWidth'),sidebarWidth);
+  localStorage.setItem(layoutKey('sidebarOrder'),JSON.stringify(sidebarOrder));
   saveShowUiStateValue('cardCols',cardCols);
   saveShowUiStateValue('cardRows',cardRows);
   saveShowUiStateValue('cardOrder',cardOrder);
+  saveShowUiStateValue('sidebarRows',sidebarRows);
+  saveShowUiStateValue('sidebarWidth',sidebarWidth);
+  saveShowUiStateValue('sidebarOrder',sidebarOrder);
 }
 function cardType(entry){
   if(entry===null||entry===undefined||entry==='')return '';
@@ -992,7 +1102,7 @@ function liveCardId(entry){
 function uniqueCardKey(type,seed=''){
   const base=type+'_'+(seed||Date.now());
   let id=base, n=1;
-  const used=new Set(cardOrder.map(entry=>String(entry)));
+  const used=new Set([...cardOrder,...sidebarOrder].map(entry=>String(entry)));
   while(used.has(cardKey(type,id)))id=base+'_'+(n++);
   return cardKey(type,id);
 }
@@ -1105,17 +1215,31 @@ function saveTargetMasters(){
   localStorage.setItem(layoutKey('targetMasters'),JSON.stringify(targetMasters));
   saveShowUiStateValue('targetMasters',targetMasters);
 }
+function savedCardOrder(key){
+  const sourceValue=savedValue(key);
+  try{return Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){return[];}
+}
 function reconcileCardOrder(){
-  let saved=[];
-  const sourceValue=savedValue('cardOrder');
+  const saved=savedCardOrder('cardOrder');
+  const savedSidebar=savedCardOrder('sidebarOrder');
   const hasServerCardOrder=hasServerUiStateValue('cardOrder');
-  try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
   const defaults=defaultCardIds();
   const total=Math.max(defaults.length,cardCols*cardRows,source.length);
   const shouldInsertDefaults=!source.length;
   const next=[];
   const usedRepeatKeys=new Set();
+  const sidebarSource=Array.isArray(sidebarOrder)&&sidebarOrder.length?sidebarOrder:savedSidebar;
+  const nextSidebar=[];
+  sidebarSource.slice(0,sidebarRows).forEach(key=>{
+    if(key===null||key===undefined||key===''){nextSidebar.push(null);return;}
+    const type=cardType(key);
+    const normalized=String(key);
+    if(!cardIds.includes(type)||usedRepeatKeys.has(normalized)){nextSidebar.push(null);return;}
+    usedRepeatKeys.add(normalized);
+    nextSidebar.push(normalized);
+  });
+  while(nextSidebar.length<sidebarRows)nextSidebar.push(null);
   source.slice(0,total).forEach(key=>{
     if(key===null||key===undefined||key===''){next.push(null);return;}
     const type=cardType(key);
@@ -1143,29 +1267,65 @@ function reconcileCardOrder(){
   while(next.length<total)next.push(null);
   cardOrder=next.slice(0,total);
   if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=defaults.concat(Array(Math.max(0,total-defaults.length)).fill(null));
+  sidebarOrder=nextSidebar;
 }
 function syncCardInputs(){
   const colsInput=document.getElementById('cardCols');
   const rowsInput=document.getElementById('cardRows');
   if(colsInput){colsInput.min=1;colsInput.value=cardCols;}
   if(rowsInput){rowsInput.min=1;rowsInput.value=cardRows;}
+  const sidebarRowsInput=document.getElementById('sidebarRows');
+  if(sidebarRowsInput)sidebarRowsInput.value=sidebarRows;
 }
 function normalizeCardGrid(priority='cols'){
   const next=normalizeMatrix(cardCols,cardRows,0,5,5,priority);
   cardCols=next.cols;cardRows=next.rows;
   syncCardInputs();
 }
-function moveCard(from,to){
+function cardAreaOrder(area){return area==='sidebar'?sidebarOrder:cardOrder;}
+function claimMainCardSlot(){
+  const maxCards=cardCols*5;
+  while(cardOrder.length<maxCards)cardOrder.push(null);
+  const index=cardOrder.slice(0,maxCards).indexOf(null);
+  if(index<0)return -1;
+  cardRows=Math.max(cardRows,Math.ceil((index+1)/cardCols));
+  syncCardInputs();
+  return index;
+}
+function moveCard(from,to,area='main'){
+  const order=cardAreaOrder(area);
   from=parseInt(from,10);to=parseInt(to,10);
   if(!Number.isFinite(from)||!Number.isFinite(to)||from===to)return false;
-  if(!cardOrder[from])return false;
-  const moving=cardOrder[from];
-  const target=cardOrder[to]||null;
-  cardOrder[to]=moving;
-  cardOrder[from]=target;
+  if(!order[from])return false;
+  const moving=order[from];
+  const target=order[to]||null;
+  order[to]=moving;
+  order[from]=target;
   saveCardLayout();
   renderCardGrid();
-  setStatus('Moved card to position '+(to+1));
+  setStatus('Moved card to '+(area==='sidebar'?'sidebar ':'matrix ')+'position '+(to+1));
+  return true;
+}
+function moveCardToOtherArea(area,index){
+  const source=cardAreaOrder(area);
+  const targetArea=area==='sidebar'?'main':'sidebar';
+  const target=cardAreaOrder(targetArea);
+  const entry=source[index];
+  if(!entry)return false;
+  let targetIndex=targetArea==='main'?claimMainCardSlot():target.indexOf(null);
+  if(targetArea==='sidebar'&&(targetIndex<0||targetIndex>=sidebarRows)){
+    setStatus('The Show Sidebar is full. Increase its Rows setting first.',true);
+    return false;
+  }
+  if(targetIndex<0){
+    setStatus('The main card matrix is full. Increase its Rows or Cols setting first.',true);
+    return false;
+  }
+  target[targetIndex]=entry;
+  source[index]=null;
+  saveCardLayout();
+  renderCardGrid();
+  setStatus('Moved '+(cardLabels[cardType(entry)]||'card')+' to the '+(targetArea==='sidebar'?'Show Sidebar':'main matrix'));
   return true;
 }
 function createLiveCard(entry){
@@ -1234,8 +1394,25 @@ function ensureCardDeleteButton(node){
   node.appendChild(btn);
   return btn;
 }
-function deleteCardAt(index){
-  const entry=cardOrder[index];
+function ensureCardAreaMoveButton(node,area,index){
+  if(!node)return null;
+  let btn=node.querySelector(':scope > .card-area-move');
+  if(!btn){
+    btn=document.createElement('button');
+    btn.type='button';
+    btn.className='card-area-move';
+    node.appendChild(btn);
+  }
+  const toSidebar=area!=='sidebar';
+  btn.textContent=toSidebar?'Sidebar →':'← Main';
+  btn.title=toSidebar?'Move this card to the Show Sidebar':'Move this card to the main matrix';
+  btn.setAttribute('aria-label',btn.title);
+  btn.onclick=e=>{e.stopPropagation();moveCardToOtherArea(area,index);};
+  return btn;
+}
+function deleteCardAt(index,area='main'){
+  const order=cardAreaOrder(area);
+  const entry=order[index];
   const type=cardType(entry);
   if(!entry)return;
   if(type==='live'){
@@ -1244,7 +1421,7 @@ function deleteCardAt(index){
     liveControls=liveControls.filter(item=>item.cardId!==cardId);
     saveLiveControls();
   }
-  cardOrder[index]=null;
+  order[index]=null;
   saveCardLayout();
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Removed '+(cardLabels[type]||'card')+' card');
@@ -1254,19 +1431,24 @@ function addShowCard(){
   const type=select?.value||'live';
   if(!cardIds.includes(type))return;
   const visibleCardCount=Math.max(1,cardCols*cardRows);
-  const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(Boolean));
+  const visibleTypes=new Set([...cardOrder.slice(0,visibleCardCount),...sidebarOrder.slice(0,sidebarRows)].map(cardType).filter(Boolean));
   const entry=repeatableCardIds.includes(type)&&visibleTypes.has(type)?uniqueCardKey(type):type;
-  let index=Number.isFinite(addCardTargetIndex)&&cardOrder[addCardTargetIndex]==null?addCardTargetIndex:cardOrder.indexOf(null);
+  const order=cardAreaOrder(addCardTargetArea);
+  let index=Number.isFinite(addCardTargetIndex)&&order[addCardTargetIndex]==null?addCardTargetIndex:order.indexOf(null);
   if(index<0){
-    cardOrder.push(entry);
-    index=cardOrder.length-1;
+    if(addCardTargetArea==='sidebar'){
+      setStatus('The Show Sidebar is full. Increase its Rows setting first.',true);
+      return;
+    }
+    order.push(entry);
+    index=order.length-1;
     normalizeCardGrid('rows');
   }else{
-    cardOrder[index]=entry;
+    order[index]=entry;
   }
   saveCardLayout();
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
-  setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
+  setStatus('Added '+(cardLabels[type]||type)+(addCardTargetArea==='sidebar'?' to sidebar':' at')+' position '+(index+1));
   closeAddCardModal();
 }
 function updateAddCardOptions(){
@@ -1279,16 +1461,18 @@ function updateAddCardOptions(){
   const button=document.getElementById('addShowCard');
   if(button)button.textContent=addCardButtonLabel(select.value);
 }
-function openAddCardModal(index){
+function openAddCardModal(index,area='main'){
   addCardTargetIndex=parseInt(index,10);
+  addCardTargetArea=area==='sidebar'?'sidebar':'main';
   updateAddCardOptions();
   const hint=document.getElementById('addCardPositionHint');
-  if(hint)hint.textContent='Add a card at matrix position '+(addCardTargetIndex+1)+'.';
+  if(hint)hint.textContent='Add a card at '+(addCardTargetArea==='sidebar'?'sidebar ':'matrix ')+'position '+(addCardTargetIndex+1)+'.';
   DmxCommon.showModal('addCardModal');
 }
 function closeAddCardModal(){
   DmxCommon.hideModal('addCardModal');
   addCardTargetIndex=null;
+  addCardTargetArea='main';
 }
 function bindSceneGridRecall(grid,layoutId='scene'){
   grid.querySelectorAll('[data-scene-key]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -1372,22 +1556,12 @@ function renderRepeatedCards(){
     }
   });
 }
-function renderCardGrid(){
-  normalizeCardGrid('cols');
-  reconcileCardOrder();
-  updateAddCardOptions();
-  const grid=document.getElementById('cardGrid');
-  grid.style.gridTemplateColumns='repeat('+cardCols+',minmax(0,1fr))';
+function renderCardArea(grid,area,cols,rows){
+  const order=cardAreaOrder(area);
+  grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
   grid.classList.toggle('card-move-mode',cardMoveMode);
-  grid.querySelectorAll('.card-empty').forEach(el=>el.remove());
-  grid.querySelectorAll('.live-card').forEach(el=>el.remove());
-  repeatableCardIds.filter(type=>type!=='live').forEach(type=>grid.querySelectorAll(`[data-show-card="${type}"][data-repeat-card="true"]`).forEach(el=>el.remove()));
-  cardIds.filter(type=>type!=='live').forEach(type=>{
-    const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
-    if(node)hiddenCardBin.appendChild(node);
-  });
-  const visibleCardCount=Math.max(1,cardCols*cardRows);
-  cardOrder.slice(0,visibleCardCount).forEach((key,index)=>{
+  const visibleCardCount=Math.max(1,cols*rows);
+  order.slice(0,visibleCardCount).forEach((key,index)=>{
     let node=null;
     if(key){
       node=cardNodeFor(key);
@@ -1395,8 +1569,10 @@ function renderCardGrid(){
         const head=node.querySelector(':scope > .panel-head');
         if(head)head.title=cardMoveMode?'Drag card header to move this card':'';
         const del=ensureCardDeleteButton(node);
-        if(del)del.onclick=e=>{e.stopPropagation();deleteCardAt(index);};
+        if(del)del.onclick=e=>{e.stopPropagation();deleteCardAt(index,area);};
+        ensureCardAreaMoveButton(node,area,index);
         node.dataset.showCardIndex=index;
+        node.dataset.showCardArea=area;
         node.dataset.showCardKey=String(key);
         node.classList.remove('active');
         node.onclick=null;
@@ -1405,17 +1581,19 @@ function renderCardGrid(){
       node=document.createElement('div');
       node.className='card-empty';
       node.dataset.showCardIndex=index;
+      node.dataset.showCardArea=area;
       if(layoutEditing){
-        node.innerHTML='<button type="button" class="card-add-tile" data-add-card-position="'+index+'" title="Add card at position '+(index+1)+'"><strong>+</strong><span>Add card<br>Position '+(index+1)+'</span></button>';
+        const positionAttr=area==='sidebar'?'data-add-sidebar-card-position':'data-add-card-position';
+        node.innerHTML='<button type="button" class="card-add-tile" '+positionAttr+'="'+index+'" data-add-card-area="'+area+'" title="Add card at position '+(index+1)+'"><strong>+</strong><span>Add card<br>Position '+(index+1)+'</span></button>';
       }else{
         node.textContent='Card position '+(index+1);
       }
     }
     if(node)grid.appendChild(node);
   });
-  grid.querySelectorAll('[data-add-card-position]').forEach(btn=>btn.addEventListener('click',e=>{
+  grid.querySelectorAll('[data-add-card-position],[data-add-sidebar-card-position]').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
-    openAddCardModal(parseInt(btn.dataset.addCardPosition,10));
+    openAddCardModal(parseInt(btn.dataset.addCardPosition??btn.dataset.addSidebarCardPosition,10),btn.dataset.addCardArea);
   }));
   DmxCommon.initTileMoveGrid({
     grid,
@@ -1423,9 +1601,30 @@ function renderCardGrid(){
     itemSelector:'[data-show-card-index]',
     handleSelector:'.panel-head',
     getIndex:el=>parseInt(el.dataset.showCardIndex,10),
-    canDrag:idx=>!!cardOrder[idx],
-    onMove:(from,to)=>moveCard(from,to)
+    canDrag:idx=>!!order[idx],
+    onMove:(from,to)=>moveCard(from,to,area)
   });
+}
+function renderCardGrid(){
+  normalizeCardGrid('cols');
+  reconcileCardOrder();
+  updateAddCardOptions();
+  const grid=document.getElementById('cardGrid');
+  const sidebar=document.getElementById('showSidebar');
+  const sidebarGrid=document.getElementById('sidebarCardGrid');
+  document.querySelectorAll('#cardGrid .card-empty,#sidebarCardGrid .card-empty').forEach(el=>el.remove());
+  document.querySelectorAll('#cardGrid .live-card,#sidebarCardGrid .live-card').forEach(el=>el.remove());
+  repeatableCardIds.filter(type=>type!=='live').forEach(type=>document.querySelectorAll(`#cardGrid [data-show-card="${type}"][data-repeat-card="true"],#sidebarCardGrid [data-show-card="${type}"][data-repeat-card="true"]`).forEach(el=>el.remove()));
+  cardIds.filter(type=>type!=='live').forEach(type=>{
+    const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
+    if(node)hiddenCardBin.appendChild(node);
+  });
+  renderCardArea(grid,'main',cardCols,cardRows);
+  sidebar.hidden=false;
+  document.body.classList.add('show-sidebar-active');
+  document.getElementById('showCardWorkspace').classList.remove('sidebar-hidden');
+  setSidebarWidth(sidebarWidth);
+  renderCardArea(sidebarGrid,'sidebar',1,sidebarRows);
   saveCardLayout();
   renderRepeatedCards();
   renderLiveControls();
@@ -1832,6 +2031,113 @@ function bindCardInputs(){
     normalizeCardGrid('rows');
     renderCardGrid();
   });
+  const sidebarRowsInput=document.getElementById('sidebarRows');
+  if(sidebarRowsInput)sidebarRowsInput.addEventListener('input',()=>{
+    const nextRows=Math.max(1,Math.min(12,parseInt(sidebarRowsInput.value,10)||1));
+    const displaced=nextRows<sidebarRows?sidebarOrder.slice(nextRows).filter(Boolean):[];
+    const freeMainCards=cardOrder.slice(0,cardCols*5).filter(entry=>!entry).length+Math.max(0,cardCols*5-cardOrder.length);
+    if(displaced.length>freeMainCards){
+      sidebarRowsInput.value=sidebarRows;
+      setStatus('The main card matrix has no room for the removed sidebar rows.',true);
+      return;
+    }
+    if(nextRows<sidebarRows){
+      displaced.forEach(entry=>{
+        const target=claimMainCardSlot();
+        cardOrder[target]=entry;
+      });
+    }
+    sidebarRows=nextRows;
+    sidebarOrder=sidebarOrder.slice(0,sidebarRows);
+    while(sidebarOrder.length<sidebarRows)sidebarOrder.push(null);
+    normalizeCardGrid('rows');
+    renderCardGrid();
+  });
+}
+function clampSidebarWidth(value){
+  const min=300;
+  const max=Math.max(min,Math.min(Math.round(window.innerWidth*2/3),window.innerWidth-360));
+  return Math.max(min,Math.min(max,parseInt(value,10)||Math.max(380,Math.round(window.innerWidth/3))));
+}
+function setSidebarWidth(value,{save=false}={}){
+  sidebarWidth=clampSidebarWidth(value);
+  document.documentElement.style.setProperty('--toolbox-rail-width',sidebarWidth+'px');
+  window.dispatchEvent(new CustomEvent('toolboxrailresize',{detail:{width:sidebarWidth}}));
+  const handle=document.getElementById('showSidebarResizer');
+  if(handle)handle.setAttribute('aria-valuenow',String(sidebarWidth));
+  if(save){
+    localStorage.setItem(SHARED_TOOLBOX_WIDTH_KEY,String(sidebarWidth));
+    DmxCommon.saveUiState('toolboxes',SHARED_TOOLBOX_WIDTH_KEY,sidebarWidth);
+    saveCardLayout();
+  }
+}
+function setShowSidebarCollapsed(collapsed,{save=false}={}){
+  showSidebarCollapsed=!!collapsed;
+  const sidebar=document.getElementById('showSidebar');
+  sidebar?.classList.toggle('collapsed',showSidebarCollapsed);
+  document.body.classList.toggle('toolbox-rail-collapsed',showSidebarCollapsed);
+  const toggle=document.getElementById('showSidebarToggle');
+  if(toggle){
+    toggle.textContent=showSidebarCollapsed?'‹':'›';
+    toggle.title=showSidebarCollapsed?'Show Show Sidebar':'Hide Show Sidebar';
+    toggle.setAttribute('aria-expanded',showSidebarCollapsed?'false':'true');
+  }
+  if(showSidebarCollapsed&&layoutEditing)setLayoutEditing(false);
+  if(save){
+    localStorage.setItem(SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed?'1':'0');
+    DmxCommon.saveUiState('toolboxes',SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed);
+  }
+  window.dispatchEvent(new CustomEvent('toolboxrailresize',{detail:{width:showSidebarCollapsed?48:sidebarWidth}}));
+}
+function initShowSidebar(){
+  const rows=document.getElementById('sidebarRows');
+  if(rows){
+    rows.innerHTML=Array.from({length:12},(_,index)=>`<option value="${index+1}">${index+1}</option>`).join('');
+    rows.value=sidebarRows;
+  }
+  document.getElementById('showSidebarToggle')?.addEventListener('click',()=>{
+    setShowSidebarCollapsed(!showSidebarCollapsed,{save:true});
+  });
+  setShowSidebarCollapsed(showSidebarCollapsed);
+  const handle=document.getElementById('showSidebarResizer');
+  if(!handle)return;
+  handle.setAttribute('aria-valuemin','300');
+  handle.setAttribute('aria-valuemax',String(Math.max(300,Math.min(Math.round(window.innerWidth*2/3),window.innerWidth-360))));
+  let pointerId=null;
+  const finish=e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    pointerId=null;
+    document.body.classList.remove('show-sidebar-resizing');
+    document.body.classList.remove('toolbox-rail-resizing');
+    try{handle.releasePointerCapture(e.pointerId);}catch(_){ }
+    setSidebarWidth(window.innerWidth-e.clientX,{save:true});
+  };
+  handle.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    pointerId=e.pointerId;
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add('show-sidebar-resizing');
+    document.body.classList.add('toolbox-rail-resizing');
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    setSidebarWidth(window.innerWidth-e.clientX);
+  });
+  handle.addEventListener('pointerup',finish);
+  handle.addEventListener('pointercancel',e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    pointerId=null;
+    document.body.classList.remove('show-sidebar-resizing');
+    document.body.classList.remove('toolbox-rail-resizing');
+    setSidebarWidth(sidebarWidth,{save:true});
+  });
+  handle.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight'].includes(e.key))return;
+    e.preventDefault();
+    setSidebarWidth(sidebarWidth+(e.key==='ArrowLeft'?20:-20),{save:true});
+  });
+  window.addEventListener('resize',()=>setSidebarWidth(sidebarWidth));
 }
 function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
   const colsInput=document.getElementById(kind+'Cols');
@@ -2968,36 +3274,8 @@ function renderPixelMatrixGrid(gridRef,layoutId='matrix',cols=matrixCols,rows=ma
   initMoveGrid('matrix',grid,layoutId);
 }
 function renderPixelMatrices(){normalizePixelMatrixGrid('cols');renderPixelMatrixGrid(document.getElementById('matrixGrid'),'matrix',matrixCols,matrixRows);renderRepeatedCards();}
-function normalizeShowPlanePoint(point,fallback){
-  return {
-    id:String(point?.id||fallback?.id||'A'),
-    x:Number(point?.x??fallback?.x??0)||0,
-    y:Number(point?.y??fallback?.y??0)||0,
-    z:Number(point?.z??fallback?.z??0)||0
-  };
-}
-function normalizeShowPlaneFixture(fixture,index){
-  return {
-    id:fixture?.id,
-    name:String(fixture?.name||('Fixture '+(index+1))),
-    x:Number(fixture?.x)||0,
-    y:Number(fixture?.y)||0,
-    z:Number(fixture?.z)||0,
-    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
-  };
-}
 function normalizeShowPlane(plane,index){
-  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
-  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
-  return {
-    ...plane,
-    id:plane?.id||('plane_'+index),
-    name:String(plane?.name||('Plane '+(index+1))),
-    points:fallbackPoints.map((fallback,i)=>normalizeShowPlanePoint(sourcePoints[i],fallback)),
-    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
-    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeShowPlaneFixture),
-    visual:plane?.visual
-  };
+  return DmxCommon.normalizeRoomPlane(plane,index);
 }
 function normalizeRoomPlaneSetupForShow(data){
   const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
@@ -3063,21 +3341,10 @@ let showPlaneTargetDrag=null;
 let showPlaneViewDrag=null;
 function cloneShowPlane(plane){return JSON.parse(JSON.stringify(plane));}
 function showPlaneWeights(plane,target=plane.target){
-  const [a,b,c]=plane.points;
-  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
-  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
-  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
-  return {valid:true,wA,wB,wC:1-wA-wB};
+  return DmxCommon.roomPlaneWeights(plane,target);
 }
 function showPlaneInterpolateFixture(plane,fixture,weights){
-  if(!weights.valid)return null;
-  const ids=plane.points.map(point=>point.id);
-  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
-  return {
-    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
-    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
-  };
+  return DmxCommon.roomPlaneInterpolateFixture(plane,fixture,weights);
 }
 function showPlaneAutoBounds(plane){
   const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
@@ -3215,16 +3482,6 @@ function nudgeShowPlaneTarget(axis,dir,kind){
   setShowPlaneTarget(target);
   setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' - live output updating');
 }
-function showPlaneDrawLine(host,a,b){
-  const line=document.createElement('div');
-  line.className='show-plane-line';
-  const dx=b.x-a.x,dy=b.y-a.y;
-  line.style.left=a.x+'%';
-  line.style.top=a.y+'%';
-  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
-  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
-  host.appendChild(line);
-}
 function renderShowPlanePreview(){
   const plane=activeShowPlane;
   const pad=document.getElementById('showPlanePad');
@@ -3234,13 +3491,16 @@ function renderShowPlanePreview(){
   const rect=pad.getBoundingClientRect();
   const bounds=showPlaneBounds(plane);
   const screens=plane.points.map(point=>showPlaneToScreen(point,bounds,rect));
+  const weights=showPlaneWeights(plane);
+  const activeScreens=(weights.ids||[]).map(id=>screens[plane.points.findIndex(point=>String(point.id)===String(id))]).filter(Boolean);
+  const triangleScreens=activeScreens.length===3?activeScreens:screens.slice(0,3);
   const triangle=document.getElementById('showPlaneTriangle');
-  triangle.style.setProperty('--ax',screens[0].x+'%');
-  triangle.style.setProperty('--ay',screens[0].y+'%');
-  triangle.style.setProperty('--bx',screens[1].x+'%');
-  triangle.style.setProperty('--by',screens[1].y+'%');
-  triangle.style.setProperty('--cx',screens[2].x+'%');
-  triangle.style.setProperty('--cy',screens[2].y+'%');
+  triangle.style.setProperty('--ax',triangleScreens[0].x+'%');
+  triangle.style.setProperty('--ay',triangleScreens[0].y+'%');
+  triangle.style.setProperty('--bx',triangleScreens[1].x+'%');
+  triangle.style.setProperty('--by',triangleScreens[1].y+'%');
+  triangle.style.setProperty('--cx',triangleScreens[2].x+'%');
+  triangle.style.setProperty('--cy',triangleScreens[2].y+'%');
   screens.forEach((screen,index)=>{
     const el=document.createElement('div');
     el.className='show-plane-point';
@@ -3262,7 +3522,7 @@ function renderShowPlanePreview(){
     el.style.left=screen.x+'%';
     el.style.top=screen.y+'%';
     pad.appendChild(el);
-    showPlaneDrawLine(pad,screen,targetScreen);
+    DmxCommon.drawRoomPlaneLine(pad,screen,targetScreen,'show-plane-line');
   });
 }
 function renderShowPlaneModal(){
@@ -3271,7 +3531,7 @@ function renderShowPlaneModal(){
   const selected=showPlaneTargetIds();
   const weights=showPlaneWeights(plane);
   document.getElementById('showPlaneTitle').textContent='Recall Plane: '+plane.name;
-  document.getElementById('showPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' - selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' - weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('showPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' - selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' - weights '+DmxCommon.roomPlaneWeightText(weights);
   const list=document.getElementById('showPlaneFixtures');
   list.innerHTML=plane.fixtures.map(fixture=>{
     const selectedClass=selected.has(String(fixture.id))?' selected':'';
@@ -3332,7 +3592,7 @@ async function sendShowPlaneLiveTarget(){
   if(!plane)return {applied:0,errors:['No plane selected']};
   const weights=showPlaneWeights(plane);
   if(!weights.valid){
-    setStatus('Cannot send plane because A/B/C are invalid',true);
+    setStatus('Cannot send plane because it needs at least three non-collinear points',true);
     return {applied:0,errors:['Invalid plane']};
   }
   const selected=showPlaneTargetIds();
@@ -3346,7 +3606,7 @@ async function sendShowPlaneLiveTarget(){
     if(!planeFixture){errors.push((currentFixture.name||currentFixture.id)+': not saved in plane');continue;}
     if(!control){errors.push((currentFixture.name||currentFixture.id)+': no Pan/Tilt control');continue;}
     const out=showPlaneInterpolateFixture(plane,planeFixture,weights);
-    if(!out){errors.push((currentFixture.name||currentFixture.id)+': calibration incomplete');continue;}
+    if(!out){errors.push((currentFixture.name||currentFixture.id)+': fewer than three usable calibration points');continue;}
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     patch[controlKey(currentFixture,control)]=cloneValue(getValue(currentFixture,control,defaultValueForControl(control)));
@@ -3380,6 +3640,7 @@ document.getElementById('showPlaneZoomOut')?.addEventListener('click',()=>zoomSh
 document.getElementById('showPlaneResetView')?.addEventListener('click',()=>resetShowPlaneView());
 document.getElementById('showPlanePanView')?.addEventListener('click',()=>setShowPlanePanMode(!showPlanePanMode));
 const showPlanePad=document.getElementById('showPlanePad');
+DmxCommon.observeElementResize(showPlanePad,queueShowPlaneRender);
 let showPlanePinchTarget=null;
 DmxCommon.initPinchZoom(showPlanePad,{
   getZoom:()=>showPlaneView.zoom,
@@ -3479,6 +3740,7 @@ function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
       slot:i,
       payload:playbackPayload,
       playback,
+      visual:playback?.visual||null,
       loaded:true,
       liveOnly:!!live&&!mirror,
       label:playback?.label||(live?'Pico slot '+i:slotPayloadLabel(playbackPayload,i,'Chaser')),
@@ -3493,10 +3755,14 @@ function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
 }
 function parseMotionPicoSlotPayload(body,slot=0){
   if(!body)return null;
-  const info={slot,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0};
+  const info={slot,loaded:true,source:'mirror',bpm:30,mode:1,loop_count:1,completed_loops:0,target_count:0,fixture_count:0};
   String(body).split(/\r?\n/).forEach(line=>{
     const trimmed=line.trim();
     if(trimmed.startsWith('BPM '))info.bpm=Math.max(1,Math.min(600,parseFloat(trimmed.slice(4))||30));
+    else if(trimmed.startsWith('MODE ')){
+      const mode=trimmed.slice(5).trim();
+      info.mode=mode==='single'||mode==='once'?0:mode==='loop_n'||mode==='loopn'?2:1;
+    }else if(trimmed.startsWith('LOOPS '))info.loop_count=Math.max(1,Math.min(999,parseInt(trimmed.slice(6),10)||1));
     else if(trimmed.startsWith('TARGET '))info.target_count++;
   });
   return info;
@@ -3505,7 +3771,7 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(64,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
-    const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0}:null);
+    const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,mode:1,loop_count:1,completed_loops:0,target_count:0,fixture_count:0}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
     const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
     if(!live&&!mirror&&!playback)return null;
@@ -3515,6 +3781,7 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
       slot:i,
       payload:playbackPayload,
       playback,
+      visual:playback?.visual||null,
       loaded:true,
       liveOnly:!!live&&!mirror,
       label:playback?.label||(live?'Pico effect '+i:slotPayloadLabel(playbackPayload,i,'Effect')),
@@ -3522,13 +3789,30 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
       active:!!live?.active,
-      paused:!!live?.paused
+      paused:!!live?.paused,
+      mode:live?.mode??mirror?.mode??1,
+      loop_count:live?.loop_count??mirror?.loop_count??1,
+      completed_loops:live?.completed_loops??mirror?.completed_loops??0
     };
   });
 }
 function chaserModeLabel(mode){
   mode=Number(mode)||0;
   return mode===0?'Single':mode===2?'Loop N':mode===3?'Ping Pong':'Loop';
+}
+function motionModeLabel(mode){
+  mode=Number(mode);
+  return mode===0?'Single':mode===2?'Loop N':'Loop';
+}
+function motionModeMeta(item){
+  const label=motionModeLabel(item?.mode);
+  const completed=Math.max(0,parseInt(item?.completed_loops,10)||0);
+  if(Number(item?.mode)===0)return `${label} · ${Math.min(1,completed)}/1 cycle`;
+  if(Number(item?.mode)===2){
+    const loops=Math.max(1,Math.min(999,parseInt(item?.loop_count,10)||1));
+    return `${label} · ${Math.min(loops,completed)}/${loops} loops`;
+  }
+  return label;
 }
 function updateChaserPauseResumeButton(){
   const btn=document.getElementById('chaserControlPauseResume');
@@ -3566,6 +3850,10 @@ function selectMotionSlot(slot){
   const slotData=motionSlots[motionSelectedSlot]||null;
   const bpm=document.getElementById('motionControlBpm');
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
+  const mode=document.getElementById('motionControlMode');
+  if(mode&&slotData)mode.value=motionModeLabel(slotData.mode);
+  const loops=document.getElementById('motionControlLoops');
+  if(loops&&slotData)loops.value=Math.max(1,Math.min(999,parseInt(slotData.loop_count,10)||1));
   updateMotionPauseResumeButton();
 }
 function playbackSlotsForType(type){
@@ -3583,6 +3871,71 @@ function updatePlaybackSlotState(type,slot,patch){
   if(type==='chaser'&&Number(index)===Number(chaserSelectedSlot))updateChaserPauseResumeButton();
   if(type==='motion'&&Number(index)===Number(motionSelectedSlot))updateMotionPauseResumeButton();
   drawPlaybackForType(type);
+  updateShowPlaybackStatePolling();
+}
+function showPlaybackStateTargets(){
+  return ['chaser','motion'].flatMap(type=>playbackSlotsForType(type)
+    .filter(slot=>slot&&(slot.active||slot.paused))
+    .map(slot=>({type,slot:Number(slot.slot),slotData:slot})));
+}
+async function readShowPlaybackSlotState(type,logicalSlot,slotData){
+  const linkedMembers=Array.isArray(slotData?.playback?.members)?slotData.playback.members:[];
+  const members=linkedMembers.length?linkedMembers:[{baseUrl:endpoint(),slot:logicalSlot}];
+  const unique=new Map();
+  members.forEach(member=>{
+    const root=String(member.baseUrl||'').replace(/\/+$/,'');
+    const physicalSlot=Math.max(0,parseInt(member.slot,10)||0);
+    if(root)unique.set(root+'|'+physicalSlot,{root,slot:physicalSlot});
+  });
+  if(!unique.size)return null;
+  const samples=await Promise.all([...unique.values()].map(async member=>{
+    try{
+      const response=await fetch(member.root+'/'+type+'/slots',{cache:'no-store'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||!data?.ok||!Array.isArray(data.slots))return null;
+      return data.slots[member.slot]||null;
+    }catch(_){return null;}
+  }));
+  if(samples.some(sample=>!sample))return null;
+  const completed=samples.map(sample=>Number(sample.completed_loops)).filter(Number.isFinite);
+  return{
+    active:samples.some(sample=>!!sample.active),
+    paused:samples.some(sample=>!!sample.paused),
+    ...(completed.length?{completed_loops:Math.min(...completed)}:{})
+  };
+}
+async function pollShowPlaybackState(){
+  if(playbackStatePollBusy)return;
+  const targets=showPlaybackStateTargets();
+  if(!targets.length){updateShowPlaybackStatePolling();return;}
+  playbackStatePollBusy=true;
+  const changedTypes=new Set();
+  try{
+    for(const target of targets){
+      const state=await readShowPlaybackSlotState(target.type,target.slot,target.slotData);
+      if(!state)continue;
+      const wasRunning=!!(target.slotData.active||target.slotData.paused);
+      const changed=target.slotData.active!==state.active||target.slotData.paused!==state.paused||
+        (state.completed_loops!==undefined&&Number(target.slotData.completed_loops)!==Number(state.completed_loops));
+      if(!changed)continue;
+      Object.assign(target.slotData,state);
+      changedTypes.add(target.type);
+      if(wasRunning&&!state.active&&!state.paused&&[0,2].includes(Number(target.slotData.mode))){
+        setStatus((target.type==='motion'?'Effect':'Chaser')+' slot '+target.slot+' completed');
+      }
+    }
+    changedTypes.forEach(type=>drawPlaybackForType(type));
+    if(changedTypes.has('chaser'))updateChaserPauseResumeButton();
+    if(changedTypes.has('motion'))updateMotionPauseResumeButton();
+  }finally{
+    playbackStatePollBusy=false;
+    updateShowPlaybackStatePolling();
+  }
+}
+function updateShowPlaybackStatePolling(){
+  const needed=showPlaybackStateTargets().length>0;
+  if(needed&&!playbackStatePollTimer)playbackStatePollTimer=setInterval(pollShowPlaybackState,750);
+  else if(!needed&&playbackStatePollTimer){clearInterval(playbackStatePollTimer);playbackStatePollTimer=null;}
 }
 function renderPlaybackSlots(){
   renderChaserPlayback();
@@ -3624,7 +3977,7 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
       :'';
     const meta=type==='chaser'&&item
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`
-      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
+      :item?`${Math.round(Number(item.bpm)||30)} BPM · ${motionModeMeta(item)}${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
     const running=!!(item?.active||item?.paused);
     const actionLabel=running?'Stop':'Start';
@@ -3632,7 +3985,7 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const pauseLabel=item?.paused?'Resume':'Pause';
     const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
     const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}>${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`} style="${slotStyle(item)}">${slotVisual(item)}${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;
@@ -3996,6 +4349,7 @@ async function stopPico(type){
   if(type==='chaser')updateChaserPauseResumeButton();
   if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
+  updateShowPlaybackStatePolling();
 }
 async function commandShowPlaybackSlot(type,slot,action,suffix=''){
   const slotData=playbackSlotsForType(type)[slot]||null;
@@ -4127,7 +4481,7 @@ async function loadShow(options={}){
   const isAuto=options.reason==='auto';
   if(!isAuto)setStatus('Loading show...');
   hiddenTileModalDismissed=false;
-  const [fixtureData,groupData,sceneData,paletteData,planeData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
+  const [fixtureData,groupData,sceneData,paletteData,planeData,chaserData,motionData,liveData,serverShowUiState,sharedToolboxUiState]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
     loadJson('group_setup.php',{groups:[]}),
     loadJson('scene_setup.php',{scenes:[],slotCols:4,slotRows:4}),
@@ -4136,7 +4490,8 @@ async function loadShow(options={}){
     loadJson('chaser_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('motion_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('fixture_setup.php?livevalues',{exists:false,values:{}}),
-    DmxCommon.loadUiState(SHOW_UI_STATE_PAGE)
+    DmxCommon.loadUiState(SHOW_UI_STATE_PAGE),
+    DmxCommon.loadUiState('toolboxes')
   ]);
   showUiState=serverShowUiState&&typeof serverShowUiState==='object'?serverShowUiState:{};
   showGroupRelativeStepStore.load(showUiState[SHOW_GROUP_RELATIVE_STEPS_KEY]);
@@ -4160,6 +4515,13 @@ async function loadShow(options={}){
   planeCols=Math.max(1,Math.min(32,parseInt(planeData.planeCols??planeData.setup?.planeCols??planeCols,10)||3));
   planeRows=Math.max(1,Math.min(32,parseInt(planeData.planeRows??planeData.setup?.planeRows??planeRows,10)||3));
   applySavedLayout();
+  const sharedSidebarWidth=parseInt(sharedToolboxUiState?.[SHARED_TOOLBOX_WIDTH_KEY]??localStorage.getItem(SHARED_TOOLBOX_WIDTH_KEY),10);
+  if(Number.isFinite(sharedSidebarWidth))sidebarWidth=sharedSidebarWidth;
+  if(sharedToolboxUiState?.[SHARED_TOOLBOX_COLLAPSED_KEY]!==undefined){
+    showSidebarCollapsed=!!sharedToolboxUiState[SHARED_TOOLBOX_COLLAPSED_KEY];
+    localStorage.setItem(SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed?'1':'0');
+  }
+  setShowSidebarCollapsed(showSidebarCollapsed);
   loadCardLayouts();
   loadLiveControls();
   loadTargetMasters();
@@ -4173,6 +4535,7 @@ async function loadShow(options={}){
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
+  updateShowPlaybackStatePolling();
   loadMidiStatus({silent:true});
   let appliedMasters=false;
   let masterApplyError=null;
@@ -4222,6 +4585,7 @@ bindMidiCards();
 bindMasterCard();
 document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();updateShowGroupEditButton();setStatus('Show target reset to all fixtures');};
 document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
+document.getElementById('showMergeGroupControls').onclick=toggleShowMergeGroupControls;
 document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupDefaultBtn').onclick=()=>recallShowGroupFixtureValues('defaultValue').catch(err=>setStatus(err.message,true));
@@ -4244,8 +4608,8 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     if(!next)return;
     row.targets.forEach(target=>{
       const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-      const merged={...(typeof current==='object'?current:{}),...next};
-      setValue(target.fixture,target.control,merged);
+      const representative=convertShowGroupControlValue(current,target.control,row.control);
+      setValue(target.fixture,target.control,convertShowGroupControlValue({...representative,...next},row.control,target.control,current));
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
@@ -4257,10 +4621,13 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     const row=showGroupEditControls().find(item=>item.key===key);
     const target=showGroupSourceTarget(row);
     if(!row||!target||row.control.type!=='slider16')return;
-    const b=bytes16(getControlPartValue(target.fixture,target.control,'value'));
+    const b=bytes16(convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,row.control));
     b[byteInput.dataset.bytePart]=clamp(byteInput.value,0,255);
     const value=(b.coarse<<8)|b.fine;
-    row.targets.forEach(item=>setControlPartValue(item.fixture,item.control,'value',value));
+    row.targets.forEach(item=>{
+      const current=getValue(item.fixture,item.control,defaultValueForControl(item.control));
+      setValue(item.fixture,item.control,convertShowGroupControlValue(value,row.control,item.control,current));
+    });
     refreshShowGroupControlRow(key,'value');
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
     return;
@@ -4273,7 +4640,12 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
   const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
   if(!row||!partInfo)return;
   const value=clamp(input.value,0,partInfo.max);
-  row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,part,value));
+  row.targets.forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    const representative=convertShowGroupControlValue(current,target.control,row.control);
+    const next=typeof representative==='object'?{...representative,[part]:value}:value;
+    setValue(target.fixture,target.control,convertShowGroupControlValue(next,row.control,target.control,current));
+  });
   refreshShowGroupControlRow(key,part);
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
 });
@@ -4284,7 +4656,10 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
     const row=showGroupEditControls().find(item=>item.key===key);
     if(!row)return;
     const value=row.control.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      setValue(target.fixture,target.control,convertShowGroupControlValue(value,row.control,target.control,current));
+    });
     refreshShowGroupControlRow(key,'pan');
     refreshShowGroupControlRow(key,'tilt');
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' centered')).catch(err=>setStatus(err.message,true));
@@ -4305,7 +4680,8 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
     if(!next)return;
     row.targets.forEach(target=>{
       const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-      setValue(target.fixture,target.control,{...(typeof current==='object'?current:{}),...next});
+      const representative=convertShowGroupControlValue(current,target.control,row.control);
+      setValue(target.fixture,target.control,convertShowGroupControlValue({...representative,...next},row.control,target.control,current));
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color')).catch(err=>setStatus(err.message,true));
@@ -4334,8 +4710,8 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
   const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
   const dir=parseInt(btn.dataset.dir,10)||1;
   row.targets.forEach(target=>{
-    const next=getControlPartValue(target.fixture,target.control,part)+dir*step;
-    setControlPartValue(target.fixture,target.control,part,next);
+    const currentPart=getControlPartValue(target.fixture,target.control,part);
+    setControlPartValue(target.fixture,target.control,part,currentPart+convertShowGroupControlDelta(dir*step,row.control,target.control,part));
   });
   refreshShowGroupControlRow(key,part);
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' nudged')).catch(err=>setStatus(err.message,true));
@@ -4349,7 +4725,10 @@ function setShowGroupXY(event,pad){
   const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
   const max=row.control.type==='panTilt8'?255:65535;
   const value={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
-  row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+  row.targets.forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    setValue(target.fixture,target.control,convertShowGroupControlValue(value,row.control,target.control,current));
+  });
   refreshShowGroupControlRow(key,'pan');
   refreshShowGroupControlRow(key,'tilt');
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
@@ -4392,7 +4771,8 @@ function updateFullscreenButton(){
   btn.hidden=!supported;
   btn.classList.toggle('active',active);
   btn.setAttribute('aria-pressed',active?'true':'false');
-  btn.textContent=active?'Exit Full Screen':'Full Screen';
+  btn.textContent=active?'Exit':'Fullscreen';
+  btn.title=active?'Exit fullscreen':'Enter fullscreen';
 }
 async function toggleFullscreen(){
   try{
@@ -4423,6 +4803,7 @@ document.getElementById('midiMappingClose').onclick=closeMidiMappingEditor;
 document.getElementById('midiMappingClose2').onclick=closeMidiMappingEditor;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
+initShowSidebar();
 bindCardInputs();
 bindMatrixInputs('group',normalizeGroupGrid,renderGroups,8,12);
 bindMatrixInputs('fixture',normalizeFixtureGrid,renderFixtures,32,32);

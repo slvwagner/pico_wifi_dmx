@@ -226,7 +226,9 @@ test.describe('Chaser established rules', () => {
         points: [
           { id: 'A', x: 0, y: 0, z: 0 },
           { id: 'B', x: 10, y: 0, z: 0 },
-          { id: 'C', x: 0, y: 10, z: 0 }
+          { id: 'C', x: 0, y: 10, z: 0 },
+          { id: 'D', x: 10, y: 10, z: 0 },
+          { id: 'E', x: 5, y: 5, z: 0 }
         ],
         target: { x: 5, y: 0, z: 0 },
         fixtures: [{
@@ -248,6 +250,7 @@ test.describe('Chaser established rules', () => {
     await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
 
     await expect(page.locator('#chaserPlaneModal')).toBeVisible();
+    await expect(page.locator('#chaserPlanePad .controller-plane-point:not(.controller-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values?.['101:12'])).toEqual({ pan: 2000, tilt: 3000 });
   });
 
@@ -366,7 +369,28 @@ test.describe('Chaser established rules', () => {
     expect(texts[1]).toContain('Fade 10–60%');
   });
 
-  test('uploads one linked chase payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
+  test('Pico slot tiles show the saved chase name and icon', async ({ page }) => {
+    const visual = { type: 'visual', color: '#71368a', image: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E' };
+    await page.evaluate(savedVisual => {
+      linkedChaserPlaybacks = [{
+        id: 'named-chase',
+        logicalSlot: 2,
+        label: 'Purple Sweep',
+        visual: savedVisual,
+        members: [{ outputId: 'primary', slot: 2, payload: 'STEP 500 0\nCH 1 255\nEND' }]
+      }];
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      const slots = Array.from({ length: 3 }, (_, slot) => ({ slot, loaded: false, active: false, paused: false }));
+      slots[2] = { slot: 2, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 1, speed_mult: 1 };
+      renderChaserSlotStrip(slots, 0);
+    }, visual);
+
+    const tile = page.locator('#chaserSlotStrip > div').nth(2);
+    await expect(tile).toContainText('Purple Sweep');
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
+  test('uploads one linked chase payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
     const routePico = async (route, outputId) => {
@@ -401,6 +425,8 @@ test.describe('Chaser established rules', () => {
       baseUrlEl.value = 'http://front-pico.test';
       steps = [makeStep('Both universes', { '101:11': 75, '102:21': 125 })];
       participating = Object.fromEntries(Object.keys(participating).map(key => [key, key === '101:11' || key === '102:21']));
+      savedChases = [{ slot: 1, name: 'Purple Sweep', visual: { type: 'visual', color: '#71368a', image: '' } }];
+      setActiveRecalledChaseSlot(1);
       drawParticipation();
     });
 
@@ -408,24 +434,98 @@ test.describe('Chaser established rules', () => {
 
     expect(picoCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/chaser/load/3' }),
-      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/load/1' })
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/load/3' })
     ]));
     const frontBody = picoCalls.find(call => call.url.endsWith('/chaser/load/3')).body;
-    const rearBody = picoCalls.find(call => call.url.endsWith('/chaser/load/1')).body;
+    const rearBody = picoCalls.find(call => call.outputId === 'rear' && call.url.endsWith('/chaser/load/3')).body;
     expect(frontBody).toContain('CH 1 75');
     expect(frontBody).not.toContain('CH 21 125');
     expect(rearBody).toContain('CH 21 125');
     expect(rearBody).not.toContain('CH 1 75');
     expect(savedPlayback.members.map(member => ({ outputId: member.outputId, slot: member.slot }))).toEqual([
       { outputId: 'front', slot: 3 },
-      { outputId: 'rear', slot: 1 }
+      { outputId: 'rear', slot: 3 }
     ]);
+    expect(savedPlayback.label).toBe('Purple Sweep');
+    expect(savedPlayback.visual).toEqual({ type: 'visual', color: '#71368a', image: '' });
 
     picoCalls.length = 0;
     await page.locator('#btnPicoPlaySlot').click();
     await expect.poll(() => picoCalls.map(call => call.url)).toEqual(expect.arrayContaining([
       'http://front-pico.test/chaser/play/3',
-      'http://rear-pico.test/chaser/play/1'
+      'http://rear-pico.test/chaser/play/3'
+    ]));
+  });
+
+  test('deletes one logical chaser slot from every configured Pico', async ({ page }) => {
+    const calls = [];
+    await page.route('http://front-pico.test/**', async route => {
+      calls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://rear-pico.test/**', async route => {
+      calls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('**/chaser_setup.php?delete_slot=3', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    page.on('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      linkedChaserPlaybacks = [];
+      return deleteChaserSlot(3);
+    });
+    expect(calls).toEqual(expect.arrayContaining([
+      'http://front-pico.test/chaser/clear/3',
+      'http://rear-pico.test/chaser/clear/3'
+    ]));
+  });
+
+  test('synchronizes saved chases and clears stale physical slots across the Pico fleet', async ({ page }) => {
+    const calls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/chaser/slots')) {
+        const slots = Array.from({ length: 32 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear' && (slot === 4 || slot === 11)
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      calls.push({ outputId, url, body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/chaser_setup.php?slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        pico_slots: Array(32).fill(null),
+        pico_playbacks: [{
+          id: 'chase-4',
+          logicalSlot: 4,
+          members: [{ outputId: 'front', baseUrl: 'http://front-pico.test/', slot: 4, payload: 'STEP 500 0\nEND' }]
+        }]
+      })
+    }));
+    page.on('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      baseUrlEl.value = 'http://front-pico.test';
+      return restoreAllChaserSlots();
+    });
+    expect(calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/chaser/load/4', body: 'STEP 500 0\nEND' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/clear/4' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/clear/11' })
     ]));
   });
 
@@ -828,6 +928,11 @@ test.describe('Chaser established rules', () => {
   });
 
   test('Chaser Group Edit follows the Controller modal visual language and step semantics', async ({ page }) => {
+    const playbackStops = [];
+    await page.route(/http:\/\/127\.0\.0\.1:1899[12]\/.*\/(?:stop)$/, async route => {
+      playbackStops.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
     await page.evaluate(() => {
       const controlsA = [
         { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, defaultValue: 80, blackoutValue: 0 },
@@ -852,13 +957,17 @@ test.describe('Chaser established rules', () => {
       }));
       setup = {
         baseUrl: '',
+        dmxOutputs: [
+          { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+          { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+        ],
         profiles: [
           { id: 10, name: 'Profile A', mode: 'test', channels: 16, controls: controlsA },
           { id: 20, name: 'Profile B', mode: 'test', channels: 16, controls: controlsB }
         ],
         fixtures: [
-          { id: 201, name: 'Spot A', profileId: 10, start: 1 },
-          { id: 202, name: 'Spot B', profileId: 20, start: 21 }
+          { id: 201, name: 'Spot A', profileId: 10, start: 1, outputId: 'front' },
+          { id: 202, name: 'Spot B', profileId: 20, start: 21, outputId: 'rear' }
         ]
       };
       participating = {};
@@ -907,9 +1016,22 @@ test.describe('Chaser established rules', () => {
     expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([15, 25]);
 
     await page.locator('#defaultChaserGroupBtn').click();
-    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([80, 90]);
+    await expect.poll(() => page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([80, 90]);
+    await expect.poll(() => playbackStops).toEqual(expect.arrayContaining([
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ]));
+    playbackStops.length = 0;
     await page.locator('#blackoutChaserGroupBtn').click();
-    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([0, 0]);
+    await expect.poll(() => page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([0, 0]);
+    await expect.poll(() => playbackStops).toEqual(expect.arrayContaining([
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ]));
   });
 
   test('Only selects one control type without reducing the fixture scope when no group filter is active', async ({ page }) => {

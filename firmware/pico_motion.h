@@ -17,7 +17,15 @@ typedef enum {
     MFX_TILT_SWING = 3,
     MFX_SINE       = 4,
     MFX_PULSE      = 5,
+    MFX_PAN_PULSE  = 6,
+    MFX_TILT_PULSE = 7,
 } mfx_type_t;
+
+typedef enum {
+    MFX_MODE_SINGLE = 0,
+    MFX_MODE_LOOP,
+    MFX_MODE_LOOP_N,
+} mfx_mode_t;
 
 typedef enum {
     MFX_TARGET_SCALAR8   = 0,
@@ -53,8 +61,11 @@ typedef struct {
     bool     active;
     bool     paused;
     int      type;
+    mfx_mode_t mode;
     float    bpm;
     float    elapsed_s;
+    uint16_t loop_count;
+    uint16_t completed_loops;
     uint16_t target_count;
 } mfx_slot_info_t;
 
