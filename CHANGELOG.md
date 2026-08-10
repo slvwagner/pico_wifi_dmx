@@ -101,6 +101,8 @@ Changed:
 
 Fixed:
 
+- Replaced XAMPP-specific storage wording in the Chaser and Effects
+  synchronization confirmations with installation-neutral controller wording.
 - Kept the wrapped Pico Performance Test guidance inside complete paragraphs
   in the generated HTML and PDF user manuals.
 - Captured every Show Run card at its full page position so the sticky header

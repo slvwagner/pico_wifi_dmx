@@ -1620,7 +1620,7 @@ async function restoreAllMotionSlots(){
         'Saved logical slots: '+summary.logicalSlotCount+'\n'+
         'Payloads to upload: '+summary.uploadCount+'\n'+
         'Stale loaded slots to clear: '+summary.clearCount+'\n\n'+
-        'Cleared Pico-only slot data cannot be recovered from XAMPP.'
+        'Pico-only slot data is not stored by the controller application and cannot be recovered after synchronization.'
       )
     });
     if(result.cancelled){setPicoMotionStatus('Synchronization cancelled; no slots were changed','var(--muted)');return;}

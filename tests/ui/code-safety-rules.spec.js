@@ -901,6 +901,17 @@ test.describe('Code safety regression rules', () => {
     expect(firmwareDocshot).toContain("serveFirmwareDocshotPage($firmwareSourcePath, 'build_http_page')");
   });
 
+  test('slot synchronization confirmations use installation-neutral storage wording', () => {
+    const chaser = read('web/dmx_chaser.html');
+    const effects = read('web/dmx_motion.html');
+    const neutralWarning = 'Pico-only slot data is not stored by the controller application and cannot be recovered after synchronization.';
+
+    expect(chaser).toContain(neutralWarning);
+    expect(effects).toContain(neutralWarning);
+    expect(chaser).not.toContain('recovered from XAMPP');
+    expect(effects).not.toContain('recovered from XAMPP');
+  });
+
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');

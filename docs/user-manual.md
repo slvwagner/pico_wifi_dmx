@@ -968,7 +968,7 @@ Starting a Pico slot with **Play Slot** stops browser Chase Playback first, so o
 
 ![Chaser Pico Playback](screenshots/chaser-pico-playback.png)
 
-**Set Speed** changes the speed multiplier of the selected loaded slot without re-uploading its chase. **Stop Slot** stops only the selected logical slot, while **Stop All** stops Chaser playback on the relevant Pico playback target. Use the small `x` on a loaded tile to remove its saved mirror and clear physical slot N from every configured Pico after confirmation. **Synchronize Saved Slots to Picos** treats the saved XAMPP state as authoritative: after every Pico passes preflight and you approve the exact upload/clear summary, it reloads saved payloads into their common slot numbers and clears loaded Pico slots that are absent from XAMPP. This is useful after a reset, reflash, interrupted upload, or inconsistent fleet state. Data that exists only on a Pico cannot be recovered after synchronization. Older linked manifests whose physical member numbers differ show **Normalize Legacy Slots**; normalization first creates a timestamped server backup and refuses unmanaged conflicts rather than silently overwriting them.
+**Set Speed** changes the speed multiplier of the selected loaded slot without re-uploading its chase. **Stop Slot** stops only the selected logical slot, while **Stop All** stops Chaser playback on the relevant Pico playback target. Use the small `x` on a loaded tile to remove its saved mirror and clear physical slot N from every configured Pico after confirmation. **Synchronize Saved Slots to Picos** treats the controller application's saved slot state as authoritative: after every Pico passes preflight and you approve the exact upload/clear summary, it reloads saved payloads into their common slot numbers and clears loaded Pico slots that are absent from the saved controller state. This is useful after a reset, reflash, interrupted upload, or inconsistent fleet state. Data that exists only on a Pico cannot be recovered after synchronization. Older linked manifests whose physical member numbers differ show **Normalize Legacy Slots**; normalization first creates a timestamped server backup and refuses unmanaged conflicts rather than silently overwriting them.
 
 Supported playback options:
 
@@ -1062,7 +1062,7 @@ The Pico effect slot upload uses the same selected **Effect target** as the brow
 - **Pause/Resume** changes state without discarding the loaded slot, and **Set BPM** changes the selected slot's tempo without re-uploading its targets.
 - **Stop Slot** stops only the selected logical effect; **Stop All** stops the relevant Pico Effects playback.
 - The small `x` clears the selected saved slot and physical slot N on every configured Pico after confirmation.
-- **Synchronize Saved Slots to Picos** preflights the fleet, reports the exact uploads and stale-slot clears, reloads every saved effect into its common slot number, and removes Pico slots absent from the saved XAMPP state. Older differing-slot manifests must first be handled with **Normalize Legacy Slots**, which creates a backup and checks for conflicts.
+- **Synchronize Saved Slots to Picos** preflights the fleet, reports the exact uploads and stale-slot clears, reloads every saved effect into its common slot number, and removes Pico slots absent from the controller application's saved slot state. Older differing-slot manifests must first be handled with **Normalize Legacy Slots**, which creates a backup and checks for conflicts.
 - Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
 - The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
 - Up to 64 physical effect slots can be loaded on one Pico.
@@ -1598,7 +1598,7 @@ The modal uses the current Show target. Select Groups or Fixtures first when onl
 
 #### Pico Playback Cards
 
-The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set its speed, play it, pause or resume it, or stop it.
+The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and saved by the controller application. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear when the controller's saved mirror is empty. Use the card controls to choose a logical slot, set its speed, play it, pause or resume it, or stop it.
 
 For a linked chase, the selected logical slot identifies the coordinator member; the associated physical slot on another Pico may have a different number. For example, logical slot 1 can represent `U1 / Slot 1 + U2 / Slot 4`. The tile displays the linked universe/slot members. The card buttons operate the complete link, so **Play Slot 1** starts both physical members in this example. A slot without linked members operates only its single Pico.
 
