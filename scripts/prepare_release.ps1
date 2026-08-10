@@ -1,6 +1,6 @@
 param(
     [string]$Version = "",
-    [string]$BuildDir = "build",
+    [string]$BuildDir = "build-release",
     [string]$OutDir = "release",
     [switch]$Build,
     [switch]$SkipManual,
@@ -153,6 +153,9 @@ $cmakeExe = Resolve-CommandPath "cmake" @(
     "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
     "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 )
+$ninjaExe = Resolve-CommandPath "ninja" @(
+    "%USERPROFILE%\.pico-sdk\ninja\v1.12.1\ninja.exe"
+)
 
 $versionFile = Join-Path $repoRoot "VERSION"
 if (-not (Test-Path -LiteralPath $versionFile)) {
@@ -215,7 +218,7 @@ if (-not $AllowDirty) {
 if ($Build) {
     Invoke-Step "Configure release firmware" {
         Invoke-Native "Firmware release configuration" {
-            & $cmakeExe -U WIFI_SSID -U WIFI_PASSWORD -S $repoRoot -B $BuildDir -DCMAKE_BUILD_TYPE=Release
+            & $cmakeExe -G "Ninja" "-DCMAKE_MAKE_PROGRAM=$ninjaExe" -U WIFI_SSID -U WIFI_PASSWORD -S $repoRoot -B $BuildDir -DCMAKE_BUILD_TYPE=Release
         }
     }
     if ((Get-Content -LiteralPath $compileCommandsPath -Raw) -match '(?:-D|/D)WIFI_(?:SSID|PASSWORD)=') {

@@ -482,6 +482,15 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
 
+  test('release firmware builds use an isolated explicit Ninja generator', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(releaseScript).toContain('[string]$BuildDir = "build-release"');
+    expect(releaseScript).toContain('$ninjaExe = Resolve-CommandPath "ninja"');
+    expect(releaseScript).toContain('-G "Ninja"');
+    expect(releaseScript).toContain('"-DCMAKE_MAKE_PROGRAM=$ninjaExe"');
+  });
+
   test('release preparation runs real Pico tests after the isolated UI suite', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
     const uiSuite = releaseScript.indexOf('Invoke-Step "Run UI regression tests"');

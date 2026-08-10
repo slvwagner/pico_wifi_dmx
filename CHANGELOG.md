@@ -53,6 +53,9 @@ Fixed:
 - Fixed release UI tests racing through shared isolated XAMPP data by running
   that destructive suite serially, and taught the shared-width check to account
   for Show Run's dedicated sidebar rail.
+- Fixed release firmware configuration depending on whichever CMake generator
+  the current shell or IDE selected. Official builds now use an isolated
+  `build-release` directory and the Pico SDK's Ninja executable explicitly.
 - Fixed Show Run keeping Pico Effects tiles in the **Stop** state after a
   Single or Loop N effect completed autonomously. While playback is active or
   paused, Show Run now follows the live state of every linked Pico slot and
