@@ -4,6 +4,10 @@
 
 Changed:
 
+- Documented how independent Room Plane fixture calibration compensates for
+  different mounting angles and Pan-zero positions, and explained the accuracy
+  limits around raw-DMX Pan wrapping, inconsistent rotation paths, and linear
+  interpolation over large areas.
 - Extended Room Plane calibration from a fixed A/B/C triangle to any number of
   reference points. New points are added at the current target and may be
   taught independently per fixture; fixtures remain usable with any three
@@ -52,6 +56,9 @@ Changed:
 
 Fixed:
 
+- Kept every Patch Fixtures tile and its DMX-output selector inside the Show
+  card when the browser or toolbox width changes, including long fixture and
+  output names at the narrowest supported Controller layout.
 - Preserved every fixture's calibration for additional Room Plane points when
   saving and recalling Plane tiles. Saved planes are now normalized against
   their own point lists instead of the currently active plane's points.

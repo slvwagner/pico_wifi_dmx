@@ -1642,6 +1642,21 @@ absoluteChannel = fixtureStart + relativeChannel - 1
 
 The page sends selected fixtures as a batch update. While the target is being dragged or nudged, output is automatically applied after a short debounce so movement feels live without flooding the Pico with unnecessary requests.
 
+#### Fixture Orientation, Pan Zero, and Accuracy
+
+Fixtures do not need to be mounted in one line or share the same Pan-zero direction. Every fixture stores its own Pan/Tilt value for every taught room point and is interpolated independently. A rotated fixture can therefore use completely different DMX values from the fixture beside it while both beams follow the same room target. A fixed Pan-zero offset, a reversed movement direction, or a different Pan/Tilt range is absorbed by that fixture's taught values.
+
+The current calculation does not use Mount X/Y/Z or a measured fixture orientation to correct the output mathematically. Those fields are saved and used for the drawing and future 3D support; the taught Pan/Tilt values are the authority for current output accuracy.
+
+For reliable calibration:
+
+- Teach all points for one fixture along one continuous Pan rotation. A fixture with more than 360 degrees of Pan may be able to reach the same point with several DMX values; do not mix those alternative rotations between calibration points.
+- Avoid crossing the numeric Pan boundary inside the working plane. The current interpolation blends raw DMX numbers and does not unwrap circular Pan values. For example, interpolating between `65000` and `1000` produces a value near the middle of the DMX range rather than a value close to the wrap boundary.
+- Keep the main three calibration points spread across the useful area and avoid putting them on one line. Accuracy outside their triangle is extrapolated and normally becomes less predictable.
+- Add local calibration points where a particular fixture misses the target. Real fixture geometry is not perfectly linear, especially for fixtures close to a large plane or mounted at a strong angle. Additional points create smaller local triangles and improve only the fixtures for which those points are taught.
+
+Different mounting angles therefore do not inherently reduce accuracy. The main risks are imprecise teaching, using inconsistent Pan rotations, crossing the Pan wrap boundary, and relying on only three points over an area where the fixture's real movement is noticeably nonlinear.
+
 ### 10.7 Screen Transformation
 
 The virtual room drawing uses the same room coordinates as the math, but it transforms them into screen pixels for display.

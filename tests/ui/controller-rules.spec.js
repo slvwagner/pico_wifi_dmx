@@ -1823,6 +1823,81 @@ test.describe('Fixture Controller established rules', () => {
     expect(layout.showScrollWidth, JSON.stringify(layout.overflowing)).toBeLessThanOrEqual(layout.showClientWidth + 1);
   });
 
+  test('Patch Fixtures tiles stay fully inside their card after toolbox and viewport resizing', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDmxPage(page, '');
+    await injectControllerCompactSetup(page);
+    await page.evaluate(() => {
+      localStorage.removeItem('toolboxRailWidth');
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+      setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', false);
+      setSectionCollapsed('patchCollapseBtn', 'patchBody', 'patchCollapsed', false);
+      dmxOutputs = [{
+        id: 'pico-stage-right',
+        name: 'Pico Stage Right Wireless DMX Output',
+        universe: 1,
+        baseUrl: ''
+      }];
+      fixtures[0].name = 'picoSpot LED20 Stage Right';
+      fixtures.forEach(fixture => { fixture.outputId = 'pico-stage-right'; });
+      drawPatched();
+    });
+
+    const resizer = page.locator('#fixtureToolboxRail .toolbox-rail-resizer');
+    const resizerBox = await resizer.boundingBox();
+    await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(540, resizerBox.y + 100, { steps: 6 });
+    await page.mouse.up();
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.waitForTimeout(50);
+
+    const layout = await page.locator('#patchSection').evaluate(section => {
+      const sectionRect = section.getBoundingClientRect();
+      const tiles = [...section.querySelectorAll('#patched .item')].map(tile => {
+        const tileRect = tile.getBoundingClientRect();
+        const grid = tile.closest('.patched-row-grid');
+        const overflowingChildren = [...tile.querySelectorAll('*')].filter(element => {
+          const rect = element.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) return false;
+          return rect.left < tileRect.left - 1 || rect.right > tileRect.right + 1
+            || (element.tagName !== 'SELECT' && element.scrollWidth > element.clientWidth + 1);
+        }).map(element => ({
+          tag: element.tagName,
+          className: typeof element.className === 'string' ? element.className : '',
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth
+        }));
+        return {
+          tileLeft: tileRect.left,
+          tileRight: tileRect.right,
+          tileClientWidth: tile.clientWidth,
+          tileScrollWidth: tile.scrollWidth,
+          gridClientWidth: grid.clientWidth,
+          gridScrollWidth: grid.scrollWidth,
+          overflowingChildren
+        };
+      });
+      return {
+        sectionLeft: sectionRect.left,
+        sectionRight: sectionRect.right,
+        sectionClientWidth: section.clientWidth,
+        sectionScrollWidth: section.scrollWidth,
+        tiles
+      };
+    });
+
+    expect(layout.tiles.length).toBeGreaterThan(0);
+    expect(layout.sectionScrollWidth, JSON.stringify(layout.tiles)).toBeLessThanOrEqual(layout.sectionClientWidth + 1);
+    for (const tile of layout.tiles) {
+      expect(tile.tileLeft).toBeGreaterThanOrEqual(layout.sectionLeft - 1);
+      expect(tile.tileRight).toBeLessThanOrEqual(layout.sectionRight + 1);
+      expect(tile.gridScrollWidth).toBeLessThanOrEqual(tile.gridClientWidth + 1);
+      expect(tile.tileScrollWidth, JSON.stringify(tile.overflowingChildren)).toBeLessThanOrEqual(tile.tileClientWidth + 1);
+      expect(tile.overflowingChildren).toEqual([]);
+    }
+  });
+
   test('DMX Outputs opens while the Show card remains collapsed', async ({ page }) => {
     await page.evaluate(() => {
       setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', true);

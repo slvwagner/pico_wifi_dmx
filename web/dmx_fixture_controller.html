@@ -77,12 +77,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #savedGroupsList .group-tile-content{position:relative;z-index:1;display:grid;gap:3px;min-width:0}
 #savedGroupsList .group-tile-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #savedGroupsList .group-tile-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#patchSection,#patchBody,#patched{min-width:0;max-width:100%}
 #patched{display:grid;gap:12px}
 #patchBody>#patched{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
-#patched .patched-row{display:grid;gap:8px}
+#patched .patched-row{display:grid;gap:8px;min-width:0;max-width:100%}
 #patched .patched-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
-#patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
-#patched .item{align-content:start}
+#patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:8px;min-width:0;max-width:100%}
+#patched .item{align-content:start;min-width:0;max-width:100%}
+#patched .patched-item-head{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+#patched .patched-item-head strong{min-width:0;overflow-wrap:anywhere}
+#patched .patched-item-head .small{flex:0 0 auto}
+#patched .item>.small{min-width:0;overflow-wrap:anywhere}
+#patched .item label,#patched .item select{min-width:0;max-width:100%}
+#patched .item select{width:100%}
 .show-setup-body{display:grid;gap:16px;margin-top:12px}
 .show-setup-body>.panel{margin:0;background:#10161b}
 .show-title-stack{display:grid;gap:4px;min-width:0;flex:1 1 auto}
@@ -2646,7 +2653,7 @@ function drawPatched(){
       const fp=fixtureProfile(f);
       const output=fixtureDmxOutput(f);
       const item=document.createElement('div');item.className='item';
-      item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
+      item.innerHTML=`<div class="patched-item-head"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
         <div class="small">${escHtml(output.name)} · Universe ${output.universe} · ${escHtml(fp?.name||'Missing profile')} · channels ${f.start}-${f.start+(fp?.channels||1)-1}</div>
         <label class="small">DMX output<select data-fixture-output="${f.id}">${dmxOutputs.map(candidate=>`<option value="${escHtml(candidate.id)}"${candidate.id===output.id?' selected':''}>${escHtml(candidate.name)} · Universe ${candidate.universe}</option>`).join('')}</select></label>
         <div class="patch-actions-grid"><button class="minor warn" data-remove-fixture="${f.id}">Remove</button></div>`;
