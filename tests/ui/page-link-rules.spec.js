@@ -3,14 +3,14 @@ const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
   { path: '', manualHref: 'user-manual.html?v=1.2.1#1-fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=1.2.1#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=1.2.1#1-show-run', manualText: 'Show Run' },
   { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=1.2.1#midi-controller-card', manualText: 'MIDI Emulator' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=1.2.1#5-chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=1.2.1#6-effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=1.2.1#7-gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html?v=1.2.1#8-pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=1.2.1#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
-  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=1.2.1#10-room-plane', manualText: 'Room Plane' }
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=1.2.1#4-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=1.2.1#5-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=1.2.1#6-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=1.2.1#1-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=1.2.1#2-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=1.2.1#7-room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {
@@ -106,7 +106,21 @@ test.describe('Page link rules', () => {
     const sectionHeadings = page.locator('#manual-content > h2:not(#table-of-contents)');
 
     await expect(sidebar).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: '5. Chaser', exact: true })).toHaveAttribute('href', '#5-chaser');
+    await expect(sidebar.locator('#manual-current-location')).toHaveText('Table of Contents');
+    const showGroup = sidebar.locator('.manual-nav-group[data-section-id="create-and-program-a-show"]');
+    await expect(showGroup.locator('.manual-nav-group-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await showGroup.locator('.manual-nav-group-toggle').click();
+    await expect(showGroup.locator('.manual-nav-submenu')).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: '4. Chaser', exact: true })).toHaveAttribute('href', '#4-chaser');
+    const controllerPage = showGroup.locator('.manual-nav-page[data-page-id="1-fixture-controller"]');
+    await controllerPage.locator('.manual-nav-page-toggle').click();
+    await expect(controllerPage.getByRole('link', {
+      name: 'Fixture Controller Tools and Toolboxes',
+      exact: true
+    })).toHaveAttribute('href', '#fixture-controller-tools-and-toolboxes');
+    const runGroup = sidebar.locator('.manual-nav-group[data-section-id="run-show"]');
+    await runGroup.locator('.manual-nav-group-toggle').click();
+    await expect(runGroup.getByRole('link', { name: '1. Show Run', exact: true })).toHaveAttribute('href', '#1-show-run');
     await expect(page.locator('.section-pager')).toHaveCount(await sectionHeadings.count());
     await page.evaluate(() => window.scrollTo(0, 1800));
     await expect.poll(async () => Math.round((await sidebar.boundingBox())?.y ?? -1)).toBe(28);
@@ -122,14 +136,16 @@ test.describe('Page link rules', () => {
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect.poll(async () => (await sidebar.boundingBox())?.x).toBeGreaterThanOrEqual(0);
 
-    await sidebar.getByRole('link', { name: '5. Chaser', exact: true }).click();
-    await expect.poll(() => page.evaluate(() => location.hash)).toBe('#5-chaser');
+    await sidebar.getByRole('link', { name: '4. Chaser', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => location.hash)).toBe('#4-chaser');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect.poll(async () => {
       const box = await sidebar.boundingBox();
       return box ? box.x + box.width : 0;
     }).toBeLessThanOrEqual(0);
-    await expect(sidebar.getByRole('link', { name: '5. Chaser', exact: true })).toHaveClass(/is-active/);
+    await expect(sidebar.getByRole('link', { name: '4. Chaser', exact: true })).toHaveClass(/is-active/);
+    await expect(sidebar.locator('#manual-current-location')).toContainText('Create and Program a Show');
+    await expect(sidebar.locator('#manual-current-location')).toContainText('4. Chaser');
 
     await toggle.click();
     await page.keyboard.press('Escape');
@@ -143,6 +159,9 @@ test.describe('Page link rules', () => {
     await expect(page.locator('.manual-back-to-contents')).toBeHidden();
     await expect(page.locator('.section-pager').first()).toBeHidden();
     await expect(sidebar).toBeVisible();
+    await expect(sidebar.locator('.manual-nav-submenu').first()).toBeVisible();
+    await expect(sidebar.locator('.manual-nav-topic-list').first()).toBeVisible();
+    await expect(page.locator('#table-of-contents + ul > li > ul')).toHaveCount(6);
   });
 
   test('each page Manual button targets an existing manual anchor', async ({ page }) => {

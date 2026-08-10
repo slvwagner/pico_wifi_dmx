@@ -4,6 +4,47 @@
 
 Changed:
 
+- Reworked the first screenshot for every documented application page as a
+  complete overview. Manual capture now expands toolbox rails, individual
+  toolboxes, collapsible panels, and details, then measures the page and uses
+  the required capture height instead of clipping the overview to 1100 pixels.
+  The Controller overview retains every functional area while limiting its
+  long repeated fixture list to a representative set.
+- Corrected manual toolbox captures so each image contains exactly one
+  toolbox at its original rendered pixel scale. The Scenes and Palettes
+  chapter now shows separate matching screenshots instead of Scenes followed
+  by Groups.
+- Documented the Pico firmware diagnostics website in Troubleshooting,
+  including how to obtain its address from Controller → **DMX Outputs**, how
+  to interpret the rolling firmware log, and how to use the direct DMX channel
+  controls without confusing them with the saved show state.
+- Added a dedicated **Tools and Toolboxes** manual point to every operational
+  page chapter. Each point explains the shared toolbox rail or the cards,
+  panels, and controls that replace it, and is available as a third navigation
+  level in the HTML manual and generated PDF contents.
+- Moved Room Plane into **Create and Program a Show** and separated live
+  operation into a new **Run Show** manual group containing Show Run. Page and
+  subsection numbering, generated navigation, and application Manual links now
+  follow the revised groups.
+- Restarted user-manual page numbering within each main navigation group, so
+  every submenu begins at page 1 while all in-application Manual links continue
+  to open the matching renamed anchor.
+- Changed the clean A4 user-manual PDF to a printer-friendly light theme with
+  white pages, dark text, restrained table and code backgrounds, and proper
+  page margins. The interactive HTML and navigable landscape PDF remain dark.
+- Added expandable page submenus to the HTML user manual contents navigation.
+  The current group and page are highlighted while scrolling, and a live
+  breadcrumb identifies the exact subsection being read.
+- Grouped the user manual by operator purpose: getting started; creating,
+  programming, and running a show; testing and diagnostics; advanced tools and
+  data; and troubleshooting/reference. The workflow overview now identifies
+  which pages are used for programming, live operation, diagnostics, or
+  advanced setup.
+- Reworked the user manual's backup chapter around the Controller's Export
+  Show and Import Show workflow, including fixture-resolution choices, Pico
+  slot synchronization after restore, and the distinction between show,
+  library, and Patch CSV exports. Repository backup commands and concurrent
+  persistence details now remain in the engineering README.
 - Documented how independent Room Plane fixture calibration compensates for
   different mounting angles and Pan-zero positions, and explained the accuracy
   limits around raw-DMX Pan wrapping, inconsistent rotation paths, and linear
@@ -56,6 +97,12 @@ Changed:
 
 Fixed:
 
+- Kept wrapped changelog continuation lines inside their list item in the
+  generated HTML and PDF manuals, so the current unreleased section uses the
+  same formatting as previous releases.
+- Preserved the new group-and-page manual structure in both generated PDFs:
+  the document table of contents now renders nested page lists, and the
+  navigable landscape PDF includes those page links in its sidebar.
 - Kept every Patch Fixtures tile and its DMX-output selector inside the Show
   card when the browser or toolbox width changes, including long fixture and
   output names at the narrowest supported Controller layout.

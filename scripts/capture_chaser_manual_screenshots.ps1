@@ -145,6 +145,79 @@ try {
         return $eval.result.result.value
     }
 
+    function Save-PageOverviewScreenshot {
+        param([string]$Name)
+        $timing = Start-ScreenshotTiming -Name $Name
+        $overview = Invoke-PageScript @"
+(async()=>{
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail?.classList.contains('collapsed')&&railToggle)railToggle.click();
+  if(rail){
+    rail.classList.remove('collapsed');
+    rail.style.width='';
+    rail.style.overflow='';
+    document.body.classList.remove('toolbox-rail-collapsed');
+    rail.querySelectorAll('.scene-toolbox,.toolbox-rail-resizer').forEach(el=>el.style.display='');
+  }
+  document.querySelectorAll('.scene-toolbox').forEach(box=>{
+    box.style.display='';
+    if(box.classList.contains('collapsed'))box.querySelector('.scene-toolbox__toggle')?.click();
+    box.classList.remove('collapsed');
+  });
+  document.querySelectorAll('.collapsed-panel').forEach(panel=>{
+    panel.classList.remove('collapsed-panel');
+    const toggle=panel.id?document.querySelector('[data-panel-toggle="'+panel.id+'"]'):null;
+    if(toggle)toggle.textContent='−';
+  });
+  document.querySelectorAll('details').forEach(details=>details.open=true);
+  const main=document.querySelector('main');
+  const railScroll=rail?.querySelector('.toolbox-rail-scroll')||rail;
+  if(main)main.scrollTop=0;
+  if(railScroll){railScroll.scrollTop=0;railScroll.scrollLeft=0;}
+  window.scrollTo(0,0);
+  await wait(350);
+  const mainTop=main?Math.max(0,main.getBoundingClientRect().top):0;
+  const railTop=rail?Math.max(0,rail.getBoundingClientRect().top):0;
+  const mainBottom=mainTop+(main?Math.max(main.clientHeight,main.scrollHeight):0);
+  const railBottom=railTop+(railScroll?Math.max(railScroll.clientHeight,railScroll.scrollHeight):0);
+  const documentBottom=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
+  const height=Math.min(14000,Math.max(1100,Math.ceil(mainBottom+24),Math.ceil(railBottom+24),documentBottom));
+  return JSON.stringify({height});
+})()
+"@
+        if ($overview -is [string]) { $overview = $overview | ConvertFrom-Json }
+        $height = [Math]::Max(1100, [int]$overview.height)
+        try {
+            Send-Cdp "Emulation.setDeviceMetricsOverride" @{
+                width = 1440
+                height = $height
+                deviceScaleFactor = 1
+                mobile = $false
+            } | Out-Null
+            Start-Sleep -Milliseconds 250
+            $shot = Send-Cdp "Page.captureScreenshot" @{
+                format = "png"
+                fromSurface = $true
+                captureBeyondViewport = $true
+                clip = @{ x = 0; y = 0; width = 1440; height = $height; scale = 1 }
+            }
+            if (-not $shot.result.data) { throw "Chrome returned an empty page overview screenshot" }
+            $file = Join-Path $outPath $Name
+            Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
+        }
+        finally {
+            Send-Cdp "Emulation.setDeviceMetricsOverride" @{
+                width = 1440
+                height = 1100
+                deviceScaleFactor = 1
+                mobile = $false
+            } | Out-Null
+        }
+        Complete-ScreenshotTiming -Timing $timing
+    }
+
     function Save-ElementScreenshot {
         param(
             [string]$Selector,
@@ -153,7 +226,7 @@ try {
         $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
         if ($Selector -match '(Box|Toolbox)$') {
-            Invoke-PageScript @"
+            $rect = Invoke-PageScript @"
 (async()=>{
   const selector=$selectorJson;
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -173,18 +246,23 @@ try {
   if(firstBox&&firstBox!==el)scrollHost.insertBefore(el,firstBox);
   scrollHost.scrollTop=0;
   await wait(80);
-  const railRect=rail.getBoundingClientRect();
-  const elRect=el.getBoundingClientRect();
-  scrollHost.scrollTop=Math.max(0,scrollHost.scrollTop+(elRect.top-railRect.top)-64);
   scrollHost.scrollLeft=0;
   await wait(300);
   const firstBoxAfter=scrollHost.querySelector('.scene-toolbox');
   if(firstBoxAfter&&firstBoxAfter!==el)scrollHost.insertBefore(el,firstBoxAfter);
   scrollHost.scrollTop=0;
-  return true;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const rect=el.getBoundingClientRect();
+  if(rect.width<40||rect.height<40)throw new Error('Toolbox screenshot element is too small: '+selector);
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(rect.left)),
+    y:Math.max(0,Math.floor(rect.top)),
+    width:Math.ceil(rect.width),
+    height:Math.ceil(rect.height)
+  });
 })()
-"@ | Out-Null
-            $rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }
+"@
+            if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
         } else {
         $rect = Invoke-PageScript @"
 (async()=>{
@@ -331,11 +409,7 @@ try {
         throw "Chaser docshot did not reach recalled-step state."
     }
 
-    $file = Join-Path $outPath "chaser.png"
-    $timing = Start-ScreenshotTiming -Name ([IO.Path]::GetFileName($file))
-    $shot = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
-    Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
-    Complete-ScreenshotTiming -Timing $timing
+    Save-PageOverviewScreenshot "chaser.png"
 
     Save-ElementScreenshot "#chaserGroupsBox" "chaser-toolbox-groups.png"
     Save-ElementScreenshot "#chaseBox" "chaser-toolbox-chases.png"

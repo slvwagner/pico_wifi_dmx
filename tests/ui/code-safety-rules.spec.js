@@ -486,6 +486,53 @@ test.describe('Code safety regression rules', () => {
     expect(manual).toContain('![Occupied Pico Effects slots](screenshots/motion-pico-slots.png)');
   });
 
+  test('manual toolbox screenshots crop one toolbox at the original pixel scale', () => {
+    const captureScripts = [
+      read('scripts/capture_manual_ui_screenshots.ps1'),
+      read('scripts/capture_chaser_manual_screenshots.ps1')
+    ];
+    const manual = read('docs/user-manual.md');
+
+    captureScripts.forEach(captureScript => {
+      expect(captureScript).toContain('const rect=el.getBoundingClientRect();');
+      expect(captureScript).not.toContain('$rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }');
+      expect(captureScript).toContain('scale = 1');
+    });
+    expect(manual).toContain('![Controller Scenes toolbox](screenshots/fixture-controller-toolbox-scenes.png)');
+    expect(manual).toContain('![Controller Palettes toolbox](screenshots/fixture-controller-toolbox-palettes.png)');
+    expect(manual).not.toContain('fixture-controller-toolbox-scenes-palettes.png');
+  });
+
+  test('manual page overviews expand controls and capture the required page height', () => {
+    const controllerCapture = read('scripts/capture_manual_ui_screenshots.ps1');
+    const chaserCapture = read('scripts/capture_chaser_manual_screenshots.ps1');
+    const pageCapture = read('scripts/capture_manual_page_overviews.ps1');
+
+    expect(controllerCapture).toContain('function Save-PageOverviewScreenshot');
+    expect(controllerCapture).toContain('Save-PageOverviewScreenshot "fixture-controller.png"');
+    expect(controllerCapture).toContain('Save-PageOverviewScreenshot "show-run.png"');
+    expect(controllerCapture).toContain('Save-PageOverviewScreenshot "room-plane.png"');
+    expect(chaserCapture).toContain('function Save-PageOverviewScreenshot');
+    expect(chaserCapture).toContain('Save-PageOverviewScreenshot "chaser.png"');
+    [controllerCapture, chaserCapture, pageCapture].forEach(captureScript => {
+      expect(captureScript).toContain("document.querySelectorAll('.scene-toolbox')");
+      expect(captureScript).toContain("document.querySelectorAll('.collapsed-panel')");
+      expect(captureScript).toContain('Emulation.setDeviceMetricsOverride');
+      expect(captureScript).toContain('captureBeyondViewport = $true');
+    });
+  });
+
+  test('generated manual keeps wrapped changelog text inside its bullet', () => {
+    const navigationHtml = read('docs/user-manual.html');
+
+    expect(navigationHtml).toMatch(
+      /<li>Reworked the first screenshot for every documented application page as a\s+complete overview\. Manual capture now expands toolbox rails/
+    );
+    expect(navigationHtml).not.toMatch(
+      /documented application page as a\s*<\/li>\s*<p>complete overview/
+    );
+  });
+
   test('manual screenshot capture reports per-image timings and slowest-first summaries', () => {
     const helpers = read('scripts/manual_screenshot_helpers.ps1');
     const readmeCapture = read('scripts/capture_manual_ui_screenshots.ps1');
@@ -684,7 +731,34 @@ test.describe('Code safety regression rules', () => {
 
     expect(manual.indexOf('## Table of Contents')).toBeLessThan(manual.indexOf('## Introduction'));
     expect(manual).toContain('- [1. Fixture Controller](#1-fixture-controller)');
+    expect(manual).toContain('- [1. Pico Performance Test](#1-pico-performance-test)');
+    expect(manual).toContain('- [7. Room Plane](#7-room-plane)');
+    expect(manual).toContain('- [Run Show](#run-show)');
+    expect(manual).toContain('  - [1. Show Run](#1-show-run)');
+    [
+      'Fixture Controller',
+      'Scenes and Palettes',
+      'Groups',
+      'Chaser',
+      'Effects',
+      'GPIO Control',
+      'Room Plane',
+      'Show Run',
+      'Pico Performance Test',
+      'DMX Buffer Monitor',
+      'Back Up and Restore',
+      'Clear Functions'
+    ].forEach((pageName) => {
+      expect(manual).toContain(`#### ${pageName} Tools and Toolboxes`);
+    });
+    expect(manual).not.toContain('#8-pico-performance-test');
+    expect(manual).not.toContain('#10-room-plane');
     expect(manual).toContain('- [Change Log](#change-log)');
+    expect(manual).toContain('#### Open the Pico Firmware Diagnostics Page');
+    expect(manual).toContain('Controller → **DMX Outputs**');
+    expect(manual).toContain('**Pico Base URL**');
+    expect(manual).toContain('**DMX controls**');
+    expect(manual).toContain('**Raw logs**');
     expect(manual).toContain('## Change Log');
     expect(manual).toContain('<!-- PICO_DMX_CHANGELOG -->');
     expect(manual.indexOf('## Change Log')).toBeGreaterThan(manual.indexOf('## Troubleshooting'));
@@ -694,6 +768,10 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain("'(?m)^##\\s+', '### '");
     expect(builder).toContain('class="manual-nav"');
     expect(builder).toContain('class="manual-nav-toggle"');
+    expect(builder).toContain('class="manual-nav-submenu"');
+    expect(builder).toContain('class="manual-nav-topic-list"');
+    expect(builder).toContain('id="manual-current-location"');
+    expect(builder).toContain("currentLocation.textContent = path.join(' › ')");
     expect(builder).toContain('class="manual-back-to-contents"');
     expect(builder).toContain("pager.className = 'section-pager'");
     expect(builder).toContain('@media print');
@@ -725,7 +803,12 @@ test.describe('Code safety regression rules', () => {
     expect(macosInstaller).toContain('docs/user-manual-navigation.pdf');
     expect(ubuntuInstaller).toContain('docs/user-manual-navigation.pdf');
     expect(navigationHtml).toContain('<html class="manual-pdf-navigation" lang="en">');
-    expect(printHtml).toContain('<html lang="en">');
+    expect(printHtml).toContain('<html class="manual-print" lang="en">');
+    expect(printHtml).toContain('<li><a href="#getting-started">Getting Started</a>\n<ul>');
+    expect(builder).toContain('html.manual-print {');
+    expect(builder).toContain('color-scheme: light;');
+    expect(builder).toContain('html.manual-print th {');
+    expect(builder).toContain('html.manual-pdf-navigation .manual-nav-submenu {\n    display: block !important;');
   });
 
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {

@@ -164,16 +164,23 @@ if ($manualMarkdown.Contains($changelogMarker)) {
 $lines = $manualMarkdown -split '\r?\n'
 $body = [System.Collections.Generic.List[string]]::new()
 $manualSections = [System.Collections.Generic.List[object]]::new()
+$currentManualSection = $null
+$currentManualPage = $null
 $headingIds = @{}
 $inCode = $false
-$inUl = $false
+$ulDepth = 0
+$openUnorderedListItemIndex = -1
 $inOl = $false
 $inTable = $false
 $codeLines = [System.Collections.Generic.List[string]]::new()
 $tableLines = [System.Collections.Generic.List[string]]::new()
 
 function Close-Lists {
-    if ($script:inUl) { $script:body.Add("</ul>"); $script:inUl = $false }
+    while ($script:ulDepth -gt 0) {
+        $script:body.Add("</li></ul>")
+        $script:ulDepth--
+    }
+    $script:openUnorderedListItemIndex = -1
     if ($script:inOl) { $script:body.Add("</ol>"); $script:inOl = $false }
 }
 
@@ -233,10 +240,28 @@ foreach ($line in $lines) {
     if ($line -match '^(#{1,6})\s+(.+)$') {
         Close-Lists
         $level = $matches[1].Length
-        $id = New-HeadingId $matches[2]
-        $text = Convert-InlineMarkdown $matches[2]
+        $headingSource = $matches[2]
+        $id = New-HeadingId $headingSource
+        $text = Convert-InlineMarkdown $headingSource
+        if ($level -eq 2) {
+            $currentManualPage = $null
+        }
         if ($level -eq 2 -and $id -ne "table-of-contents") {
-            $manualSections.Add([pscustomobject]@{
+            $currentManualSection = [pscustomobject]@{
+                Id = $id
+                TitleHtml = $text
+                Pages = [System.Collections.Generic.List[object]]::new()
+            }
+            $manualSections.Add($currentManualSection)
+        } elseif ($level -eq 3 -and $null -ne $currentManualSection) {
+            $currentManualPage = [pscustomobject]@{
+                Id = $id
+                TitleHtml = $text
+                Topics = [System.Collections.Generic.List[object]]::new()
+            }
+            $currentManualSection.Pages.Add($currentManualPage)
+        } elseif ($level -eq 4 -and $null -ne $currentManualPage -and $headingSource -match 'Tools and Toolboxes$') {
+            $currentManualPage.Topics.Add([pscustomobject]@{
                 Id = $id
                 TitleHtml = $text
             })
@@ -245,13 +270,31 @@ foreach ($line in $lines) {
         continue
     }
 
-    if ($line -match '^\s*-\s+(.+)$') {
-        if (-not $inUl) {
-            Close-Lists
-            $body.Add("<ul>")
-            $inUl = $true
+    if ($line -match '^(\s*)-\s+(.+)$') {
+        if ($inOl) {
+            $body.Add("</ol>")
+            $inOl = $false
         }
-        $body.Add("<li>" + (Convert-InlineMarkdown $matches[1]) + "</li>")
+        $targetDepth = [math]::Floor($matches[1].Length / 2) + 1
+        if ($targetDepth -gt ($ulDepth + 1)) { $targetDepth = $ulDepth + 1 }
+        if ($targetDepth -gt $ulDepth) {
+            while ($ulDepth -lt $targetDepth) {
+                $body.Add("<ul>")
+                $ulDepth++
+            }
+            $body.Add("<li>" + (Convert-InlineMarkdown $matches[2]))
+            $openUnorderedListItemIndex = $body.Count - 1
+        } elseif ($targetDepth -eq $ulDepth) {
+            $body.Add("</li><li>" + (Convert-InlineMarkdown $matches[2]))
+            $openUnorderedListItemIndex = $body.Count - 1
+        } else {
+            while ($ulDepth -gt $targetDepth) {
+                $body.Add("</li></ul>")
+                $ulDepth--
+            }
+            $body.Add("</li><li>" + (Convert-InlineMarkdown $matches[2]))
+            $openUnorderedListItemIndex = $body.Count - 1
+        }
         continue
     }
 
@@ -265,6 +308,14 @@ foreach ($line in $lines) {
         continue
     }
 
+    # Markdown permits a list item's prose to continue on an indented physical
+    # line. Keep that text in the open <li>; otherwise wrapped changelog entries
+    # become unrelated paragraphs in the generated manuals.
+    if ($ulDepth -gt 0 -and $openUnorderedListItemIndex -ge 0 -and $line -match '^\s{2,}(\S.*)$') {
+        $body[$openUnorderedListItemIndex] += " " + (Convert-InlineMarkdown $matches[1])
+        continue
+    }
+
     Close-Lists
     $body.Add("<p>" + (Convert-InlineMarkdown $line) + "</p>")
 }
@@ -273,10 +324,45 @@ Flush-Table
 Close-Lists
 
 $manualNavItems = @($manualSections | ForEach-Object {
-    "<li><a href=`"#$($_.Id)`">$($_.TitleHtml)</a></li>"
+    $section = $_
+    $submenuId = "manual-nav-$($section.Id)"
+    $pageItems = @($section.Pages | ForEach-Object {
+        $page = $_
+        if ($page.Topics.Count -eq 0) {
+            "<li><a href=`"#$($page.Id)`">$($page.TitleHtml)</a></li>"
+        } else {
+            $topicListId = "manual-nav-topics-$($page.Id)"
+            $topicItems = @($page.Topics | ForEach-Object {
+                "<li><a href=`"#$($_.Id)`">$($_.TitleHtml)</a></li>"
+            }) -join "`n"
+            @"
+<li class="manual-nav-page" data-page-id="$($page.Id)">
+  <div class="manual-nav-page-row">
+    <a href="#$($page.Id)">$($page.TitleHtml)</a>
+    <button class="manual-nav-page-toggle" type="button" aria-controls="$topicListId" aria-expanded="false" aria-label="Show manual points for this page">⌄</button>
+  </div>
+  <ul class="manual-nav-topic-list" id="$topicListId" hidden>
+$topicItems
+  </ul>
+</li>
+"@
+        }
+    }) -join "`n"
+    @"
+<li class="manual-nav-group" data-section-id="$($section.Id)">
+  <div class="manual-nav-group-row">
+    <a href="#$($section.Id)">$($section.TitleHtml)</a>
+    <button class="manual-nav-group-toggle" type="button" aria-controls="$submenuId" aria-expanded="false" aria-label="Show pages in this section">⌄</button>
+  </div>
+  <ul class="manual-nav-submenu" id="$submenuId" hidden>
+$pageItems
+  </ul>
+</li>
+"@
 }) -join "`n"
-$htmlClass = if ($PdfWithNavigation) { ' class="manual-pdf-navigation"' } else { "" }
+$htmlClass = if ($PdfWithNavigation) { ' class="manual-pdf-navigation"' } else { ' class="manual-print"' }
 $pdfPageSize = if ($PdfWithNavigation) { "A4 landscape" } else { "A4" }
+$pdfPageMargin = if ($PdfWithNavigation) { "0" } else { "12mm" }
 
 $html = @"
 <!doctype html>
@@ -296,7 +382,7 @@ $html = @"
   --accent: #37c4a4;
   --warn: #ffbc6b;
 }
-@page { size: $pdfPageSize; margin: 0; }
+@page { size: $pdfPageSize; margin: $pdfPageMargin; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -390,6 +476,37 @@ img {
   break-inside: avoid;
 }
 strong { color: #ffffff; }
+html.manual-print {
+  color-scheme: light;
+  --bg: #ffffff;
+  --paper: #ffffff;
+  --panel: #f3f5f4;
+  --line: #aeb8b5;
+  --text: #111715;
+  --muted: #46534f;
+  --accent: #006b5b;
+  --warn: #844400;
+}
+html.manual-print h1,
+html.manual-print strong {
+  color: #111715;
+}
+html.manual-print h3 {
+  color: #214941;
+}
+html.manual-print code,
+html.manual-print pre {
+  border-color: #c7cfcc;
+  background: #f3f5f4;
+  color: #111715;
+}
+html.manual-print th {
+  background: #e3e9e7;
+  color: #111715;
+}
+html.manual-print td {
+  background: #ffffff;
+}
 .manual-nav-toggle {
   position: fixed;
   top: 14px;
@@ -491,8 +608,15 @@ body.manual-nav-open .manual-nav-backdrop {
   padding: 0;
   list-style: none;
 }
-.manual-nav-list li {
+.manual-nav-list li,
+.manual-nav-submenu {
   margin: 2px 0;
+}
+.manual-nav-group-row,
+.manual-nav-page-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: stretch;
 }
 .manual-nav-list a {
   display: block;
@@ -512,6 +636,76 @@ body.manual-nav-open .manual-nav-backdrop {
   background: #20332f;
   color: #ffffff;
   font-weight: 700;
+}
+.manual-nav-group-toggle,
+.manual-nav-page-toggle {
+  min-width: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 19px;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.manual-nav-group-toggle:hover,
+.manual-nav-group-toggle:focus-visible,
+.manual-nav-page-toggle:hover,
+.manual-nav-page-toggle:focus-visible {
+  background: #1d2a34;
+  color: #ffffff;
+}
+.manual-nav-group-toggle[aria-expanded="true"],
+.manual-nav-page-toggle[aria-expanded="true"] {
+  transform: rotate(180deg);
+}
+.manual-nav-submenu {
+  padding: 2px 0 4px 13px;
+  list-style: none;
+  border-left: 1px solid var(--line);
+}
+.manual-nav-submenu[hidden] {
+  display: none;
+}
+.manual-nav-submenu a {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.manual-nav-topic-list {
+  margin: 0 0 3px 10px;
+  padding: 2px 0 2px 9px;
+  list-style: none;
+  border-left: 1px dashed var(--line);
+}
+.manual-nav-topic-list[hidden] {
+  display: none;
+}
+.manual-nav-topic-list a {
+  padding: 5px 7px;
+  font-size: 11px;
+}
+.manual-current-location {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #101820;
+}
+.manual-current-location span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.manual-current-location strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
 }
 .manual-back-to-contents {
   position: fixed;
@@ -662,8 +856,20 @@ body.manual-nav-open .manual-nav-backdrop {
     font-size: 14px;
   }
   html.manual-pdf-navigation .manual-nav-close,
-  html.manual-pdf-navigation .manual-nav-downloads {
+  html.manual-pdf-navigation .manual-nav-downloads,
+  html.manual-pdf-navigation .manual-current-location,
+  html.manual-pdf-navigation .manual-nav-group-toggle,
+  html.manual-pdf-navigation .manual-nav-page-toggle {
     display: none !important;
+  }
+  html.manual-pdf-navigation .manual-nav-group-row,
+  html.manual-pdf-navigation .manual-nav-page-row {
+    display: block;
+  }
+  html.manual-pdf-navigation .manual-nav-submenu {
+    display: block !important;
+    margin: 0;
+    padding: 0 0 2px 8px;
   }
   html.manual-pdf-navigation .manual-nav-list li {
     margin: 0;
@@ -674,11 +880,39 @@ body.manual-nav-open .manual-nav-backdrop {
     font-size: 9px;
     line-height: 1.2;
   }
+  html.manual-pdf-navigation .manual-nav-submenu a {
+    padding: 1px 4px;
+    font-size: 7.5px;
+    line-height: 1.1;
+  }
+  html.manual-pdf-navigation .manual-nav-topic-list {
+    display: block !important;
+    margin: 0;
+    padding: 0 0 1px 12px;
+    border-left: 0;
+  }
+  html.manual-pdf-navigation .manual-nav-topic-list a {
+    padding: 0 3px;
+    font-size: 6.5px;
+    line-height: 1.05;
+  }
   html.manual-pdf-navigation .manual-nav-list a.is-active {
     border-left-color: transparent;
     background: transparent;
     color: var(--muted);
     font-weight: 400;
+  }
+  html.manual-print body {
+    padding: 0;
+    background: #ffffff;
+  }
+  html.manual-print main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #ffffff;
   }
 }
 </style>
@@ -695,6 +929,10 @@ body.manual-nav-open .manual-nav-backdrop {
     <a href="user-manual.pdf">Clean PDF</a>
     <a href="user-manual-navigation.pdf">PDF with navigation</a>
   </div>
+  <p class="manual-current-location">
+    <span>Current location</span>
+    <strong id="manual-current-location">Table of Contents</strong>
+  </p>
   <ul class="manual-nav-list">
     <li><a href="#table-of-contents">Full table of contents</a></li>
 $manualNavItems
@@ -712,9 +950,45 @@ $($body -join "`n")
   const backdrop = document.querySelector('.manual-nav-backdrop');
   const nav = document.querySelector('.manual-nav');
   const main = document.getElementById('manual-content');
+  const currentLocation = document.getElementById('manual-current-location');
   const navLinks = Array.from(nav.querySelectorAll('a[href^="#"]'));
+  const navGroups = Array.from(nav.querySelectorAll('.manual-nav-group'));
+  const navPages = Array.from(nav.querySelectorAll('.manual-nav-page'));
+  const groupToggles = Array.from(nav.querySelectorAll('.manual-nav-group-toggle'));
+  const pageToggles = Array.from(nav.querySelectorAll('.manual-nav-page-toggle'));
   const sectionHeadings = Array.from(main.querySelectorAll(':scope > h2[id]'))
     .filter(function (heading) { return heading.id !== 'table-of-contents'; });
+  const locationHeadings = Array.from(main.querySelectorAll(':scope > h2[id], :scope > h3[id], :scope > h4[id]'));
+
+  function setGroupExpanded(group, expanded) {
+    const button = group.querySelector('.manual-nav-group-toggle');
+    const submenu = group.querySelector('.manual-nav-submenu');
+    if (!button || !submenu) { return; }
+    button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    submenu.hidden = !expanded;
+  }
+
+  groupToggles.forEach(function (button) {
+    button.addEventListener('click', function () {
+      const group = button.closest('.manual-nav-group');
+      setGroupExpanded(group, button.getAttribute('aria-expanded') !== 'true');
+    });
+  });
+
+  function setPageExpanded(pageItem, expanded) {
+    const button = pageItem.querySelector('.manual-nav-page-toggle');
+    const topicList = pageItem.querySelector('.manual-nav-topic-list');
+    if (!button || !topicList) { return; }
+    button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    topicList.hidden = !expanded;
+  }
+
+  pageToggles.forEach(function (button) {
+    button.addEventListener('click', function () {
+      const pageItem = button.closest('.manual-nav-page');
+      setPageExpanded(pageItem, button.getAttribute('aria-expanded') !== 'true');
+    });
+  });
 
   function setDrawerOpen(open) {
     body.classList.toggle('manual-nav-open', open);
@@ -763,26 +1037,67 @@ $($body -join "`n")
     }
   });
 
-  function activateSection(id) {
+  function getLocationPath(heading) {
+    const path = [];
+    let expectedLevel = Number(heading.tagName.slice(1));
+    let index = locationHeadings.indexOf(heading);
+    for (; index >= 0 && expectedLevel >= 2; index -= 1) {
+      const candidate = locationHeadings[index];
+      const level = Number(candidate.tagName.slice(1));
+      if (level === expectedLevel) {
+        path.unshift(candidate.textContent.trim());
+        expectedLevel -= 1;
+      }
+    }
+    return path;
+  }
+
+  function activateLocation(heading) {
+    const path = getLocationPath(heading);
+    const locationIds = new Set();
+    const navIds = new Set(navLinks.map(function (link) { return link.getAttribute('href').slice(1); }));
+    let activeNavId = '';
+    let index = locationHeadings.indexOf(heading);
+    let expectedLevel = Number(heading.tagName.slice(1));
+    for (; index >= 0 && expectedLevel >= 2; index -= 1) {
+      const candidate = locationHeadings[index];
+      const level = Number(candidate.tagName.slice(1));
+      if (level === expectedLevel) {
+        locationIds.add(candidate.id);
+        if (!activeNavId && navIds.has(candidate.id)) { activeNavId = candidate.id; }
+        expectedLevel -= 1;
+      }
+    }
     navLinks.forEach(function (link) {
-      const active = link.getAttribute('href') === '#' + id;
+      const active = locationIds.has(link.getAttribute('href').slice(1));
       link.classList.toggle('is-active', active);
-      if (active) {
+      if (link.getAttribute('href') === '#' + activeNavId) {
         link.setAttribute('aria-current', 'location');
       } else {
         link.removeAttribute('aria-current');
       }
     });
+    navGroups.forEach(function (group) {
+      const active = locationIds.has(group.dataset.sectionId);
+      group.classList.toggle('is-current-group', active);
+      if (active) { setGroupExpanded(group, true); }
+    });
+    navPages.forEach(function (pageItem) {
+      const active = locationIds.has(pageItem.dataset.pageId);
+      pageItem.classList.toggle('is-current-page', active);
+      if (active) { setPageExpanded(pageItem, true); }
+    });
+    currentLocation.textContent = path.join(' › ');
   }
 
   let updateQueued = false;
   function updateActiveSection() {
     updateQueued = false;
-    let current = sectionHeadings[0];
-    sectionHeadings.forEach(function (heading) {
+    let current = locationHeadings[0];
+    locationHeadings.forEach(function (heading) {
       if (heading.getBoundingClientRect().top <= 150) { current = heading; }
     });
-    if (current) { activateSection(current.id); }
+    if (current) { activateLocation(current); }
   }
   function queueActiveSectionUpdate() {
     if (updateQueued) { return; }

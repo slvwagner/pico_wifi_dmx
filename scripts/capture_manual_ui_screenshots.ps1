@@ -158,6 +158,79 @@ try {
         Complete-ScreenshotTiming -Timing $timing
     }
 
+    function Save-PageOverviewScreenshot {
+        param([string]$Name)
+        $timing = Start-ScreenshotTiming -Name $Name
+        $overview = Invoke-PageScript @"
+(async()=>{
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail?.classList.contains('collapsed')&&railToggle)railToggle.click();
+  if(rail){
+    rail.classList.remove('collapsed');
+    rail.style.width='';
+    rail.style.overflow='';
+    document.body.classList.remove('toolbox-rail-collapsed');
+    rail.querySelectorAll('.scene-toolbox,.toolbox-rail-resizer').forEach(el=>el.style.display='');
+  }
+  document.querySelectorAll('.scene-toolbox').forEach(box=>{
+    box.style.display='';
+    if(box.classList.contains('collapsed'))box.querySelector('.scene-toolbox__toggle')?.click();
+    box.classList.remove('collapsed');
+  });
+  document.querySelectorAll('.collapsed-panel').forEach(panel=>{
+    panel.classList.remove('collapsed-panel');
+    const toggle=panel.id?document.querySelector('[data-panel-toggle="'+panel.id+'"]'):null;
+    if(toggle)toggle.textContent='−';
+  });
+  document.querySelectorAll('details').forEach(details=>details.open=true);
+  const main=document.querySelector('main');
+  const railScroll=rail?.querySelector('.toolbox-rail-scroll')||rail;
+  if(main)main.scrollTop=0;
+  if(railScroll){railScroll.scrollTop=0;railScroll.scrollLeft=0;}
+  window.scrollTo(0,0);
+  await wait(350);
+  const mainTop=main?Math.max(0,main.getBoundingClientRect().top):0;
+  const railTop=rail?Math.max(0,rail.getBoundingClientRect().top):0;
+  const mainBottom=mainTop+(main?Math.max(main.clientHeight,main.scrollHeight):0);
+  const railBottom=railTop+(railScroll?Math.max(railScroll.clientHeight,railScroll.scrollHeight):0);
+  const documentBottom=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
+  const height=Math.min(14000,Math.max(1100,Math.ceil(mainBottom+24),Math.ceil(railBottom+24),documentBottom));
+  return JSON.stringify({height});
+})()
+"@
+        if ($overview -is [string]) { $overview = $overview | ConvertFrom-Json }
+        $height = [Math]::Max(1100, [int]$overview.height)
+        try {
+            Send-Cdp "Emulation.setDeviceMetricsOverride" @{
+                width = 1440
+                height = $height
+                deviceScaleFactor = 1
+                mobile = $false
+            } | Out-Null
+            Start-Sleep -Milliseconds 250
+            $result = Send-Cdp "Page.captureScreenshot" @{
+                format = "png"
+                fromSurface = $true
+                captureBeyondViewport = $true
+                clip = @{ x = 0; y = 0; width = 1440; height = $height; scale = 1 }
+            }
+            if (-not $result.result.data) { throw "Chrome returned an empty page overview screenshot" }
+            $file = Join-Path $outPath $Name
+            Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+        }
+        finally {
+            Send-Cdp "Emulation.setDeviceMetricsOverride" @{
+                width = 1440
+                height = 1100
+                deviceScaleFactor = 1
+                mobile = $false
+            } | Out-Null
+        }
+        Complete-ScreenshotTiming -Timing $timing
+    }
+
     function Save-ToolboxEditScreenshot {
         param([string]$Name)
         $timing = Start-ScreenshotTiming -Name $Name
@@ -209,7 +282,7 @@ try {
         $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
         if ($Selector -match '(Box|Toolbox)$') {
-            Invoke-PageScript @"
+            $rect = Invoke-PageScript @"
 (async()=>{
   const selector=$selectorJson;
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -229,18 +302,23 @@ try {
   if(firstBox&&firstBox!==el)scrollHost.insertBefore(el,firstBox);
   scrollHost.scrollTop=0;
   await wait(80);
-  const railRect=rail.getBoundingClientRect();
-  const elRect=el.getBoundingClientRect();
-  scrollHost.scrollTop=Math.max(0,scrollHost.scrollTop+(elRect.top-railRect.top)-64);
   scrollHost.scrollLeft=0;
   await wait(300);
   const firstBoxAfter=scrollHost.querySelector('.scene-toolbox');
   if(firstBoxAfter&&firstBoxAfter!==el)scrollHost.insertBefore(el,firstBoxAfter);
   scrollHost.scrollTop=0;
-  return true;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const rect=el.getBoundingClientRect();
+  if(rect.width<40||rect.height<40)throw new Error('Toolbox screenshot element is too small: '+selector);
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(rect.left)),
+    y:Math.max(0,Math.floor(rect.top)),
+    width:Math.ceil(rect.width),
+    height:Math.ceil(rect.height)
+  });
 })()
-"@ | Out-Null
-            $rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }
+"@
+            if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
         } else {
         $rect = Invoke-PageScript @"
 (async()=>{
@@ -459,21 +537,24 @@ try {
   };
 
   docShots.setSetupSections({profiles:false,patch:false});
-  docShots.setToolboxRail({collapsed:true});
+  docShots.setToolboxRail({collapsed:false});
   docShots.setGroupsBox({visible:true,open:true});
   ['profiles','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
-  localStorage.setItem('toolboxRailCollapsed','1');
+  localStorage.setItem('toolboxRailCollapsed','0');
   localStorage.setItem('groupsBoxCollapsed','0');
   localStorage.setItem('fixtureCardCollapsed','[]');
   docShots.expandFixtureCards();
+  document.querySelectorAll('.fixture-card').forEach((card,index)=>{
+    card.style.display=index<8?'':'none';
+  });
   document.querySelector('main')?.scrollTo(0,0);
   await docShots.wait(300);
-  docShots.setToolboxRail({collapsed:true});
+  docShots.setToolboxRail({collapsed:false});
   await docShots.wait();
 })()
 "@
-    Save-Screenshot "fixture-controller-expanded.png"
-    Save-Screenshot "fixture-controller.png"
+    Save-PageOverviewScreenshot "fixture-controller-expanded.png"
+    Save-PageOverviewScreenshot "fixture-controller.png"
 
     Eval-Js @"
 (async()=>{
@@ -972,7 +1053,7 @@ try {
   await wait(600);
 })()
 "@
-    Save-Screenshot "show-run.png"
+    Save-PageOverviewScreenshot "show-run.png"
     Save-ElementScreenshot "#cardMaster" "show-run-card-master.png"
     Save-ElementScreenshot "#cardGroup" "show-run-card-groups.png"
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
@@ -1288,7 +1369,7 @@ try {
   await wait(300);
 })()
 "@
-    Save-Screenshot "room-plane.png"
+    Save-PageOverviewScreenshot "room-plane.png"
     Save-ElementScreenshot "#roomPlaneBox" "room-plane-toolbox-plane.png"
     Save-ElementScreenshot "#roomPlaneLibraryBox" "room-plane-toolbox-saved-planes.png"
     Save-ElementScreenshot "#roomFixturesBox" "room-plane-toolbox-fixtures.png"
@@ -1517,7 +1598,7 @@ try {
         $state = $chaserState.result.result.value
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
-    Save-Screenshot "chaser-readme.png"
+    Save-PageOverviewScreenshot "chaser-readme.png"
     Save-ElementScreenshot "#chaserPlanesBox" "chaser-toolbox-planes.png"
 
     $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
