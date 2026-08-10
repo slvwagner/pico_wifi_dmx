@@ -570,6 +570,13 @@ test.describe('Code safety regression rules', () => {
     );
   });
 
+  test('generated Performance Test guidance keeps prose inside complete paragraphs', () => {
+    const navigationHtml = read('docs/user-manual.html');
+
+    expect(navigationHtml).not.toContain('</p>\n<p>latency, <strong>Playback + Palette Stress</strong>');
+    expect(navigationHtml).not.toContain('</p>\n<p>started and records their Pico URL and slot numbers');
+  });
+
   test('application-page chapters introduce the page before describing its tools', () => {
     const manual = read('docs/user-manual.md');
     const pages = [

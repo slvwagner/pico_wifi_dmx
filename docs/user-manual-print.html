@@ -1995,25 +1995,8 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>Set its <strong>Start channel</strong>, number of <strong>Channels</strong>, and test <strong>Value</strong>, then click <strong>Read Back</strong>. The requested channel range is clipped to the 512-channel universe. Because the operation writes real output before reading it, use an unused range or disconnect fixtures when the test value must not be visible on stage.</p>
 <p>Use <strong>MIDI-to-DMX Latency</strong> to measure a controller event through the browser and the selected Pico output. Configure and verify the outputs in Controller → <strong>DMX Outputs</strong>, then click <strong>Connect MIDI</strong> for USB hardware or open the visible <strong>MIDI Emulator</strong> when you want to perform a standalone manual test. Select whether the Show Run target behaves as a <strong>Fader / knob (30 ms)</strong> or an immediate <strong>Button</strong>, choose an unused DMX test channel and sample count, then start the measurement. For a manual test, move one control and pause until <strong>Move again</strong> appears for each sample. USB and emulator events use the same measurement handler after ingestion; the emulator substitutes a same-origin <code>BroadcastChannel</code> hop for the physical USB/driver hop.</p>
 <p>The primary result is <strong>MIDI → POST</strong>: time from the MIDI event until the browser starts the <code>/dmx/b</code> request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.</p>
-<p><strong>Run Full Test</strong> runs status/telemetry, buffer readback, DMX write load, MIDI</p>
-<p>latency, <strong>Playback + Palette Stress</strong>, and a final telemetry snapshot for the</p>
-<p>selected target. With <strong>All configured Picos</strong>, that complete sequence runs</p>
-<p>once per Pico. It needs no manual MIDI movement when the emulator is used. If</p>
-<p>no MIDI input is connected, the Performance page loads the emulator invisibly</p>
-<p>inside itself, keeps browser focus on the Performance page, and commands it to</p>
-<p>generate every configured sample through the normal emulator message path. No</p>
-<p>extra tab opens. If a physical USB MIDI input is already connected, Full Test</p>
-<p>uses it and waits for you to move the hardware control for each target. If</p>
-<p>neither source can connect, the other checks still finish and the MIDI result</p>
-<p>shows a warning. The dedicated <strong>MIDI-to-DMX timing</strong> card and Timing History</p>
-<p>store the MIDI-to-POST median and p95.</p>
-<p><strong>Playback + Palette Stress</strong> fills only slots that were empty when the test</p>
-<p>started and records their Pico URL and slot numbers before loading temporary</p>
-<p>data. Cleanup stops playback, lets the Pico settle, spaces the clear requests,</p>
-<p>and verifies the Chaser and Effects slot tables. Transient failures are retried</p>
-<p>up to five times. The test remains busy until cleanup is verified. If any slot</p>
-<p>cannot be cleared, the result names the Pico and remaining slots and keeps the</p>
-<p>recovery record for the next cleanup attempt instead of silently forgetting it.</p>
+<p><strong>Run Full Test</strong> runs status/telemetry, buffer readback, DMX write load, MIDI latency, <strong>Playback + Palette Stress</strong>, and a final telemetry snapshot for the selected target. With <strong>All configured Picos</strong>, that complete sequence runs once per Pico. It needs no manual MIDI movement when the emulator is used. If no MIDI input is connected, the Performance page loads the emulator invisibly inside itself, keeps browser focus on the Performance page, and commands it to generate every configured sample through the normal emulator message path. No extra tab opens. If a physical USB MIDI input is already connected, Full Test uses it and waits for you to move the hardware control for each target. If neither source can connect, the other checks still finish and the MIDI result shows a warning. The dedicated <strong>MIDI-to-DMX timing</strong> card and Timing History store the MIDI-to-POST median and p95.</p>
+<p><strong>Playback + Palette Stress</strong> fills only slots that were empty when the test started and records their Pico URL and slot numbers before loading temporary data. Cleanup stops playback, lets the Pico settle, spaces the clear requests, and verifies the Chaser and Effects slot tables. Transient failures are retried up to five times. The test remains busy until cleanup is verified. If any slot cannot be cleared, the result names the Pico and remaining slots and keeps the recovery record for the next cleanup attempt instead of silently forgetting it.</p>
 <p>Use <strong>DMX Write Test</strong> to compare:</p>
 <ul>
 <li>Single-channel updates
@@ -2233,7 +2216,8 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li></ul>
 <p>Fixed:</p>
 <ul>
-<li>Captured every Show Run card at its full page position so the sticky header no longer covers card titles, descriptions, selectors, or action buttons in the user-manual screenshots.
+<li>Kept the wrapped Pico Performance Test guidance inside complete paragraphs in the generated HTML and PDF user manuals.
+</li><li>Captured every Show Run card at its full page position so the sticky header no longer covers card titles, descriptions, selectors, or action buttons in the user-manual screenshots.
 </li><li>Kept the Show Run manual overview in its normal operator state instead of capturing the automatically opened Hidden Show Items modal, and added a separate deterministic modal screenshot beside its layout-recovery guidance.
 </li><li>Kept wrapped changelog continuation lines inside their list item in the generated HTML and PDF manuals, so the current unreleased section uses the same formatting as previous releases.
 </li><li>Preserved the new group-and-page manual structure in both generated PDFs: the document table of contents now renders nested page lists, and the navigable landscape PDF includes those page links in its sidebar.

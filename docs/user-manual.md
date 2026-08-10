@@ -1733,26 +1733,9 @@ Use **MIDI-to-DMX Latency** to measure a controller event through the browser an
 
 The primary result is **MIDI → POST**: time from the MIDI event until the browser starts the `/dmx/b` request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.
 
-**Run Full Test** runs status/telemetry, buffer readback, DMX write load, MIDI
-latency, **Playback + Palette Stress**, and a final telemetry snapshot for the
-selected target. With **All configured Picos**, that complete sequence runs
-once per Pico. It needs no manual MIDI movement when the emulator is used. If
-no MIDI input is connected, the Performance page loads the emulator invisibly
-inside itself, keeps browser focus on the Performance page, and commands it to
-generate every configured sample through the normal emulator message path. No
-extra tab opens. If a physical USB MIDI input is already connected, Full Test
-uses it and waits for you to move the hardware control for each target. If
-neither source can connect, the other checks still finish and the MIDI result
-shows a warning. The dedicated **MIDI-to-DMX timing** card and Timing History
-store the MIDI-to-POST median and p95.
+**Run Full Test** runs status/telemetry, buffer readback, DMX write load, MIDI latency, **Playback + Palette Stress**, and a final telemetry snapshot for the selected target. With **All configured Picos**, that complete sequence runs once per Pico. It needs no manual MIDI movement when the emulator is used. If no MIDI input is connected, the Performance page loads the emulator invisibly inside itself, keeps browser focus on the Performance page, and commands it to generate every configured sample through the normal emulator message path. No extra tab opens. If a physical USB MIDI input is already connected, Full Test uses it and waits for you to move the hardware control for each target. If neither source can connect, the other checks still finish and the MIDI result shows a warning. The dedicated **MIDI-to-DMX timing** card and Timing History store the MIDI-to-POST median and p95.
 
-**Playback + Palette Stress** fills only slots that were empty when the test
-started and records their Pico URL and slot numbers before loading temporary
-data. Cleanup stops playback, lets the Pico settle, spaces the clear requests,
-and verifies the Chaser and Effects slot tables. Transient failures are retried
-up to five times. The test remains busy until cleanup is verified. If any slot
-cannot be cleared, the result names the Pico and remaining slots and keeps the
-recovery record for the next cleanup attempt instead of silently forgetting it.
+**Playback + Palette Stress** fills only slots that were empty when the test started and records their Pico URL and slot numbers before loading temporary data. Cleanup stops playback, lets the Pico settle, spaces the clear requests, and verifies the Chaser and Effects slot tables. Transient failures are retried up to five times. The test remains busy until cleanup is verified. If any slot cannot be cleared, the result names the Pico and remaining slots and keeps the recovery record for the next cleanup attempt instead of silently forgetting it.
 
 Use **DMX Write Test** to compare:
 

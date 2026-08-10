@@ -101,6 +101,8 @@ Changed:
 
 Fixed:
 
+- Kept the wrapped Pico Performance Test guidance inside complete paragraphs
+  in the generated HTML and PDF user manuals.
 - Captured every Show Run card at its full page position so the sticky header
   no longer covers card titles, descriptions, selectors, or action buttons in
   the user-manual screenshots.
