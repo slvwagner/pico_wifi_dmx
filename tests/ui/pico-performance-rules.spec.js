@@ -81,6 +81,13 @@ test.describe('Pico Performance Test established rules', () => {
       contentType: 'application/json',
       body: '{"ok":true}'
     }));
+    for (const cleanupPath of ['chaser/stop', 'motion/stop', 'dmx/master/clear', 'dmx/blackout/clear', 'dmx/clear']) {
+      await page.route(`http://127.0.0.1:18992/${cleanupPath}`, route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true}'
+      }));
+    }
     const values = Array.from({ length: 512 }, () => 73);
     await page.route('http://127.0.0.1:18992/dmx/output.json', route => route.fulfill({
       status: 200,
@@ -95,6 +102,11 @@ test.describe('Pico Performance Test established rules', () => {
   });
 
   test('checks Pico logs and buffer readback from the configured base URL', async ({ page }) => {
+    const picoRequests = [];
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (url.origin === 'http://127.0.0.1:18992') picoRequests.push(url.pathname);
+    });
     await openDmxPage(page, 'test/');
     await expect(page.locator('header h1')).toContainText('Pico Performance Test');
     await expect(page.locator('#connectionTimingPanel + #timingHistoryPanel')).toBeVisible();
@@ -124,6 +136,23 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
+    await expect(page.locator('#status')).toContainText('Playback stopped and DMX output cleared');
+    const finalWriteIndex = picoRequests.lastIndexOf('/dmx/b');
+    for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+      expect(picoRequests.lastIndexOf(cleanupPath)).toBeGreaterThan(finalWriteIndex);
+    }
+
+    const writeTestStart = picoRequests.length;
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#durationSec').fill('0');
+    await page.locator('#btnStart').click();
+    await expect(page.locator('#btnStart')).toBeEnabled();
+    await expect(page.locator('#status')).toContainText('DMX write test complete. Playback stopped and DMX output cleared');
+    const writeTestRequests = picoRequests.slice(writeTestStart);
+    const loadWriteIndex = Math.max(writeTestRequests.lastIndexOf('/dmx/set'), writeTestRequests.lastIndexOf('/dmx/b'));
+    for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+      expect(writeTestRequests.lastIndexOf(cleanupPath)).toBeGreaterThan(loadWriteIndex);
+    }
   });
 
   test('fails clearly when the Pico firmware version does not match the deployed application', async ({ page }) => {
@@ -287,6 +316,10 @@ test.describe('Pico Performance Test established rules', () => {
       expect(paths).toContain('/dmx/output.json');
       expect(paths).toContain('/dmx/base');
       expect(paths).toContain('/dmx/b');
+      const finalWriteIndex = paths.lastIndexOf('/dmx/b');
+      for (const cleanupPath of ['/chaser/stop', '/motion/stop', '/dmx/master/clear', '/dmx/blackout/clear', '/dmx/clear']) {
+        expect(paths.lastIndexOf(cleanupPath)).toBeGreaterThan(finalWriteIndex);
+      }
     }
   });
 
@@ -436,6 +469,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.evaluate(() => window.__emitMidiLatency([0xb0, 21, 100]));
     await expect(page.locator('#midiLatencyResultsBody tr')).toHaveCount(2);
     await expect(page.locator('#midiLatencyStatus')).toContainText('Complete');
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Playback stopped and DMX output cleared');
     await expect(page.locator('#midiLatencyMedian')).not.toHaveText('—');
     await expect(page.locator('#midiLatencyP95')).not.toHaveText('—');
     await expect(page.locator('#midiLatencyTransportP95')).not.toHaveText('—');
@@ -765,6 +799,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#btnRunPlaybackPaletteStress').click();
 
     await expect(page.locator('#btnRunPlaybackPaletteStress')).toBeEnabled({ timeout: 15000 });
+    await expect(page.locator('#status')).toContainText('Playback stopped and DMX output cleared');
     await expect(page.locator('#checkWrite .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkWrite .check-detail')).toContainText('2 chaser and 2 effect slots');
     expect(loadedRequests).toEqual([]);

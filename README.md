@@ -661,6 +661,14 @@ retries transient failures before deleting its recovery record. The test remains
 busy until cleanup finishes. Pico requests and repeated write errors are bounded
 so one offline output cannot leave the button disabled.
 
+Every output-changing Performance Test action finishes independently for each
+tested Pico by stopping Chaser and Effects playback, clearing master and
+blackout overrides, and clearing the complete DMX output buffer. This applies
+to Buffer Readback, DMX Write Test, MIDI-to-DMX Latency, Playback + Palette
+Stress, and Run Full Test, including stopped or failed runs. The page reports
+the affected Pico and endpoint if cleanup cannot be completed. **Check Pico** is
+read-only and therefore does not stop playback or clear output.
+
 MIDI receive diagnostics:
 
 | Item | Value |

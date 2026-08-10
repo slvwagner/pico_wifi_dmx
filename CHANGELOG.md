@@ -107,6 +107,10 @@ Changed:
 
 Fixed:
 
+- Finished every output-changing Performance test on every tested Pico by
+  stopping Chaser and Effects, clearing master and blackout overrides, and
+  clearing the complete DMX output buffer after the final measurement, with
+  explicit reporting if cleanup fails.
 - Calculated Room Plane fixture-to-target guide lines in rendered pixels, so
   they terminate on the red target at wide desktop aspect ratios and continue
   to do so while the toolbox rail or browser changes the plane width.
