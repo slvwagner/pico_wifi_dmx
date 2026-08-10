@@ -2,24 +2,24 @@
 
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
-- **Latest stable release:** `1.2.0`
+- **Latest stable release:** `1.3.0`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Getting Started
 
 For a customer PC running 64-bit Windows, download and run the current
-**[WiFiPicoDMX 1.2.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/wifi-pico-dmx-1.2.0-windows-x64.exe)**.
+**[WiFiPicoDMX 1.3.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.3.0/wifi-pico-dmx-1.3.0-windows-x64.exe)**.
 The installer includes the customer application, local web server, manual, and
 guided Pico firmware updater. Because the current installer is unsigned,
 Windows can display a SmartScreen publisher warning.
 
 For a 64-bit Ubuntu or Debian computer, download the
-**[WiFiPicoDMX 1.2.0 Debian package](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/wifi-pico-dmx_1.2.0_amd64.deb)**
-and install it with `sudo apt install ./wifi-pico-dmx_1.2.0_amd64.deb`.
+**[WiFiPicoDMX 1.3.0 Debian package](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.3.0/wifi-pico-dmx_1.3.0_amd64.deb)**
+and install it with `sudo apt install ./wifi-pico-dmx_1.3.0_amd64.deb`.
 
 Read the matching
-**[WiFiPicoDMX 1.2.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/user-manual.pdf)**
+**[WiFiPicoDMX 1.3.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.3.0/user-manual.pdf)**
 for installation, firmware flashing, show setup, and operation instructions.
 
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
