@@ -48,7 +48,8 @@ Fixed:
 
 - Fixed the deterministic manual workflow racing the Effects page's saved UI
   state and asynchronous scene/palette loads. Repeated release captures now
-  wait for stable documentation data before creating the Effects overview.
+  wait for stable documentation data and no longer schedule a delayed panel
+  collapse before creating the fully expanded Effects overview.
 - Fixed Show Run keeping Pico Effects tiles in the **Stop** state after a
   Single or Loop N effect completed autonomously. While playback is active or
   paused, Show Run now follows the live state of every linked Pico slot and

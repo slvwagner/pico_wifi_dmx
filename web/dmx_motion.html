@@ -2447,10 +2447,6 @@ if(!motionDocshotOverview){
   });
 }else{
   const applyMotionDocshotSlots=()=>{
-    const participationPanel=document.getElementById('fxPanel');
-    const participationToggle=document.querySelector('[data-panel-toggle="fxPanel"]');
-    if(participationPanel)participationPanel.classList.add('collapsed-panel');
-    if(participationToggle)participationToggle.textContent='+';
     const docPicoSlots=Array.from({length:PICO_SLOT_COUNT},(_,slot)=>({
       slot,loaded:false,active:false,paused:false,type:0,mode:1,loop_count:1,completed_loops:0,bpm:30,target_count:0,fixture_count:0
     }));
@@ -2462,8 +2458,6 @@ if(!motionDocshotOverview){
     setStatus('Documentation example with occupied Pico effect slots');
   };
   applyMotionDocshotSlots();
-  setTimeout(applyMotionDocshotSlots,500);
-  setTimeout(applyMotionDocshotSlots,1500);
 }
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;

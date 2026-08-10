@@ -720,6 +720,8 @@ test.describe('Code safety regression rules', () => {
 
     expect(motion).toContain('window.motionDocshotReady=Promise.allSettled');
     expect(motion).toContain('if(!motionDocshotOverview){\n  (async()=>{');
+    expect(motion).not.toContain("participationPanel.classList.add('collapsed-panel')");
+    expect(motion).not.toContain('setTimeout(applyMotionDocshotSlots');
     expect(overviewCapture).toContain('if(window.motionDocshotReady)await window.motionDocshotReady;');
   });
 

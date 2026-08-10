@@ -2234,7 +2234,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li></ul>
 <p>Fixed:</p>
 <ul>
-<li>Fixed the deterministic manual workflow racing the Effects page&#39;s saved UI state and asynchronous scene/palette loads. Repeated release captures now wait for stable documentation data before creating the Effects overview.
+<li>Fixed the deterministic manual workflow racing the Effects page&#39;s saved UI state and asynchronous scene/palette loads. Repeated release captures now wait for stable documentation data and no longer schedule a delayed panel collapse before creating the fully expanded Effects overview.
 </li><li>Fixed Show Run keeping Pico Effects tiles in the <strong>Stop</strong> state after a Single or Loop N effect completed autonomously. While playback is active or paused, Show Run now follows the live state of every linked Pico slot and returns the tile to <strong>Start</strong> once all participating Picos have stopped.
 </li><li>Fixed fixture-to-target guide lines in every Recall Plane modal when its whiteboard changes size or aspect ratio. Controller, Chaser, Effects, and Show Run now use the same pixel-correct line renderer and redraw whenever their Plane canvas is resized.
 </li><li>Fixed VS Code losing the Pico executable target whenever CMake Tools was reloaded. The workspace now configures CMake on open without waiting on Pico-extension command substitutions, and the malformed Cortex-Debug launch configuration has been corrected.
