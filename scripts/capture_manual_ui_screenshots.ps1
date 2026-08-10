@@ -277,10 +277,12 @@ try {
     function Save-ElementScreenshot {
         param(
             [string]$Selector,
-            [string]$Name
+            [string]$Name,
+            [switch]$WithoutScrolling
         )
         $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
+        $withoutScrollingJs = if ($WithoutScrolling) { "true" } else { "false" }
         if ($Selector -match '(Box|Toolbox)$') {
             $rect = Invoke-PageScript @"
 (async()=>{
@@ -344,7 +346,8 @@ try {
       width:Math.ceil(r.width),
       height:Math.ceil(r.height)
     });
-  } else {
+  }
+  if(!rail&&!$withoutScrollingJs) {
     el.scrollIntoView({block:'start',inline:'nearest'});
   }
   await wait(220);
@@ -1030,6 +1033,12 @@ try {
   motionCols=2;motionRows=1;
   cardOrder=['master','group','fixture','scene','palette','matrix','plane','chaser','motion','live','midi'];
   cardLayouts={};
+  hiddenTileModalDismissed=true;
+  ['group','fixture','scene','palette','matrix','plane','chaser','motion'].forEach(kind=>{
+    if(showUiState)showUiState[hiddenKeyStateKey(kind)]=[];
+    localStorage.setItem(layoutKey(hiddenKeyStateKey(kind)),'[]');
+    displayOrders[kind]=sourceEntries(kind).map(entry=>entry.key);
+  });
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
     {id:'doc_live_red',fixtureId:990101,controlId:990012,part:'a',widget:'knob',label:'Red'},
@@ -1047,6 +1056,7 @@ try {
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof renderCardGrid==='function')renderCardGrid();
+  if(typeof closeHiddenTileModal==='function')closeHiddenTileModal();
   if(typeof setStatus==='function')setStatus('Show Run demo ready');
   document.querySelector('main')?.scrollTo(0,0);
   window.scrollTo(0,0);
@@ -1054,17 +1064,37 @@ try {
 })()
 "@
     Save-PageOverviewScreenshot "show-run.png"
-    Save-ElementScreenshot "#cardMaster" "show-run-card-master.png"
-    Save-ElementScreenshot "#cardGroup" "show-run-card-groups.png"
-    Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
-    Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
-    Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
-    Save-ElementScreenshot "#cardMatrix" "show-run-card-pixel-matrices.png"
-    Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png"
-    Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
-    Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"
-    Save-ElementScreenshot "#cardLive" "show-run-card-live-controls.png"
-    Save-ElementScreenshot "#cardMidi" "show-run-card-midi.png"
+    Save-ElementScreenshot "#cardMaster" "show-run-card-master.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardGroup" "show-run-card-groups.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardMatrix" "show-run-card-pixel-matrices.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardLive" "show-run-card-live-controls.png" -WithoutScrolling
+    Save-ElementScreenshot "#cardMidi" "show-run-card-midi.png" -WithoutScrolling
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  hiddenTileModalDismissed=true;
+  sceneCols=2;sceneRows=1;
+  chaserCols=2;chaserRows=1;
+  motionCols=2;motionRows=1;
+  displayOrders.scene=['doc_scene_1',null,'doc_scene_2'];
+  displayOrders.chaser=[null,null,'1'];
+  displayOrders.motion=[null,null,'0'];
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  if(typeof renderScenes==='function')renderScenes();
+  if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
+  if(typeof openHiddenTileModal==='function')openHiddenTileModal(allHiddenTileRows());
+  await wait(400);
+})()
+"@
+    Save-ElementScreenshot "#hiddenTileModal .modal-card" "show-run-hidden-items.png"
+    Eval-Js "if(typeof closeHiddenTileModal==='function')closeHiddenTileModal();"
 
     Eval-Js @"
 (async()=>{

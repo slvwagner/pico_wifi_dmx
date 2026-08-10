@@ -191,6 +191,11 @@
       "purpose": "Show Run Add Card modal with repeatable card types"
     },
     {
+      "file": "show-run-hidden-items.png",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
+      "purpose": "Show Run Hidden Show Items recovery modal"
+    },
+    {
       "file": "show-run-layout-edit.png",
       "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run layout editing with repeated cards and empty positions"

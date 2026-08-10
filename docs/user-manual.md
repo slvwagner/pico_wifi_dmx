@@ -1663,6 +1663,8 @@ Each tile section on Show Run has native **Cols** and **Rows** dropdowns like th
 
 If saved groups, scenes, palettes, planes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes/planes or moved playback slots from being silently hidden on a row that is not currently displayed.
 
+![Hidden Show Items modal](screenshots/show-run-hidden-items.png)
+
 While **Edit** is active, saved group, scene, and palette tiles also show the small pencil and `x` actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed and where the tile's MIDI mapping can be learned or cleared. These visual edits change the shared saved tile, so the updated name/color/icon appears on the setup page and in every Show Run card that uses that item. The small tile `x` only removes that item from the current Show Run card position. It does not delete the saved group, scene, or palette from the XAMPP setup files, and it does not remove that same item from another repeated Show Run card.
 
 ![Show Run Tile Actions](screenshots/show-run-tile-actions.png)

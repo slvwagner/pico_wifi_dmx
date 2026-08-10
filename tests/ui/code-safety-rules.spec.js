@@ -522,6 +522,43 @@ test.describe('Code safety regression rules', () => {
     });
   });
 
+  test('Show Run overview excludes the hidden-items modal and documents it separately', () => {
+    const capture = read('scripts/capture_manual_ui_screenshots.ps1');
+    const manual = read('docs/user-manual.md');
+    const manifest = read('docs/screenshot-manifest.json');
+    const overviewCapture = capture.indexOf('Save-PageOverviewScreenshot "show-run.png"');
+
+    expect(overviewCapture).toBeGreaterThan(-1);
+    expect(capture.lastIndexOf('hiddenTileModalDismissed=true;', overviewCapture)).toBeGreaterThan(-1);
+    expect(capture.lastIndexOf('closeHiddenTileModal();', overviewCapture)).toBeGreaterThan(-1);
+    expect(capture).toContain('Save-ElementScreenshot "#hiddenTileModal .modal-card" "show-run-hidden-items.png"');
+    expect(manual).toContain('![Hidden Show Items modal](screenshots/show-run-hidden-items.png)');
+    expect(manifest).toContain('"file": "show-run-hidden-items.png"');
+  });
+
+  test('Show Run card screenshots preserve the complete card above the sticky header', () => {
+    const capture = read('scripts/capture_manual_ui_screenshots.ps1');
+    const cardScreenshots = [
+      ['#cardMaster', 'show-run-card-master.png'],
+      ['#cardGroup', 'show-run-card-groups.png'],
+      ['#cardFixture', 'show-run-card-fixtures.png'],
+      ['#cardScene', 'show-run-card-scenes.png'],
+      ['#cardPalette', 'show-run-card-palettes.png'],
+      ['#cardMatrix', 'show-run-card-pixel-matrices.png'],
+      ['#cardPlane', 'show-run-card-planes.png'],
+      ['#cardChaser', 'show-run-card-chaser.png'],
+      ['#cardMotion', 'show-run-card-effects.png'],
+      ['#cardLive', 'show-run-card-live-controls.png'],
+      ['#cardMidi', 'show-run-card-midi.png']
+    ];
+
+    expect(capture).toContain('[switch]$WithoutScrolling');
+    expect(capture).toContain('if(!rail&&!$withoutScrollingJs)');
+    cardScreenshots.forEach(([selector, filename]) => {
+      expect(capture).toContain(`Save-ElementScreenshot "${selector}" "${filename}" -WithoutScrolling`);
+    });
+  });
+
   test('generated manual keeps wrapped changelog text inside its bullet', () => {
     const navigationHtml = read('docs/user-manual.html');
 

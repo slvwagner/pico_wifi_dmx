@@ -101,6 +101,12 @@ Changed:
 
 Fixed:
 
+- Captured every Show Run card at its full page position so the sticky header
+  no longer covers card titles, descriptions, selectors, or action buttons in
+  the user-manual screenshots.
+- Kept the Show Run manual overview in its normal operator state instead of
+  capturing the automatically opened Hidden Show Items modal, and added a
+  separate deterministic modal screenshot beside its layout-recovery guidance.
 - Kept wrapped changelog continuation lines inside their list item in the
   generated HTML and PDF manuals, so the current unreleased section uses the
   same formatting as previous releases.
