@@ -22,7 +22,8 @@ function Save-PageScreenshot {
     param(
         [string]$Name,
         [string]$Url,
-        [int]$Width = 1440
+        [int]$Width = 1440,
+        [int]$MinimumHeight = 1100
     )
 
     $timing = Start-ScreenshotTiming -Name $Name
@@ -147,12 +148,13 @@ function Save-PageScreenshot {
   const mainBottom=mainTop+(main?Math.max(main.clientHeight,main.scrollHeight):0);
   const railBottom=railTop+(railScroll?Math.max(railScroll.clientHeight,railScroll.scrollHeight):0);
   const documentBottom=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-  const height=Math.min(14000,Math.max(1100,Math.ceil(mainBottom+24),Math.ceil(railBottom+24),documentBottom));
+  const documentExtent=$MinimumHeight>=1100?documentBottom:0;
+  const height=Math.min(14000,Math.max($MinimumHeight,Math.ceil(mainBottom+24),Math.ceil(railBottom+24),documentExtent));
   return JSON.stringify({height});
 })()
 "@
         if ($overview -is [string]) { $overview = $overview | ConvertFrom-Json }
-        $height = [Math]::Max(1100, [int]$overview.height)
+        $height = [Math]::Max($MinimumHeight, [int]$overview.height)
         Send-OverviewCdp "Emulation.setDeviceMetricsOverride" @{
             width = $Width
             height = $height
@@ -185,6 +187,8 @@ try {
     Save-PageScreenshot "gpio-control.png" ($rootUrl + "/dmx_gpio.html")
     Save-PageScreenshot "dmx-monitor.png" ($rootUrl + "/dmx_monitor.html")
     Save-PageScreenshot "benchmark.png" ($rootUrl + "/test/")
+    Save-PageScreenshot "pico-firmware-logs.png" ($rootUrl + "/firmware-docshot/") -Width 1100 -MinimumHeight 420
+    Save-PageScreenshot "pico-firmware-dmx-controls.png" ($rootUrl + "/firmware-docshot/dmx.html") -Width 1100 -MinimumHeight 700
 }
 finally {
     Write-ScreenshotTimingSummary

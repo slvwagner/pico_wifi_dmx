@@ -1908,6 +1908,8 @@ If several Picos are configured, each has its own Base URL and firmware page. Op
 
 The Pico opens its **Pico 2W Logs** page by default. The visible log refreshes once per second without reloading the page. **Raw logs** opens the same information as plain text, which is useful when copying it into a support report.
 
+![Pico firmware logs page](screenshots/pico-firmware-logs.png)
+
 The log is a rolling, in-memory diagnostic record from the current firmware run. It contains only the most recent data and is cleared when the Pico restarts. Typical entries include:
 
 - Wi-Fi connection state and the assigned IPv4 and IPv6 addresses
@@ -1919,6 +1921,8 @@ The log is a rolling, in-memory diagnostic record from the current firmware run.
 Use the log to confirm that Wi-Fi and the HTTP server started, that the DMX engine is running, and whether timing or frame errors increase while reproducing a problem. The Pico Performance Test presents the same kind of timing information with PASS/WARN/FAIL interpretation and is normally easier for routine checks. Keep the raw log when reporting an intermittent firmware problem.
 
 Select **DMX controls** on the log page to open the Pico's direct channel test page. Its header shows whether DMX is running, the configured channel count, and the current frame counter. **Status JSON** opens the underlying firmware status as machine-readable text.
+
+![Pico firmware DMX controls](screenshots/pico-firmware-dmx-controls.png)
 
 The DMX controls operate as follows:
 

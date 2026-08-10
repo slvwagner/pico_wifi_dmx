@@ -394,6 +394,16 @@
       "file": "room-plane-fixture-editor.png",
       "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane fixture calibration editor with Recall and Store buttons"
+    },
+    {
+      "file": "pico-firmware-logs.png",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
+      "purpose": "Deterministic Pico firmware rolling diagnostics log page"
+    },
+    {
+      "file": "pico-firmware-dmx-controls.png",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
+      "purpose": "Deterministic Pico firmware direct DMX channel controls"
     }
   ]
 }

@@ -883,6 +883,24 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('html.manual-pdf-navigation .manual-nav-submenu {\n    display: block !important;');
   });
 
+  test('manual includes deterministic Pico firmware diagnostics screenshots', () => {
+    const manual = read('docs/user-manual.md');
+    const manifest = read('docs/screenshot-manifest.json');
+    const capture = read('scripts/capture_manual_page_overviews.ps1');
+    const router = read('tools/local-server/router.php');
+    const firmwareDocshot = read('tools/local-server/firmware_docshot.php');
+
+    ['pico-firmware-logs.png', 'pico-firmware-dmx-controls.png'].forEach((filename) => {
+      expect(manual).toContain(`screenshots/${filename}`);
+      expect(manifest).toContain(`"file": "${filename}"`);
+      expect(capture).toContain(filename);
+    });
+    expect(capture).toContain('/firmware-docshot/');
+    expect(capture).toContain('/firmware-docshot/dmx.html');
+    expect(router).toContain('firmware_docshot.php');
+    expect(firmwareDocshot).toContain("serveFirmwareDocshotPage($firmwareSourcePath, 'build_http_page')");
+  });
+
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');

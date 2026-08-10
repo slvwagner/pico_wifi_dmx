@@ -652,6 +652,8 @@ Fixed:
 
 Added:
 
+- Added deterministic Pico firmware Logs and DMX Controls screenshots to the
+  Troubleshooting and Reference manual section without requiring Pico hardware.
 - Added a **Clear all** action to the DMX Buffer Monitor to immediately clear both the Pico DMX output buffer and base buffer, then refresh the displayed values.
 
 ## 0.9.1 - 2026-05-24

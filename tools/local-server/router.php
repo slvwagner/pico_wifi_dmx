@@ -40,6 +40,11 @@ $apiRoutes = [
     '/host_access.php' => "$root/api/host_access.php",
 ];
 
+if (str_starts_with($path, '/firmware-docshot/')) {
+    require __DIR__ . '/firmware_docshot.php';
+    return true;
+}
+
 if (isset($apiRoutes[$path])) {
     require $apiRoutes[$path];
     return true;

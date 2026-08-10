@@ -2126,6 +2126,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </ol>
 <p>If several Picos are configured, each has its own Base URL and firmware page. Opening the controller computer&#39;s address, such as <code>http://localhost:8090/</code> or <code>http://localhost/dmx/</code>, opens the WiFiPicoDMX application instead. Do not expose either interface through an internet-router port-forward.</p>
 <p>The Pico opens its <strong>Pico 2W Logs</strong> page by default. The visible log refreshes once per second without reloading the page. <strong>Raw logs</strong> opens the same information as plain text, which is useful when copying it into a support report.</p>
+<p><img src="screenshots/pico-firmware-logs.png" alt="Pico firmware logs page" style="--manual-image-width: 76.3889%" data-native-width="1100"></p>
 <p>The log is a rolling, in-memory diagnostic record from the current firmware run. It contains only the most recent data and is cleared when the Pico restarts. Typical entries include:</p>
 <ul>
 <li>Wi-Fi connection state and the assigned IPv4 and IPv6 addresses
@@ -2136,6 +2137,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li></ul>
 <p>Use the log to confirm that Wi-Fi and the HTTP server started, that the DMX engine is running, and whether timing or frame errors increase while reproducing a problem. The Pico Performance Test presents the same kind of timing information with PASS/WARN/FAIL interpretation and is normally easier for routine checks. Keep the raw log when reporting an intermittent firmware problem.</p>
 <p>Select <strong>DMX controls</strong> on the log page to open the Pico&#39;s direct channel test page. Its header shows whether DMX is running, the configured channel count, and the current frame counter. <strong>Status JSON</strong> opens the underlying firmware status as machine-readable text.</p>
+<p><img src="screenshots/pico-firmware-dmx-controls.png" alt="Pico firmware DMX controls" style="--manual-image-width: 76.3889%" data-native-width="1100"></p>
 <p>The DMX controls operate as follows:</p>
 <ul>
 <li><strong>Channel</strong> selects one DMX address. <strong>Previous 32</strong> and <strong>Next 32</strong> move through the universe, and every channel tile shows the latest value read by this page.
@@ -2701,7 +2703,8 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </li></ul>
 <p>Added:</p>
 <ul>
-<li>Added a <strong>Clear all</strong> action to the DMX Buffer Monitor to immediately clear both the Pico DMX output buffer and base buffer, then refresh the displayed values.
+<li>Added deterministic Pico firmware Logs and DMX Controls screenshots to the Troubleshooting and Reference manual section without requiring Pico hardware.
+</li><li>Added a <strong>Clear all</strong> action to the DMX Buffer Monitor to immediately clear both the Pico DMX output buffer and base buffer, then refresh the displayed values.
 </li></ul>
 <h3 id="0-9-1-2026-05-24">0.9.1 - 2026-05-24</h3>
 <p>Changed:</p>
