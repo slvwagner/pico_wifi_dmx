@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..', '..');
-const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
+const read = relative => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n');
 
 test.describe('Code safety regression rules', () => {
   test('VS Code configures CMake targets after its extension state is reloaded', () => {
