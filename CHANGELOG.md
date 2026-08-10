@@ -4,6 +4,10 @@
 
 Changed:
 
+- Restructured application-page chapters in the user manual around an
+  unnumbered page title, introductory overview, purpose, tools/toolboxes, and
+  detailed instructions. Removed artificial page and subsection numbering so
+  navigation describes content rather than implying a required step order.
 - Reworked the first screenshot for every documented application page as a
   complete overview. Manual capture now expands toolbox rails, individual
   toolboxes, collapsible panels, and details, then measures the page and uses

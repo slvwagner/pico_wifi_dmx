@@ -9,33 +9,31 @@
   - [Ubuntu Customer Installation](#ubuntu-customer-installation)
   - [Choose a Workflow](#choose-a-workflow)
 - [Create and Program a Show](#create-and-program-a-show)
-  - [1. Fixture Controller](#1-fixture-controller)
+  - [Fixture Controller](#fixture-controller)
     - [Fixture Controller Tools and Toolboxes](#fixture-controller-tools-and-toolboxes)
-  - [2. Scenes And Palettes](#2-scenes-and-palettes)
+  - [Scenes And Palettes](#scenes-and-palettes)
     - [Scenes and Palettes Tools and Toolboxes](#scenes-and-palettes-tools-and-toolboxes)
-  - [3. Groups](#3-groups)
+  - [Groups](#groups)
     - [Groups Tools and Toolboxes](#groups-tools-and-toolboxes)
-  - [4. Chaser](#4-chaser)
+  - [Chaser](#chaser)
     - [Chaser Tools and Toolboxes](#chaser-tools-and-toolboxes)
-  - [5. Effects](#5-effects)
+  - [Effects](#effects)
     - [Effects Tools and Toolboxes](#effects-tools-and-toolboxes)
-  - [6. GPIO Control](#6-gpio-control)
+  - [GPIO Control](#gpio-control)
     - [GPIO Control Tools and Toolboxes](#gpio-control-tools-and-toolboxes)
-  - [7. Room Plane](#7-room-plane)
+  - [Room Plane](#room-plane)
     - [Room Plane Tools and Toolboxes](#room-plane-tools-and-toolboxes)
 - [Run Show](#run-show)
-  - [1. Show Run](#1-show-run)
+  - [Show Run](#show-run)
     - [Show Run Tools and Toolboxes](#show-run-tools-and-toolboxes)
 - [Testing and Diagnostics](#testing-and-diagnostics)
-  - [1. Pico Performance Test](#1-pico-performance-test)
+  - [Pico Performance Test](#pico-performance-test)
     - [Pico Performance Test Tools and Toolboxes](#pico-performance-test-tools-and-toolboxes)
-  - [2. DMX Buffer Monitor](#2-dmx-buffer-monitor)
+  - [DMX Buffer Monitor](#dmx-buffer-monitor)
     - [DMX Buffer Monitor Tools and Toolboxes](#dmx-buffer-monitor-tools-and-toolboxes)
 - [Advanced Tools and Data](#advanced-tools-and-data)
-  - [1. Back Up and Restore a Show](#1-back-up-and-restore-a-show)
-    - [Back Up and Restore Tools and Toolboxes](#back-up-and-restore-tools-and-toolboxes)
-  - [2. Clear Functions](#2-clear-functions)
-    - [Clear Functions Tools and Toolboxes](#clear-functions-tools-and-toolboxes)
+  - [Back Up and Restore a Show](#back-up-and-restore-a-show)
+  - [Clear Functions](#clear-functions)
 - [Troubleshooting and Reference](#troubleshooting-and-reference)
   - [Troubleshooting](#troubleshooting)
     - [Open the Pico Firmware Diagnostics Page](#open-the-pico-firmware-diagnostics-page)
@@ -172,29 +170,33 @@ Application files remain below `/opt/pico-dmx-controller`, while customer shows 
 
 | Use | Page | Purpose |
 | --- | --- | --- |
-| Set up and program | [Fixture Controller](#1-fixture-controller) | Configure outputs and fixtures, patch channels, build groups, and create scenes and palettes |
-| Set up and program | [Chaser](#4-chaser) | Build step-based chases and load them into Pico playback slots |
-| Set up and program | [Effects](#5-effects) | Build continuous movement or scalar effects and load them into Pico playback slots |
-| Set up and program | [GPIO Control](#6-gpio-control) | Map Pico GPIO buttons and ADC inputs to show actions |
-| Run the show | [Show Run](#1-show-run) | Recall programmed show items from an operator-focused page without changing their setup |
+| Set up and program | [Fixture Controller](#fixture-controller) | Configure outputs and fixtures, patch channels, build groups, and create scenes and palettes |
+| Set up and program | [Chaser](#chaser) | Build step-based chases and load them into Pico playback slots |
+| Set up and program | [Effects](#effects) | Build continuous movement or scalar effects and load them into Pico playback slots |
+| Set up and program | [GPIO Control](#gpio-control) | Map Pico GPIO buttons and ADC inputs to show actions |
+| Run the show | [Show Run](#show-run) | Recall programmed show items from an operator-focused page without changing their setup |
 | Run the show | [MIDI Emulator](#midi-controller-card) | Test Show Run MIDI mappings without a physical MIDI controller |
-| Test and diagnose | [Pico Performance Test](#1-pico-performance-test) | Check connectivity, firmware, memory, timing, and playback stress behavior |
-| Test and diagnose | [DMX Buffer Monitor](#2-dmx-buffer-monitor) | Inspect all 512 live-output or base-buffer channel values |
-| Set up and program | [Room Plane](#7-room-plane) | Calibrate moving lights to shared positions on a measured room plane |
+| Test and diagnose | [Pico Performance Test](#pico-performance-test) | Check connectivity, firmware, memory, timing, and playback stress behavior |
+| Test and diagnose | [DMX Buffer Monitor](#dmx-buffer-monitor) | Inspect all 512 live-output or base-buffer channel values |
+| Set up and program | [Room Plane](#room-plane) | Calibrate moving lights to shared positions on a measured room plane |
 
 ## Create and Program a Show
 
 Use these pages while building and programming the show. Start with Fixture Controller, create reusable scenes and groups, prepare Chaser, Effects, and GPIO operation, and calibrate moving lights with Room Plane.
 
-### 1. Fixture Controller
+### Fixture Controller
 
-#### Fixture Controller Tools and Toolboxes
-
-The Controller combines the main **Show**, **Fixture Library**, **Patch Fixtures**, and **Control Surface** cards with a reorderable toolbox rail. Use the main cards to manage the show, profiles, patch, and live fixture tiles. Use the **DMX Outputs**, **Fixtures**, **Groups**, **Scenes**, **Palettes**, **Fan Out**, and **Pixel Matrices** toolboxes for reusable setup and batch control; the detailed toolbox behavior is documented later in this chapter. The overview keeps every section and toolbox expanded while limiting the repeated Control Surface fixture tiles to a representative set so the whole page remains readable.
+The Fixture Controller is the central programming page. Use it first when setting up a new show or fixture set. This overview keeps every section and toolbox expanded while limiting the repeated Control Surface fixture tiles to a representative set so the whole page remains readable.
 
 ![Fixture Controller](screenshots/fixture-controller.png)
 
-The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.
+#### What You Can Do on Fixture Controller
+
+Use Fixture Controller to configure Pico outputs, maintain fixture profiles, patch fixtures, control their live values, and create reusable groups, scenes, palettes, fan-outs, and Pixel Matrices.
+
+#### Fixture Controller Tools and Toolboxes
+
+The Controller combines the main **Show**, **Fixture Library**, **Patch Fixtures**, and **Control Surface** cards with a reorderable toolbox rail. Use the main cards to manage the show, profiles, patch, and live fixture tiles. Use the **DMX Outputs**, **Fixtures**, **Groups**, **Scenes**, **Palettes**, **Fan Out**, and **Pixel Matrices** toolboxes for reusable setup and batch control; the detailed toolbox behavior is documented later in this chapter.
 
 #### Configure Picos and Read Header Status
 
@@ -564,13 +566,19 @@ Use Toolboxes **Edit** when you want to reorder palette tiles. The same interact
 - While Toolboxes Edit is active, clicking a palette tile does not recall or save it.
 - Click **Done** in the Toolboxes header when you are done organizing the palette grid.
 
-### 2. Scenes And Palettes
+### Scenes And Palettes
+
+Scenes and palettes are reusable programming building blocks on the Fixture Controller. A scene stores a complete fixture look, while a palette stores reusable values for compatible controls.
+
+![Fixture Controller overview with expanded toolboxes](screenshots/fixture-controller.png)
+
+#### What You Can Do with Scenes and Palettes
+
+Use scenes to save and recall complete fixture looks. Use palettes to reuse compatible control values across fixtures and programming pages without rebuilding those values each time.
 
 #### Scenes and Palettes Tools and Toolboxes
 
-Scenes and palettes are programmed from the Controller's **Scenes** and **Palettes** toolboxes and recalled from their saved tiles. A scene stores a complete fixture look, while a palette stores reusable values for compatible controls. Show Run, Chaser, Effects, and Room Plane expose recall-oriented versions where those saved items are useful without duplicating their editors.
-
-![Fixture Controller overview with expanded toolboxes](screenshots/fixture-controller.png)
+Scenes and palettes are programmed from the Controller's **Scenes** and **Palettes** toolboxes and recalled from their saved tiles. Show Run, Chaser, Effects, and Room Plane expose recall-oriented versions where those saved items are useful without duplicating their editors.
 
 ![Controller Scenes toolbox](screenshots/fixture-controller-toolbox-scenes.png)
 
@@ -578,7 +586,7 @@ Scenes and palettes are programmed from the Controller's **Scenes** and **Palett
 
 The Scenes and Palettes toolboxes are available together on the Fixture Controller page. Each screenshot keeps the toolbox at its normal Controller scale.
 
-Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
+Scenes store controller values by fixture/control key, not a raw 512-channel DMX dump.
 
 The small top-left pencil icon on a filled scene slot opens the same **Edit Tile** modal used by palettes. A scene can be renamed and can have a background color plus an optional drawn/uploaded visual in its slot. The canvas background follows the selected background color, and the brush color is calculated for contrast against it. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This name and visual are only labels for finding the scene quickly; scene save and recall still use the stored fixture values.
 
@@ -616,17 +624,21 @@ The red **Clear all DMX channels** button clears controller values and calls `/d
 
 The Scene Toolbox sits in the shared **Toolboxes** sidebar. Its slot grid follows the configured rows and columns, and the tile size expands to the available sidebar width while keeping the old minimum slot size.
 
-### 3. Groups
+### Groups
+
+Groups are saved fixture selections used throughout show programming and operation.
+
+![Fixture Controller overview with expanded toolboxes](screenshots/fixture-controller.png)
+
+#### What You Can Do with Groups
+
+Use a group to select several fixtures quickly, filter the current work area, and edit compatible controls across those fixtures together.
 
 #### Groups Tools and Toolboxes
 
 The **Groups** toolbox selects saved fixture sets and opens **Group Edit** for compatible controls across the selected fixtures. Group tiles are shared by Controller, Chaser, Effects, and Room Plane, but each page applies the selection to its own work area. Show Run provides recall-oriented group tiles instead of the programming toolbox.
 
-![Fixture Controller overview with expanded toolboxes](screenshots/fixture-controller.png)
-
 ![Fixture group edit modal](screenshots/fixture-controller-group-modal.png)
-
-Groups let you control multiple fixtures at once.
 
 #### Create a Group
 
@@ -690,15 +702,19 @@ Keep these rules as the contract:
 - Group selection is a filter. If groups are selected, Group Edit uses only compatible fixtures inside those groups.
 - Direct scope changes, such as Select All, Participating Controls All, or Effects All, clear the saved-group filter and make the page scope the source of truth.
 
-### 4. Chaser
+### Chaser
 
-#### Chaser Tools and Toolboxes
-
-The Chaser page has a central chase-step work area and a shared toolbox rail. Use **Groups**, **Scenes**, **Palettes**, **Fan Out**, and **Planes** to prepare values and participating fixtures; use **Chases** and **Chase Steps** to manage saved chases and edit their steps; use **Browser Playback** and **Pico Chaser Slots** to test or deploy playback. The dedicated sections below explain each area and its selection rules.
+The Chaser page creates and tests step-based lighting sequences. The overview shows every toolbox and collapsible work panel expanded.
 
 ![Chaser](screenshots/chaser.png)
 
-The Chaser page creates step-based sequences. The main page stays focused on **Participating Controls** and **Edit Step**, while the repeated working tools sit in the **Toolboxes** sidebar.
+#### What You Can Do on Chaser
+
+Use Chaser to choose participating fixture controls, build and time steps, test a chase in the browser, and deploy it to synchronized Pico playback slots.
+
+#### Chaser Tools and Toolboxes
+
+The Chaser page has a central chase-step work area and a shared toolbox rail. Use **Groups**, **Scenes**, **Palettes**, **Fan Out**, and **Planes** to prepare values and participating fixtures; use **Chases** and **Chase Steps** to manage saved chases and edit their steps; use **Browser Playback** and **Pico Chaser Slots** to test or deploy playback. The main page stays focused on **Participating Controls** and **Edit Step**, while the repeated working tools sit in the **Toolboxes** sidebar.
 
 The Chaser overview is captured with every toolbox and collapsible work panel expanded. To reorder the toolboxes, click **Edit** in the Toolboxes header, drag colored toolbox headers up or down, and click **Done**. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.
 
@@ -968,15 +984,19 @@ Direction sets the first playback direction for the slot. In Ping Pong mode the 
 
 Each chaser slot supports up to 32 steps.
 
-### 5. Effects
+### Effects
+
+The Effects page creates continuous movement and scalar effects for selected fixtures and controls.
+
+![Effects](screenshots/motion-fx.png)
+
+#### What You Can Do on Effects
+
+Use Effects to choose participating fixtures, configure one effect target, test it in the browser, save reusable definitions, and deploy autonomous playback to synchronized Pico slots. It can drive a combined pan/tilt target or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris.
 
 #### Effects Tools and Toolboxes
 
 The Effects page combines participating-fixture cards and effect parameters with a shared toolbox rail. **Groups**, **Scenes**, **Palettes**, **Fan Out**, and **Planes** establish targets and base values; **Effects** loads and saves effect definitions; **Pico Effects Slots** deploys autonomous playback. Selecting a toolbox item does not automatically enable unrelated effect targets.
-
-![Effects](screenshots/motion-fx.png)
-
-Effects creates continuous effects for one selected effect target at a time. It can drive a combined pan/tilt target, or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris.
 
 Supported effects include:
 
@@ -1099,15 +1119,19 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 The Effects page also has a read-only scene toolbox. Clicking a scene updates the effect center and previews the position on the primary show output.
 
-### 6. GPIO Control
+### GPIO Control
+
+GPIO Control maps physical Pico inputs to lighting actions for one configured DMX Output at a time.
+
+![GPIO Control](screenshots/gpio-control.png)
+
+#### What You Can Do on GPIO Control
+
+Use GPIO Control to map digital buttons and analog inputs to DMX clearing, playback, tap tempo, speed, master, scene, or palette actions, then push that configuration to the selected Pico.
 
 #### GPIO Control Tools and Toolboxes
 
 GPIO Control does not use the shared toolbox rail. Its equivalent tools are the **DMX Output** selector, GPIO status panel, digital-button mapping editor, ADC mapping editor, and saved mapping rows. Always choose the intended Pico output first because GPIO mappings are stored and sent per controller.
-
-![GPIO Control](screenshots/gpio-control.png)
-
-GPIO Control maps physical Pico inputs to lighting actions.
 
 GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.
 
@@ -1186,13 +1210,9 @@ The beat divider can be set to:
 
 The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.
 
-### 7. Room Plane
+### Room Plane
 
-#### Room Plane Tools and Toolboxes
-
-Room Plane uses the **Room Plane**, **Planes**, and **Fixtures** toolboxes for geometry, saved plane recall, fixture membership, and per-point calibration. Its shared **Groups**, **Scenes**, and **Palettes** tools provide fixture selection and live look recall while teaching. The target canvas is the work area; toolbox values and fixture calibration together determine the resulting Pan/Tilt output.
-
-The **Room Plane** page is a calibration page for moving-light position mapping. It stores saved room planes, fixture mount positions, and all available calibration-point values on the server. Three non-collinear points are the minimum; add further points wherever a fixture needs more local accuracy.
+The **Room Plane** page calibrates moving lights to positions on a measured two-dimensional stage or room plane. It stores saved room definitions, fixture mount positions, and all available calibration-point values on the server. Three non-collinear points are the minimum; add further points wherever a fixture needs more local accuracy.
 
 Open it from the **Plane** navigation link or directly:
 
@@ -1202,9 +1222,15 @@ dmx_room_plane.html
 
 ![Room Plane](screenshots/room-plane.png)
 
-The idea is to describe a real stage or room as a 2D coordinate plane. Points **A**, **B**, and **C** are the initial measured points. Optional points **D**, **E**, and later can refine selected areas. Each moving light is calibrated by storing the pan/tilt values that hit at least three points. When the red target is moved in the virtual plane, the page calculates a localized weighted pan/tilt value for every selected fixture, groups the resulting channel rows by assigned DMX Output, and sends the involved Pico batches concurrently.
+#### What You Can Do on Room Plane
 
-#### 7.1 Room Plane Workflow
+Describe the real stage or room as a 2D coordinate plane, teach each moving light where measured points are, save complete calibrated planes, and recall them later. Points **A**, **B**, and **C** are the initial measured points. Optional points **D**, **E**, and later can refine selected areas. When the red target is moved, the page calculates a localized weighted pan/tilt value for every selected fixture and sends the involved Pico batches.
+
+#### Room Plane Tools and Toolboxes
+
+Room Plane uses the **Room Plane**, **Planes**, and **Fixtures** toolboxes for geometry, saved plane recall, fixture membership, and per-point calibration. Its shared **Groups**, **Scenes**, and **Palettes** tools provide fixture selection and live look recall while teaching. The target canvas is the work area; toolbox values and fixture calibration together determine the resulting Pan/Tilt output.
+
+#### Room Plane Workflow
 
 1. Patch the moving lights on the Fixture Controller page.
 2. Save groups if you want to select fixtures by group on the Room Plane page.
@@ -1218,7 +1244,7 @@ The idea is to describe a real stage or room as a 2D coordinate plane. Points **
 
 The target can be moved by dragging the red dot, by clicking in the plane, or by using the coarse/fine target nudge buttons below the plot. The view itself can be zoomed with the zoom buttons, mouse wheel, or a two-finger pinch on a touch screen. Pinch zoom is also available in the Controller and Show Run room-plane modals and does not move the live target when the gesture begins. Use **Pan view** when you want to drag the coordinate view instead of the target.
 
-#### 7.2 Room Plane Toolbox
+#### Room Plane Toolbox
 
 ![Room Plane Toolbox](screenshots/room-plane-toolbox-plane.png)
 
@@ -1238,7 +1264,7 @@ The Z value is stored with the plane and fixture mount positions. The current ta
 
 Use **-- all** in the Room Plane, Planes, or Fixtures toolbox header to collapse all five Room Plane page toolboxes together. Scenes and Palettes keep their standard single-toolbox collapse button, matching those toolboxes on the other pages. When all five toolboxes are collapsed, **-- all** changes to **+ all**.
 
-#### 7.3 Planes
+#### Planes
 
 ![Planes Toolbox](screenshots/room-plane-toolbox-saved-planes.png)
 
@@ -1265,7 +1291,7 @@ The **Scenes** and **Palettes** toolboxes show the same shared tiles saved by Co
 
 These two toolboxes are recall-only on Room Plane: clicking an empty tile never saves or overwrites data. While Toolboxes **Edit** is active, their **Cols** and **Rows** dropdowns and shared drag/tap tile movement remain available and are saved back to the shared Scene or Palette layout.
 
-#### 7.4 Fixture Calibration
+#### Fixture Calibration
 
 ![Room Plane Fixtures](screenshots/room-plane-toolbox-fixtures.png)
 
@@ -1299,7 +1325,7 @@ The editor sends live DMX for patched fixtures. If the fixture profile has a 16-
 
 The **Groups** toolbox on the Room Plane page is for selecting calibrated fixtures by saved group. Its **Group Edit** button opens the same Controller-style group edit workflow for the selected patched fixtures. This is separate from the fixture calibration editor: Group Edit changes live fixture controls such as dimmer, color, wheels, or pan/tilt for the selected group, while the fixture table **Edit** button is still used to recall/store A/B/C calibration points for one fixture at a time.
 
-#### 7.5 Coordinate Math
+#### Coordinate Math
 
 Every set of three non-collinear room points can define a triangle in the room plane. With only A/B/C, they form the single triangle:
 
@@ -1336,7 +1362,7 @@ wA >= 0 and wB >= 0 and wC >= 0
 
 The page still allows positions outside the triangle. In that case the same formula extrapolates beyond the calibrated area, and the **Inside plane** readout changes to `no`.
 
-#### 7.6 Pan/Tilt Interpolation
+#### Pan/Tilt Interpolation
 
 For each fixture and the three points selected around the current target, the stored calibration values are:
 
@@ -1396,7 +1422,7 @@ For reliable calibration:
 
 Different mounting angles therefore do not inherently reduce accuracy. The main risks are imprecise teaching, using inconsistent Pan rotations, crossing the Pan wrap boundary, and relying on only three points over an area where the fixture's real movement is noticeably nonlinear.
 
-#### 7.7 Screen Transformation
+#### Screen Transformation
 
 The virtual room drawing uses the same room coordinates as the math, but it transforms them into screen pixels for display.
 
@@ -1419,7 +1445,7 @@ Y is inverted because screen coordinates grow downward, while room Y grows upwar
 
 The view zoom changes the visible bounds before this transformation. The pan view changes the center point of those bounds. The saved plane stores the current view, so a recalled plane opens with the same framing.
 
-#### 7.8 What Is Saved
+#### What Is Saved
 
 Room Plane data is saved to the server in `room_plane_setup.json`. A saved plane contains:
 
@@ -1435,7 +1461,7 @@ This means you can create multiple room planes for different physical setups or 
 
 When a saved plane is loaded, its fixtures are matched to the current Fixture Controller patch by fixture ID. The saved mount position and all per-point calibration remain plane-specific, while the current fixture name, profile, DMX start address, and live connection are used. Therefore **Fixtures > Edit > Recall A/B/C/...** moves the physical fixture even if its patch address changed after the plane was saved.
 
-#### 7.9 Current Limits
+#### Current Limits
 
 The current implementation is calibration-based. It does not yet calculate pan/tilt from fixture mount position, fixture orientation, beam length, and full 3D geometry. Mount X/Y/Z is saved and drawn, but the output is currently calculated from the measured per-point Pan/Tilt values.
 
@@ -1445,15 +1471,19 @@ Use at least three non-collinear points per fixture. If all points available to 
 
 Use this page during live operation to recall and control the prepared show without changing its programming.
 
-### 1. Show Run
-
-#### Show Run Tools and Toolboxes
-
-Show Run has no programming toolbox rail. Its movable cards are the operator tools: **Master**, **Groups**, **Fixtures**, **Scenes**, **Palettes**, **Pixel Matrices**, **Planes**, **Pico Chaser**, **Pico Effects**, **MIDI Controller**, and **Live Controls**. Layout editing decides which cards are visible and where they appear; normal operation uses the cards only to recall and adjust the prepared show.
+### Show Run
 
 The **Show Run** page is the operator page. Use it when the show has already been prepared on the Fixture Controller, Chaser, and Effects pages and you want fewer editing controls on screen.
 
 ![Show Run](screenshots/show-run.png)
+
+#### What You Can Do on Show Run
+
+Use Show Run to recall prepared groups, fixtures, scenes, palettes, Pixel Matrices, planes, chaser slots, and effect slots; operate master and live controls; and use MIDI mappings without exposing the programming editors during normal operation.
+
+#### Show Run Tools and Toolboxes
+
+Show Run has no programming toolbox rail. Its movable cards are the operator tools: **Master**, **Groups**, **Fixtures**, **Scenes**, **Palettes**, **Pixel Matrices**, **Planes**, **Pico Chaser**, **Pico Effects**, **MIDI Controller**, and **Live Controls**. Layout editing decides which cards are visible and where they appear; normal operation uses the cards only to recall and adjust the prepared show.
 
 Open it from the **Show** navigation link or directly:
 
@@ -1673,17 +1703,19 @@ Show Run is intentionally read-mostly during normal operation. Outside **Edit** 
 
 These pages are intended for commissioning, verification, and fault finding. They are not needed for normal show operation.
 
-### 1. Pico Performance Test
+### Pico Performance Test
+
+The Pico Performance Test page checks the complete browser-to-Pico control path and records firmware timing and transport measurements.
+
+![Pico Performance Test](screenshots/benchmark.png)
+
+#### What You Can Do on Pico Performance Test
+
+Use this page to verify status and firmware compatibility, measure memory and loop headroom, read buffers back, test MIDI-to-DMX latency, stress playback and palette updates, and export timing results.
 
 #### Pico Performance Test Tools and Toolboxes
 
 The Performance page does not use the shared toolbox rail. Its tools are organized as test panels: **Measurement target**, Pico status and firmware checks, buffer readback, MIDI-to-DMX latency, playback and palette stress, DMX write testing, Timing History, and Write History. **Run Full Test** coordinates the supported panels for each selected Pico while preserving its own result cards and cleanup status.
-
-![Pico Performance Test](screenshots/benchmark.png)
-
-The Pico Performance Test page checks the full browser-to-Pico control path.
-
-Pico Performance Test does not use the shared toolbox sidebar. It is a developer/test page for measuring request performance, buffer readback, and firmware timing health.
 
 The **Measurement target** list is loaded from Controller → **DMX Outputs**. Choose one Pico/universe for an individual measurement, or choose **All configured Picos** to run batch-capable actions sequentially across the complete fleet. Timing History and Write History identify the Pico and universe for every result, while the live result cards show the last measured target.
 
@@ -1761,15 +1793,19 @@ Use **Export CSV** to save results for later comparison.
 
 Pico Performance Test and GPIO Control link to the **DMX Buffer Monitor**.
 
-### 2. DMX Buffer Monitor
+### DMX Buffer Monitor
 
-#### DMX Buffer Monitor Tools and Toolboxes
-
-The monitor has no toolbox rail. Its toolbar selects the **DMX Output**, chooses **DMX output** or **Base / position**, controls manual or automatic refresh, clears comparison highlights, and provides the deliberate **Clear all** action. The 512 channel tiles below are the read-only display for the selected buffer except when Clear all is explicitly used.
+The DMX Buffer Monitor displays all 512 channels from one Pico buffer at a time.
 
 ![DMX Buffer Monitor](screenshots/dmx-monitor.png)
 
-The monitor displays all 512 channels as tiles and reads one Pico buffer at a time. Use **DMX Output** to choose the named Pico/universe to inspect. The selector is loaded from Controller → **DMX Outputs**, and changing it resets the comparison highlights before reading the selected controller.
+#### What You Can Do on DMX Buffer Monitor
+
+Use the monitor to inspect live output or the Effects base/position buffer, compare consecutive reads, observe changing channels, and deliberately clear both buffers on the selected Pico.
+
+#### DMX Buffer Monitor Tools and Toolboxes
+
+The monitor has no toolbox rail. Its toolbar selects the **DMX Output**, chooses **DMX output** or **Base / position**, controls manual or automatic refresh, clears comparison highlights, and provides the deliberate **Clear all** action. The 512 channel tiles below are the read-only display for the selected buffer except when Clear all is explicitly used. Use **DMX Output** to choose the named Pico/universe to inspect. The selector is loaded from Controller → **DMX Outputs**, and changing it resets the comparison highlights before reading the selected controller.
 
 Use **DMX output** to see the actual output frame currently held by the DMX engine, including values produced by Pico-side Chaser or Effects playback.
 
@@ -1785,9 +1821,7 @@ Use **Clear all** when you want to clear both buffers on the selected DMX Output
 
 These tools support portable backups, recovery, and low-level output clearing.
 
-### 1. Back Up and Restore a Show
-
-#### Back Up and Restore Tools and Toolboxes
+### Back Up and Restore a Show
 
 Backup and restore is performed from the Controller's **Show** card rather than a separate page or toolbox. **Export Show** downloads the complete working show, **Import Show** validates and restores it, and the fixture-resolution dialog handles library differences. **Export Library**, **Import Library**, and **Patch CSV** are separate tools with different scopes, summarized later in this chapter.
 
@@ -1795,7 +1829,7 @@ The application saves changes automatically on the controller computer, but that
 
 ![Fixture Controller Show setup](screenshots/fixture-controller-expanded.png)
 
-#### 1.1 Create a Show Backup
+#### Create a Show Backup
 
 1. Open **Fixture Controller** and expand the **Show** card.
 2. Check the **Show name**. The name becomes part of the downloaded filename, which makes backups easier to identify later.
@@ -1817,7 +1851,7 @@ The show backup contains the information needed to operate that show:
 
 The show backup does not contain the entire reusable fixture library. Use **Export Library** separately when custom fixtures, edited modes, or user-added gobo images from the complete catalog must also be protected.
 
-#### 1.2 Restore or Move a Show
+#### Restore or Move a Show
 
 **Import Show replaces the current show data.** Export the current show first if you may need it again.
 
@@ -1833,7 +1867,7 @@ The importer checks the backup format and application compatibility before repla
 
 Import restores the saved Pico chaser/effect slot descriptions on the controller server, but it cannot assume that the physical Pico memories still match. On the Chaser and Effects pages, use **Synchronize Saved Slots to Picos** when the Picos were reset, reflashed, replaced, or moved with the show.
 
-#### 1.3 Resolve Fixture Updates During Import
+#### Resolve Fixture Updates During Import
 
 The show backup embeds the fixture definitions it uses. If one differs from the currently installed fixture library, **Resolve Fixture Updates** lets you choose safely:
 
@@ -1845,7 +1879,7 @@ The show backup embeds the fixture definitions it uses. If one differs from the 
 
 When uncertain, keep the show definition, finish the import, and test it before deliberately merging a newer library definition into the show.
 
-#### 1.4 Show, Library, and Patch Exports
+#### Show, Library, and Patch Exports
 
 | Controller action | Result | Use it for |
 | --- | --- | --- |
@@ -1857,11 +1891,9 @@ When uncertain, keep the show definition, finish the import, and test it before 
 
 Show and library files serve different purposes. For the most complete portable backup, keep the latest **Export Show** file together with a recent **Export Library** ZIP.
 
-### 2. Clear Functions
+### Clear Functions
 
-#### Clear Functions Tools and Toolboxes
-
-Clear operations appear where their scope is visible instead of in a shared toolbox. The Controller and programming pages provide output actions for normal operation, while DMX Buffer Monitor's **Clear all** explicitly clears both live output and the motion base buffer on the selected Pico. Check the selected output and the action description before using either form of clear.
+Clear operations appear where their scope is visible instead of on a separate page or in a shared toolbox. The Controller and programming pages provide output actions for normal operation, while DMX Buffer Monitor's **Clear all** explicitly clears both live output and the motion base buffer on the selected Pico. Check the selected output and the action description before using either form of clear.
 
 There are two different clear actions:
 

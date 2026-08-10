@@ -533,6 +533,34 @@ test.describe('Code safety regression rules', () => {
     );
   });
 
+  test('application-page chapters introduce the page before describing its tools', () => {
+    const manual = read('docs/user-manual.md');
+    const pages = [
+      ['Fixture Controller', 'screenshots/fixture-controller.png', 'What You Can Do on Fixture Controller', 'Fixture Controller Tools and Toolboxes'],
+      ['Scenes And Palettes', 'screenshots/fixture-controller.png', 'What You Can Do with Scenes and Palettes', 'Scenes and Palettes Tools and Toolboxes'],
+      ['Groups', 'screenshots/fixture-controller.png', 'What You Can Do with Groups', 'Groups Tools and Toolboxes'],
+      ['Chaser', 'screenshots/chaser.png', 'What You Can Do on Chaser', 'Chaser Tools and Toolboxes'],
+      ['Effects', 'screenshots/motion-fx.png', 'What You Can Do on Effects', 'Effects Tools and Toolboxes'],
+      ['GPIO Control', 'screenshots/gpio-control.png', 'What You Can Do on GPIO Control', 'GPIO Control Tools and Toolboxes'],
+      ['Room Plane', 'screenshots/room-plane.png', 'What You Can Do on Room Plane', 'Room Plane Tools and Toolboxes'],
+      ['Show Run', 'screenshots/show-run.png', 'What You Can Do on Show Run', 'Show Run Tools and Toolboxes'],
+      ['Pico Performance Test', 'screenshots/benchmark.png', 'What You Can Do on Pico Performance Test', 'Pico Performance Test Tools and Toolboxes'],
+      ['DMX Buffer Monitor', 'screenshots/dmx-monitor.png', 'What You Can Do on DMX Buffer Monitor', 'DMX Buffer Monitor Tools and Toolboxes']
+    ];
+
+    pages.forEach(([title, screenshot, purposeHeading, toolsHeading]) => {
+      const start = manual.indexOf(`### ${title}\n`);
+      expect(start, `${title} must have an unnumbered page heading`).toBeGreaterThan(-1);
+      const nextPage = manual.indexOf('\n### ', start + 5);
+      const chapter = manual.slice(start, nextPage === -1 ? manual.length : nextPage);
+      expect(chapter.indexOf(`](${screenshot})`), `${title} overview`).toBeGreaterThan(-1);
+      expect(chapter.indexOf(`#### ${purposeHeading}`), `${title} purpose`).toBeGreaterThan(-1);
+      expect(chapter.indexOf(`#### ${toolsHeading}`), `${title} tools`).toBeGreaterThan(-1);
+      expect(chapter.indexOf(`](${screenshot})`)).toBeLessThan(chapter.indexOf(`#### ${purposeHeading}`));
+      expect(chapter.indexOf(`#### ${purposeHeading}`)).toBeLessThan(chapter.indexOf(`#### ${toolsHeading}`));
+    });
+  });
+
   test('manual screenshot capture reports per-image timings and slowest-first summaries', () => {
     const helpers = read('scripts/manual_screenshot_helpers.ps1');
     const readmeCapture = read('scripts/capture_manual_ui_screenshots.ps1');
@@ -730,11 +758,11 @@ test.describe('Code safety regression rules', () => {
     const builder = read('scripts/render_user_manual_pdf.ps1');
 
     expect(manual.indexOf('## Table of Contents')).toBeLessThan(manual.indexOf('## Introduction'));
-    expect(manual).toContain('- [1. Fixture Controller](#1-fixture-controller)');
-    expect(manual).toContain('- [1. Pico Performance Test](#1-pico-performance-test)');
-    expect(manual).toContain('- [7. Room Plane](#7-room-plane)');
+    expect(manual).toContain('- [Fixture Controller](#fixture-controller)');
+    expect(manual).toContain('- [Pico Performance Test](#pico-performance-test)');
+    expect(manual).toContain('- [Room Plane](#room-plane)');
     expect(manual).toContain('- [Run Show](#run-show)');
-    expect(manual).toContain('  - [1. Show Run](#1-show-run)');
+    expect(manual).toContain('  - [Show Run](#show-run)');
     [
       'Fixture Controller',
       'Scenes and Palettes',
@@ -745,14 +773,14 @@ test.describe('Code safety regression rules', () => {
       'Room Plane',
       'Show Run',
       'Pico Performance Test',
-      'DMX Buffer Monitor',
-      'Back Up and Restore',
-      'Clear Functions'
+      'DMX Buffer Monitor'
     ].forEach((pageName) => {
       expect(manual).toContain(`#### ${pageName} Tools and Toolboxes`);
     });
-    expect(manual).not.toContain('#8-pico-performance-test');
-    expect(manual).not.toContain('#10-room-plane');
+    expect(manual).not.toContain('#### Back Up and Restore Tools and Toolboxes');
+    expect(manual).not.toContain('#### Clear Functions Tools and Toolboxes');
+    expect(manual).not.toMatch(/^###\s+\d+\.\s+/m);
+    expect(manual).not.toMatch(/^####\s+\d+\.\d+\s+/m);
     expect(manual).toContain('- [Change Log](#change-log)');
     expect(manual).toContain('#### Open the Pico Firmware Diagnostics Page');
     expect(manual).toContain('Controller → **DMX Outputs**');
