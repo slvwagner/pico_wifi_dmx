@@ -774,7 +774,13 @@ test.describe('Show Run page', () => {
           name: 'Front Plane',
           visual: { type: 'visual', color: '#123456', image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22%3E%3Crect width=%22100%22 height=%2250%22 fill=%22red%22/%3E%3C/svg%3E' },
           view: { auto: false, centerX: 5, centerY: 5, zoom: 2 },
-          points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 10, y: 0, z: 0 }, { id: 'C', x: 0, y: 10, z: 0 }],
+          points: [
+            { id: 'A', x: 0, y: 0, z: 0 },
+            { id: 'B', x: 10, y: 0, z: 0 },
+            { id: 'C', x: 0, y: 10, z: 0 },
+            { id: 'D', x: 10, y: 10, z: 0 },
+            { id: 'E', x: 5, y: 5, z: 0 }
+          ],
           target: { x: 5, y: 0, z: 0 },
           fixtures: [
             {
@@ -822,6 +828,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
     await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('#showPlanePad .show-plane-point:not(.show-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2000, tilt: 3000 } });
     await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
     await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
@@ -873,6 +880,7 @@ test.describe('Show Run page', () => {
     await page.locator('#showPlaneZoomIn').click();
     await expect.poll(() => calls.roomPlaneWrites?.length || 0).toBeGreaterThan(0);
     const savedPlane = calls.roomPlaneWrites.at(-1).planes.find(plane => plane.id === 'front_plane');
+    expect(savedPlane.points.map(point => point.id)).toEqual(['A', 'B', 'C', 'D', 'E']);
     expect(savedPlane.view).toMatchObject({ auto: false, centerX: 5, centerY: 5 });
     expect(savedPlane.view.zoom).toBeGreaterThan(2);
   });

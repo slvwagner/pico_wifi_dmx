@@ -226,7 +226,9 @@ test.describe('Chaser established rules', () => {
         points: [
           { id: 'A', x: 0, y: 0, z: 0 },
           { id: 'B', x: 10, y: 0, z: 0 },
-          { id: 'C', x: 0, y: 10, z: 0 }
+          { id: 'C', x: 0, y: 10, z: 0 },
+          { id: 'D', x: 10, y: 10, z: 0 },
+          { id: 'E', x: 5, y: 5, z: 0 }
         ],
         target: { x: 5, y: 0, z: 0 },
         fixtures: [{
@@ -248,6 +250,7 @@ test.describe('Chaser established rules', () => {
     await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
 
     await expect(page.locator('#chaserPlaneModal')).toBeVisible();
+    await expect(page.locator('#chaserPlanePad .controller-plane-point:not(.controller-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values?.['101:12'])).toEqual({ pan: 2000, tilt: 3000 });
   });
 

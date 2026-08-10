@@ -2968,36 +2968,8 @@ function renderPixelMatrixGrid(gridRef,layoutId='matrix',cols=matrixCols,rows=ma
   initMoveGrid('matrix',grid,layoutId);
 }
 function renderPixelMatrices(){normalizePixelMatrixGrid('cols');renderPixelMatrixGrid(document.getElementById('matrixGrid'),'matrix',matrixCols,matrixRows);renderRepeatedCards();}
-function normalizeShowPlanePoint(point,fallback){
-  return {
-    id:String(point?.id||fallback?.id||'A'),
-    x:Number(point?.x??fallback?.x??0)||0,
-    y:Number(point?.y??fallback?.y??0)||0,
-    z:Number(point?.z??fallback?.z??0)||0
-  };
-}
-function normalizeShowPlaneFixture(fixture,index){
-  return {
-    id:fixture?.id,
-    name:String(fixture?.name||('Fixture '+(index+1))),
-    x:Number(fixture?.x)||0,
-    y:Number(fixture?.y)||0,
-    z:Number(fixture?.z)||0,
-    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
-  };
-}
 function normalizeShowPlane(plane,index){
-  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
-  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
-  return {
-    ...plane,
-    id:plane?.id||('plane_'+index),
-    name:String(plane?.name||('Plane '+(index+1))),
-    points:fallbackPoints.map((fallback,i)=>normalizeShowPlanePoint(sourcePoints[i],fallback)),
-    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
-    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeShowPlaneFixture),
-    visual:plane?.visual
-  };
+  return DmxCommon.normalizeRoomPlane(plane,index);
 }
 function normalizeRoomPlaneSetupForShow(data){
   const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});

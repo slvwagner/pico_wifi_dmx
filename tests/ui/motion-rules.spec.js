@@ -496,6 +496,13 @@ test.describe('Effects established rules', () => {
         id: 'plane_modal',
         name: 'Modal Plane',
         slot: 0,
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 5, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 3, z: 0 },
+          { id: 'D', x: 5, y: 3, z: 0 },
+          { id: 'E', x: 2.5, y: 1.5, z: 0 }
+        ],
         target: { x: 1, y: 1, z: 0 },
         fixtures: [{
           id: panTilt.fixture.id,
@@ -519,6 +526,7 @@ test.describe('Effects established rules', () => {
     await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
 
     await expect(page.locator('#motionPlaneModal')).toBeVisible();
+    await expect(page.locator('#motionPlanePad .controller-plane-point:not(.controller-plane-fixture)')).toHaveText(['A', 'B', 'C', 'D', 'E']);
     const afterOpen = await page.evaluate(() => {
       const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
       return { basePan: panTilt.basePan, baseTilt: panTilt.baseTilt };

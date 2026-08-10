@@ -101,6 +101,9 @@ Changed:
 
 Fixed:
 
+- Preserved optional Room Plane calibration points beyond A/B/C when loading
+  saved planes in Controller and Show Run, so five-point planes display and
+  calculate with points D/E instead of being reduced to three points.
 - Replaced XAMPP-specific storage wording in the Chaser and Effects
   synchronization confirmations with installation-neutral controller wording.
 - Kept the wrapped Pico Performance Test guidance inside complete paragraphs

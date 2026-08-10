@@ -1564,6 +1564,31 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
   });
 
+  test('saved plane recall preserves and displays optional calibration points', async ({ page }) => {
+    await page.evaluate(() => {
+      controllerPlanes = [normalizeControllerPlane({
+        id: 'plane_five_points',
+        name: 'Plane 5',
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 },
+          { id: 'D', x: 10, y: 10, z: 0 },
+          { id: 'E', x: 5, y: 5, z: 0 }
+        ],
+        target: { x: 4, y: 6, z: 0 },
+        fixtures: []
+      }, 0)];
+      renderControllerPlanes();
+    });
+
+    await page.locator('[data-controller-plane="plane_five_points"]').click();
+
+    await expect(page.locator('#controllerPlaneModal')).toBeVisible();
+    await expect(page.locator('#controllerPlanePad .controller-plane-point')).toHaveText(['A', 'B', 'C', 'D', 'E']);
+    expect(await page.evaluate(() => activeControllerPlane.points.map(point => point.id))).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
   test('Controller Planes toolbox exposes layout controls and moves tiles by slot', async ({ page }) => {
     const roomPlaneWrites = [];
     await page.unroute('**/room_plane_setup.php**');
