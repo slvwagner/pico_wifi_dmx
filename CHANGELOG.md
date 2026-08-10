@@ -4,6 +4,11 @@
 
 Changed:
 
+- Moved Show Run **Edit** into the Show Sidebar header and added the same
+  collapse/expand control used by the Controller toolbox rail. The sidebar now
+  remains available even when it contains no cards, exits layout editing when
+  collapsed, and shares its saved collapsed state with the other toolbox
+  pages.
 - Pico Chaser and Effects playback manifests now retain the saved tile name,
   color, and icon. Their Pico slot strips and the Show Run playback cards show
   the same identification, while older slots without visual metadata continue

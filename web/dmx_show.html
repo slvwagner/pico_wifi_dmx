@@ -65,6 +65,7 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .card-grid.card-move-mode .panel-head:active{cursor:grabbing}
 .show-card-workspace{display:block;min-width:0}
 body.show-sidebar-active>header,body.show-sidebar-active>main{width:calc(100% - var(--toolbox-rail-width,max(380px,33vw)))}
+body.show-sidebar-active.toolbox-rail-collapsed>header,body.show-sidebar-active.toolbox-rail-collapsed>main{width:calc(100% - 48px)}
 .show-sidebar{position:fixed;z-index:180;top:0;right:0;bottom:0;width:var(--toolbox-rail-width,max(380px,33vw));height:100vh;min-width:0;border-left:1px solid var(--line);background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));box-shadow:-12px 0 30px rgba(0,0,0,.38);padding:20px 16px 20px 12px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;align-content:start;overflow:hidden;overscroll-behavior:contain;touch-action:pan-y;direction:ltr}
 .show-sidebar[hidden]{display:none}
 .show-sidebar-head{position:relative;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;padding:0 4px 2px;background:#0a0d10;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
@@ -209,7 +210,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 .hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
 .hidden-tile-row .small{min-width:0}
 @media(pointer:coarse) and (min-width:901px){.show-sidebar{height:100dvh}}
-@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}body.show-sidebar-active>header,body.show-sidebar-active>main{width:100%}body.show-sidebar-active>main{padding-bottom:45vh}.show-sidebar{top:auto;left:0;width:100%;height:42vh;border-left:0;border-top:1px solid var(--line)}.show-sidebar-resizer{display:none}}
+@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}body.show-sidebar-active>header,body.show-sidebar-active>main{width:100%}body.show-sidebar-active>main{padding-bottom:45vh}.show-sidebar{top:auto;left:0;width:100%;height:42vh;border-left:0;border-top:1px solid var(--line)}.show-sidebar-resizer{display:none}body.show-sidebar-active.toolbox-rail-collapsed>main{padding-bottom:48px}body.toolbox-rail-collapsed .show-sidebar{top:auto;left:auto;right:0;bottom:0;width:48px;height:48px;border-top:1px solid var(--line);padding:10px 6px}}
 @media(max-width:640px){body.show-sidebar-active>main{padding-bottom:51vh}.show-sidebar{height:48vh}}
 </style>
 </head>
@@ -230,7 +231,6 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_room_plane.html">Plane</a>
     <a class="nav" href="user-manual.html?v=1.3.0#show-run" target="_blank">Manual</a>
     <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
-    <button id="editLayoutBtn" type="button">Edit</button>
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions"></div>
@@ -469,8 +469,12 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <div id="showSidebarResizer" class="show-sidebar-resizer toolbox-rail-resizer" role="separator" aria-label="Resize show sidebar" aria-orientation="vertical" tabindex="0"></div>
     <div class="show-sidebar-head toolbox-rail-header">
       <h2 class="toolbox-rail-title">Show Sidebar</h2>
-      <div class="show-sidebar-controls">
-        <label>Rows<select id="sidebarRows"></select></label>
+      <div class="toolbox-rail-actions">
+        <div class="show-sidebar-controls">
+          <label>Rows<select id="sidebarRows"></select></label>
+        </div>
+        <button id="editLayoutBtn" class="toolbox-rail-edit" type="button" title="Edit Show Run layout" aria-pressed="false">Edit</button>
+        <button id="showSidebarToggle" class="toolbox-rail-toggle" type="button" title="Hide Show Sidebar" aria-expanded="true">›</button>
       </div>
     </div>
     <div id="sidebarCardGrid" class="sidebar-card-grid toolbox-rail-scroll"></div>
@@ -664,6 +668,7 @@ let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}]
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
 const SHARED_TOOLBOX_WIDTH_KEY='toolboxRailWidth';
+const SHARED_TOOLBOX_COLLAPSED_KEY='toolboxRailCollapsed';
 let showUiState={};
 const SHOW_GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
 const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
@@ -682,6 +687,7 @@ let cardOrder=[];
 let sidebarOrder=[];
 let cardMoveMode=false;
 let layoutEditing=false;
+let showSidebarCollapsed=localStorage.getItem(SHARED_TOOLBOX_COLLAPSED_KEY)==='1';
 let hiddenTileModalDismissed=false;
 let liveControls=[];
 let addCardTargetIndex=null;
@@ -1611,13 +1617,11 @@ function renderCardGrid(){
     if(node)hiddenCardBin.appendChild(node);
   });
   renderCardArea(grid,'main',cardCols,cardRows);
-  const sidebarHasCards=sidebarOrder.slice(0,sidebarRows).some(Boolean);
-  const sidebarVisible=layoutEditing||sidebarHasCards;
-  sidebar.hidden=!sidebarVisible;
-  document.body.classList.toggle('show-sidebar-active',sidebarVisible);
-  document.getElementById('showCardWorkspace').classList.toggle('sidebar-hidden',!sidebarVisible);
+  sidebar.hidden=false;
+  document.body.classList.add('show-sidebar-active');
+  document.getElementById('showCardWorkspace').classList.remove('sidebar-hidden');
   setSidebarWidth(sidebarWidth);
-  if(sidebarVisible)renderCardArea(sidebarGrid,'sidebar',1,sidebarRows);
+  renderCardArea(sidebarGrid,'sidebar',1,sidebarRows);
   saveCardLayout();
   renderRepeatedCards();
   renderLiveControls();
@@ -2064,12 +2068,34 @@ function setSidebarWidth(value,{save=false}={}){
     saveCardLayout();
   }
 }
+function setShowSidebarCollapsed(collapsed,{save=false}={}){
+  showSidebarCollapsed=!!collapsed;
+  const sidebar=document.getElementById('showSidebar');
+  sidebar?.classList.toggle('collapsed',showSidebarCollapsed);
+  document.body.classList.toggle('toolbox-rail-collapsed',showSidebarCollapsed);
+  const toggle=document.getElementById('showSidebarToggle');
+  if(toggle){
+    toggle.textContent=showSidebarCollapsed?'‹':'›';
+    toggle.title=showSidebarCollapsed?'Show Show Sidebar':'Hide Show Sidebar';
+    toggle.setAttribute('aria-expanded',showSidebarCollapsed?'false':'true');
+  }
+  if(showSidebarCollapsed&&layoutEditing)setLayoutEditing(false);
+  if(save){
+    localStorage.setItem(SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed?'1':'0');
+    DmxCommon.saveUiState('toolboxes',SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed);
+  }
+  window.dispatchEvent(new CustomEvent('toolboxrailresize',{detail:{width:showSidebarCollapsed?48:sidebarWidth}}));
+}
 function initShowSidebar(){
   const rows=document.getElementById('sidebarRows');
   if(rows){
     rows.innerHTML=Array.from({length:12},(_,index)=>`<option value="${index+1}">${index+1}</option>`).join('');
     rows.value=sidebarRows;
   }
+  document.getElementById('showSidebarToggle')?.addEventListener('click',()=>{
+    setShowSidebarCollapsed(!showSidebarCollapsed,{save:true});
+  });
+  setShowSidebarCollapsed(showSidebarCollapsed);
   const handle=document.getElementById('showSidebarResizer');
   if(!handle)return;
   handle.setAttribute('aria-valuemin','300');
@@ -4422,6 +4448,11 @@ async function loadShow(options={}){
   applySavedLayout();
   const sharedSidebarWidth=parseInt(sharedToolboxUiState?.[SHARED_TOOLBOX_WIDTH_KEY]??localStorage.getItem(SHARED_TOOLBOX_WIDTH_KEY),10);
   if(Number.isFinite(sharedSidebarWidth))sidebarWidth=sharedSidebarWidth;
+  if(sharedToolboxUiState?.[SHARED_TOOLBOX_COLLAPSED_KEY]!==undefined){
+    showSidebarCollapsed=!!sharedToolboxUiState[SHARED_TOOLBOX_COLLAPSED_KEY];
+    localStorage.setItem(SHARED_TOOLBOX_COLLAPSED_KEY,showSidebarCollapsed?'1':'0');
+  }
+  setShowSidebarCollapsed(showSidebarCollapsed);
   loadCardLayouts();
   loadLiveControls();
   loadTargetMasters();

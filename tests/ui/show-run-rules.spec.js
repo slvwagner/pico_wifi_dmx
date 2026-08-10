@@ -1257,7 +1257,7 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('uses the available browser width for the Show Run workspace', async ({ page }) => {
+  test('uses the available browser width beside the persistent Show Sidebar', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await page.setViewportSize({ width: 2200, height: 1100 });
@@ -1266,17 +1266,22 @@ test.describe('Show Run page', () => {
     const metrics = await page.evaluate(() => {
       const main = document.querySelector('main');
       const grid = document.querySelector('#cardGrid');
+      const sidebar = document.querySelector('#showSidebar');
       const mainRect = main.getBoundingClientRect();
       const gridRect = grid.getBoundingClientRect();
+      const sidebarRect = sidebar.getBoundingClientRect();
       return {
         mainWidth: mainRect.width,
         mainLeft: mainRect.left,
-        gridWidth: gridRect.width
+        mainRight: mainRect.right,
+        gridWidth: gridRect.width,
+        sidebarLeft: sidebarRect.left
       };
     });
     expect(metrics.mainLeft).toBeLessThan(2);
-    expect(metrics.mainWidth).toBeGreaterThan(2160);
-    expect(metrics.gridWidth).toBeGreaterThan(2160);
+    expect(metrics.mainWidth).toBeGreaterThan(1750);
+    expect(metrics.gridWidth).toBeGreaterThan(1750);
+    expect(metrics.mainRight).toBeLessThanOrEqual(metrics.sidebarLeft + 1);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -2512,6 +2517,41 @@ test.describe('Show Run page', () => {
     expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.sidebarOrder)).toBe(true);
     expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailWidth)).toBe(true);
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('keeps Edit and collapse controls in the Show Sidebar header', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: { sidebarRows: 2, sidebarOrder: [null, null] },
+      toolboxState: { toolboxRailCollapsed: false }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const sidebar = page.locator('#showSidebar');
+    const edit = sidebar.locator('#editLayoutBtn');
+    const toggle = sidebar.locator('#showSidebarToggle');
+    await expect(sidebar).toBeVisible();
+    await expect(page.locator('header #editLayoutBtn')).toHaveCount(0);
+    await expect(edit).toHaveText('Edit');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await edit.click();
+    await expect(page.locator('body')).toHaveClass(/layout-editing/);
+    await expect(edit).toHaveText('Done');
+    await toggle.click();
+    await expect(page.locator('body')).toHaveClass(/toolbox-rail-collapsed/);
+    await expect(page.locator('body')).not.toHaveClass(/layout-editing/);
+    await expect(sidebar).toHaveCSS('width', '48px');
+    await expect(edit).toBeHidden();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await toggle.click();
+    await expect(page.locator('body')).not.toHaveClass(/toolbox-rail-collapsed/);
+    await expect(edit).toBeVisible();
+    expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailCollapsed === true)).toBe(true);
   });
 
   test('shows only the configured number of card matrix slots', async ({ page }) => {
