@@ -1304,6 +1304,19 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof openAddPatchedFixturesModal==='function')await openAddPatchedFixturesModal();
+  await wait(400);
+  const cards=[...document.querySelectorAll('[data-add-patched-fixture]')];
+  cards[0]?.click();
+  cards[2]?.click();
+  await wait(200);
+})()
+"@
+    Save-ElementScreenshot "#addPatchedFixturesModal .modal-card" "room-plane-add-patched-fixtures.png"
+    Eval-Js "document.getElementById('closeAddPatchedFixtures2')?.click();"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   document.querySelector('[data-edit-fixture="0"]')?.click();
   await wait(500);
   const card=document.querySelector('#commonPanTiltDimmerModal .modal-card');

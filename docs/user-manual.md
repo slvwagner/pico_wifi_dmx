@@ -1471,11 +1471,11 @@ The idea is to describe a real stage or room as a 2D coordinate plane. Points **
 2. Save groups if you want to select fixtures by group on the Room Plane page.
 3. Open **Plane**.
 4. In the **Room Plane** toolbox, enter the measured coordinates for A, B, and C.
-5. Use **Load patched moving lights** in the **Fixtures** toolbox, or recall a saved plane that already contains fixtures.
+5. Use **Load patched moving lights** to rebuild the working list from every compatible Controller fixture, use **Add patched fixtures** to choose individual moving lights, or recall a saved Plane that already contains fixtures.
 6. Select fixtures directly in the fixture table, or use the **Groups** toolbox to select a whole fixture group.
 7. Edit one fixture at a time. Move the real moving light to point A, store A, then repeat for B and C.
 8. Move the red target in the virtual room plane. The selected fixtures update automatically.
-9. In the **Planes** toolbox, click an empty tile to save the current plane definition and fixture calibration.
+9. In the **Planes** toolbox, click an empty tile to save a complete snapshot of the current room definition and fixture calibration.
 
 The target can be moved by dragging the red dot, by clicking in the plane, or by using the coarse/fine target nudge buttons below the plot. The view itself can be zoomed with the zoom buttons, mouse wheel, or a two-finger pinch on a touch screen. Pinch zoom is also available in the Controller and Show Run room-plane modals and does not move the live target when the gesture begins. Use **Pan view** when you want to drag the coordinate view instead of the target.
 
@@ -1489,10 +1489,12 @@ The **Room Plane** toolbox contains the measured A/B/C points and the current ta
 | --- | --- |
 | A, B, C X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
 | Target X/Y | Numeric target position in the plane. |
-| Reset calibration | Marks all fixture A/B/C calibration points as missing. |
+| Reset calibration | Marks all working fixture A/B/C calibration points as missing and deselects the active saved Plane without changing any saved Plane tile. |
 | Demo values | Loads the small built-in demo plane and demo fixtures. |
 
 The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.
+
+**Reset calibration** operates only on the working setup. When a saved Plane is active, reset removes its selected tile state before clearing the working calibration. The saved Plane retains its room definition and fixture calibration and can be recalled again at any time.
 
 Use **-- all** in the Room Plane, Planes, or Fixtures toolbox header to collapse all five Room Plane page toolboxes together. Scenes and Palettes keep their standard single-toolbox collapse button, matching those toolboxes on the other pages. When all five toolboxes are collapsed, **-- all** changes to **+ all**.
 
@@ -1513,6 +1515,10 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 
 ![Edit Plane Tile](screenshots/room-plane-edit-plane-tile.png)
 
+Saved Plane tiles are immutable snapshots. Editing room points, the target, fixtures, mount positions, or calibration values changes the separate working setup; it does not silently rewrite the selected tile. Click another empty tile when you want to preserve those changes as a new Plane. A saved Plane can be deleted—including the final tile—without creating a replacement default Plane.
+
+A Plane can be saved while some fixtures or A/B/C points are still uncalibrated. The tile editor warns which fixture points are missing, and the tile reports the missing-calibration count. Such a Plane remains useful for calibrated fixtures, but it cannot calculate a target for a fixture until that fixture has all three A/B/C calibration points.
+
 #### Scenes and Palettes
 
 The **Scenes** and **Palettes** toolboxes show the same shared tiles saved by Controller, Chaser, Effects, and Show Run. Click a filled Scene to send its complete stored look to the currently patched fixture controls. Click a filled Palette to send only that palette's stored controls, leaving unrelated live controls unchanged. Both recalls follow every fixture's assigned DMX Output and can update several Picos in one action. They also update the Room Plane's live fixture values so calibrated Pan/Tilt and Dimmer readings stay in step with the DMX output.
@@ -1525,7 +1531,13 @@ These two toolboxes are recall-only on Room Plane: clicking an empty tile never 
 
 The **Fixtures** toolbox stores the relationship between each moving light and the room plane.
 
-**Load patched moving lights** is the normal production workflow: it rebuilds the list from compatible patched fixture profiles while retaining matching saved calibration where possible. **Add fixture** appends a standalone demonstration/calibration row and opens its editor; it is not associated with a patched fixture and therefore cannot send to a physical DMX Output until replaced by patched data. **Remove last** removes only the final row and always leaves at least one fixture row.
+**Load patched moving lights** rebuilds the working list from all compatible Controller fixtures while retaining matching calibration where possible. A newly loaded fixture without matching saved calibration is explicitly shown as **Missing A, B, C**.
+
+**Add patched fixtures** opens a touch-friendly multi-select modal containing only Controller fixtures that have Pan/Tilt controls and are not already in the working Room Plane. Tap anywhere on a fixture card to toggle it. Selected cards use the same accent border and green background as selected fixture cards on the Controller page; the **Add selected** button displays the selected count. Added fixtures start uncalibrated unless matching calibration already exists.
+
+![Add Patched Fixtures](screenshots/room-plane-add-patched-fixtures.png)
+
+Use the fixture table's **Select** column to mark one or more working fixtures, then click **Remove selected**. Any selected subset can be removed, including the final fixture. An intentionally empty fixture list remains empty after save, reload, and Plane recall.
 
 | Column | Meaning |
 | --- | --- |
@@ -1540,6 +1552,8 @@ The **Fixtures** toolbox stores the relationship between each moving light and t
 ![Room Plane Fixture Editor](screenshots/room-plane-fixture-editor.png)
 
 In the fixture editor, **Recall A/B/C** loads an already stored calibration point into the editor. **Store A/B/C** writes the current pan/tilt editor value into that calibration point. Store buttons are separated from recall buttons and use the warning color because they overwrite calibration data.
+
+The Pan/Tilt coarse and fine relative-step values are shared by the fixture editor and persist across fixture changes, modal reopen, page navigation, and reload. This keeps a carefully chosen fine adjustment available throughout a calibration session.
 
 The editor sends live DMX for patched fixtures. If the fixture profile has a 16-bit pan/tilt control, the full 0...65535 value is used. If the fixture profile only has an 8-bit pan/tilt control, the value range is 0...255.
 

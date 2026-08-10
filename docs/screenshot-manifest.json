@@ -381,6 +381,11 @@
       "purpose": "Room Plane fixture table with mount and calibration values"
     },
     {
+      "file": "room-plane-add-patched-fixtures.png",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
+      "purpose": "Room Plane touch-friendly patched moving-light selection modal"
+    },
+    {
       "file": "room-plane-fixture-editor.png",
       "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane fixture calibration editor with Recall and Store buttons"

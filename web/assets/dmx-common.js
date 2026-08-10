@@ -4274,6 +4274,8 @@
     const extraActions=modal.querySelector('[data-ptd-extra-actions]');
     const onChange=typeof options?.onChange==='function'?options.onChange:()=>{};
     const onAction=typeof options?.onAction==='function'?options.onAction:()=>{};
+    const relativeStepValue=typeof options?.relativeStepValue==='function'?options.relativeStepValue:(_axis,_kind,step)=>step;
+    const onRelativeStepChange=typeof options?.onRelativeStepChange==='function'?options.onRelativeStepChange:()=>{};
     modal._dmxPanTiltDimmerOnClose=typeof options?.onClose==='function'?options.onClose:null;
     let value={
       pan:clampInt(options?.value?.pan??Math.round(max/2),0,max),
@@ -4306,23 +4308,32 @@
     const is16=max>255;
     relativeHost.innerHTML=is16
       ? [
-        relativeControlHtml('pan','Pan coarse relative',256,max),
-        relativeControlHtml('pan','Pan fine relative',1,max),
-        relativeControlHtml('tilt','Tilt coarse relative',256,max),
-        relativeControlHtml('tilt','Tilt fine relative',1,max)
+        relativeControlHtml('pan','coarse','Pan coarse relative',256,max),
+        relativeControlHtml('pan','fine','Pan fine relative',1,max),
+        relativeControlHtml('tilt','coarse','Tilt coarse relative',256,max),
+        relativeControlHtml('tilt','fine','Tilt fine relative',1,max)
       ].join('')
       : [
-        relativeControlHtml('pan','Pan relative',1,max),
-        relativeControlHtml('tilt','Tilt relative',1,max)
+        relativeControlHtml('pan','default','Pan relative',1,max),
+        relativeControlHtml('tilt','default','Tilt relative',1,max)
       ].join('');
 
-    function relativeControlHtml(axis,label,step,limit){
+    function relativeControlHtml(axis,kind,label,step,limit){
+      const current=clampInt(relativeStepValue(axis,kind,step,limit),1,limit);
       return '<div class="relative-control">'+
         '<button type="button" data-ptd-relative-dir="-1" data-ptd-axis="'+axis+'" title="Decrease relative to the current value">-</button>'+
-        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+step+'" data-ptd-relative-step data-ptd-axis="'+axis+'"></label>'+
+        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+current+'" data-ptd-relative-step data-ptd-axis="'+axis+'" data-ptd-relative-kind="'+kind+'"></label>'+
         '<button type="button" data-ptd-relative-dir="1" data-ptd-axis="'+axis+'" title="Increase relative to the current value">+</button>'+
       '</div>';
     }
+
+    relativeHost.oninput=event=>{
+      const input=event.target.closest('[data-ptd-relative-step]');
+      if(!input)return;
+      const next=clampInt(input.value,1,max);
+      input.value=String(next);
+      onRelativeStepChange(input.dataset.ptdAxis,input.dataset.ptdRelativeKind||'default',next,max);
+    };
 
     function emit(){
       onChange({...value});

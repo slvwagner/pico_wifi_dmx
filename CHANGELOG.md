@@ -4,6 +4,18 @@
 
 Changed:
 
+- Reworked the Room Plane **Add patched fixtures** modal for touch use. Patched
+  moving lights are now selected by tapping large Controller-style fixture
+  cards with an accent selected state and live selected count instead of
+  operating small checkboxes. Added a dedicated deterministic manual screenshot
+  and documented the complete fixture-add workflow.
+- Replaced the Room Plane prototype **Add fixture** action with **Add patched
+  fixtures**. Its multi-select modal lists only Controller fixtures with
+  Pan/Tilt controls that are not already in the working plane, and appends the
+  selected fixtures without replacing the current list.
+- Kept partially calibrated and uncalibrated Room Planes saveable while adding
+  an explicit warning that lists every fixture and A/B/C point still missing;
+  affected saved tiles continue to show their missing-calibration count.
 - Added a fast solid-zlib profile for local Windows installer builds while
   retaining solid LZMA as the official release default. Release timing runs can
   opt into the fast profile with `-WindowsInstallerCompression Fast`.
@@ -28,6 +40,23 @@ Changed:
 
 Fixed:
 
+- Persisted the Room Plane fixture editor's Pan/Tilt coarse and fine relative
+  step sizes across fixtures, modal reopen, navigation, and page reload.
+- Kept saved Room Plane tiles immutable while the working calibration or target
+  is edited, reset, or another plane is recalled. Working state is still
+  autosaved separately, but a saved fixture-calibration snapshot now changes
+  only when the user explicitly creates a new Plane tile. Reset Calibration
+  also deselects the active saved tile so the uncalibrated working state is not
+  presented as that saved Plane.
+- Allowed the final saved Room Plane tile to be deleted without recreating a
+  `Default plane`. An empty Planes library now remains empty after reload while
+  retaining the separate working calibration.
+- Replaced Room Plane Fixtures **Remove last** with **Remove selected**, allowing
+  any checked fixture subset—including the final fixture—to be removed. An
+  intentionally empty working fixture list and saved plane fixture list now
+  remain empty after recall and reload instead of repopulating demo fixtures.
+- Marked newly loaded patched moving lights as missing A/B/C calibration instead
+  of assigning demo calibration values as if they had already been taught.
 - Made Group Edit **Default** and **Blackout** recalls take manual control on
   the Controller, Chaser, Effects, and Room Plane pages. Both playback engines
   are stopped on every Pico assigned to the selected fixtures before values
