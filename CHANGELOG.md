@@ -4,6 +4,12 @@
 
 Changed:
 
+- Removed the dedicated Room Plane target-nudge section. Operators can still
+  position the target by dragging it or entering Target X/Y directly.
+- Expanded Room Plane **Reset calibration** into **Reset plane and
+  calibration**. It now restores the working A/B/C point geometry, target,
+  view, and calibration state while deselecting—but never modifying—saved
+  Plane tiles.
 - Restructured application-page chapters in the user manual around an
   unnumbered page title, introductory overview, purpose, tools/toolboxes, and
   detailed instructions. Removed artificial page and subsection numbering so
@@ -101,6 +107,9 @@ Changed:
 
 Fixed:
 
+- Calculated Room Plane fixture-to-target guide lines in rendered pixels, so
+  they terminate on the red target at wide desktop aspect ratios and continue
+  to do so while the toolbox rail or browser changes the plane width.
 - Preserved optional Room Plane calibration points beyond A/B/C when loading
   saved planes in Controller and Show Run, so five-point planes display and
   calculate with points D/E instead of being reduced to three points.

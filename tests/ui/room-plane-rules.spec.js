@@ -347,58 +347,13 @@ test.describe('Room Plane rules', () => {
     await expect.poll(async () => Number(await page.locator('#targetX').inputValue())).toBeGreaterThan(maxVisibleX);
   });
 
-  test('nudges target with coarse and fine controls below the plane', async ({ page }) => {
-    const sent = [];
-    await page.route('**/fixture_setup.php**', async route => {
-      const url = route.request().url();
-      if (url.includes('livevalues')) {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, values: {} }) });
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ok: true,
-          exists: true,
-          setup: {
-            baseUrl: 'http://localhost/dmx-test',
-            profiles: [{
-              id: 1,
-              name: 'Moving Profile',
-              mode: '16-bit',
-              channels: 8,
-              controls: [
-                { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, scope: 'dimmer' },
-                { id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }
-              ]
-            }],
-            fixtures: [{ id: 101, name: 'Moving 1', profileId: 1, start: 10 }],
-            values: {}
-          }
-        })
-      });
-    });
-    await page.route('**/dmx/b**', async route => {
-      sent.push(route.request().postData() || '');
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"updated":5}' });
-    });
+  test('keeps target entry available without a dedicated nudge section', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
-    await page.locator('#loadPatchedFixtures').click();
-    await expect(page.locator('#fixtureRows tr').first()).toContainText('Moving 1');
-    await page.evaluate(() => {
-      fixtures.forEach((fixture, index) => { fixture.cal = defaultCalibration(index); });
-      renderFixtureRows();
-    });
-    await page.locator('#targetStepXCoarse').fill('0.5');
-    await page.locator('[data-target-nudge-axis="x"][data-target-nudge-step="coarse"][data-target-nudge-dir="1"]').click();
-    await expect(page.locator('#targetX')).toHaveValue('3');
-
-    await page.locator('#targetStepYFine').fill('0.05');
-    await page.locator('[data-target-nudge-axis="y"][data-target-nudge-step="fine"][data-target-nudge-dir="-1"]').click();
-    await expect(page.locator('#targetY')).toHaveValue('1.45');
-    await expect.poll(() => sent.length).toBeGreaterThan(0);
+    await expect(page.locator('#targetNudgeControls')).toHaveCount(0);
+    await expect(page.getByText('Target nudge', { exact: true })).toHaveCount(0);
+    await expect(page.locator('#targetX')).toBeVisible();
+    await expect(page.locator('#targetY')).toBeVisible();
   });
 
   test('removes manual apply and auto-apply remains active', async ({ page }) => {
@@ -469,6 +424,7 @@ test.describe('Room Plane rules', () => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
     await expect(page.locator('#resetDemo')).toHaveCount(0);
+    await expect(page.locator('#resetCalibration')).toHaveText('Reset plane and calibration');
     await page.locator('#resetCalibration').click();
 
     await expect(page.locator('tbody tr').first()).toContainText('Missing A, B, C');
@@ -494,6 +450,24 @@ test.describe('Room Plane rules', () => {
     await page.locator('#planeVisualSave').click();
     await expect(page.locator('#fixtureRows tr').first()).toContainText('Calibrated');
 
+    await page.evaluate(() => {
+      points.splice(0, points.length,
+        { id: 'A', x: 10, y: 20, z: 1 },
+        { id: 'B', x: 30, y: 20, z: 1 },
+        { id: 'C', x: 10, y: 40, z: 1 },
+        { id: 'D', x: 30, y: 40, z: 1 },
+        { id: 'E', x: 20, y: 30, z: 1 }
+      );
+      fixtures.forEach(fixture => {
+        fixture.cal.D = { pan: 1234, tilt: 2345, calibrated: true };
+        fixture.cal.E = { pan: 3456, tilt: 4567, calibrated: true };
+      });
+      targetX.value = '17';
+      targetY.value = '29';
+      planeView = { auto: false, centerX: 20, centerY: 30, zoom: 3 };
+      syncTables();
+    });
+
     await page.locator('#resetCalibration').click();
     await expect(page.locator('#fixtureRows tr').first()).toContainText('Missing A, B, C');
     await expect(page.locator('#planeLibrary .slot.active')).toHaveCount(0);
@@ -501,6 +475,14 @@ test.describe('Room Plane rules', () => {
     await expect.poll(() => posts.length).toBeGreaterThan(0);
     await expect.poll(() => posts.at(-1)?.activePlaneId).toBe('');
     expect(posts.at(-1).fixtures[0].cal.A.calibrated).toBe(false);
+    expect(posts.at(-1).points).toEqual([
+      { id: 'A', x: 0, y: 0, z: 0 },
+      { id: 'B', x: 5, y: 0, z: 0 },
+      { id: 'C', x: 0, y: 3, z: 0 }
+    ]);
+    expect(posts.at(-1).target).toEqual({ x: 2.5, y: 1.5, z: 0 });
+    expect(Object.keys(posts.at(-1).fixtures[0].cal)).toEqual(['A', 'B', 'C']);
+    expect(posts.at(-1).view).toMatchObject({ auto: true, zoom: 1 });
     expect(posts.at(-1).planes.every(plane =>
       plane.fixtures.every(fixture => ['A', 'B', 'C'].every(point => fixture.cal?.[point]?.calibrated))
     )).toBe(true);
@@ -999,6 +981,37 @@ test.describe('Room Plane rules', () => {
     });
 
     expect(Math.abs(scale.xPerUnit - scale.yPerUnit)).toBeLessThan(0.5);
+  });
+
+  test('desktop fixture lines end at the rendered target position', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const lineErrors = () => page.evaluate(() => {
+      const pad = document.getElementById('planePad');
+      const target = document.getElementById('planeTarget');
+      const targetX = parseFloat(target.style.left) * pad.clientWidth / 100;
+      const targetY = parseFloat(target.style.top) * pad.clientHeight / 100;
+      return [...pad.querySelectorAll('.plane-line')].map(line => {
+        const startX = parseFloat(line.style.left) * pad.clientWidth / 100;
+        const startY = parseFloat(line.style.top) * pad.clientHeight / 100;
+        const length = parseFloat(getComputedStyle(line).width);
+        const transform = new DOMMatrix(getComputedStyle(line).transform);
+        const endX = startX + transform.a * length;
+        const endY = startY + transform.b * length;
+        return Math.hypot(endX - targetX, endY - targetY);
+      });
+    });
+
+    const initialWidth = await page.locator('#planePad').evaluate(element => element.clientWidth);
+    const errors = await lineErrors();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(Math.max(...errors)).toBeLessThan(2);
+
+    await page.evaluate(() => document.documentElement.style.setProperty('--toolbox-rail-width', '700px'));
+    await expect.poll(() => page.locator('#planePad').evaluate(element => element.clientWidth)).toBeLessThan(initialWidth - 100);
+
+    await expect.poll(async () => Math.max(...await lineErrors())).toBeLessThan(2);
   });
 
   test('clears fixture edit state when the edit modal closes', async ({ page }) => {

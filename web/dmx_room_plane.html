@@ -63,8 +63,6 @@ td input[type="checkbox"]{width:auto}
 .plane-slot-meta{font-size:10px;color:inherit;opacity:.82;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .plane-section-note{font-size:13px;color:var(--accent);font-weight:700}
 .plane-calibration-warning{color:var(--warn);font-weight:700}
-.target-nudge-panel{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px;align-content:start}
-.target-nudge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,360px));gap:8px;justify-content:start}
 .pill-row{display:flex;gap:8px;flex-wrap:wrap}
 .pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px;background:#10161b}
 #addPatchedFixturesModal .modal-card{width:min(860px,calc(100vw - 24px));max-width:860px}
@@ -120,7 +118,7 @@ canvas{display:none}
       <div class="panel-head">
         <div class="panel-head__title">
           <h2>Virtual Room Plane</h2>
-          <div class="small">Drag the red target, use the nudge tools, or pan and zoom the view while calibrated fixtures follow the target.</div>
+          <div class="small">Drag the red target, enter its X/Y position, or pan and zoom the view while calibrated fixtures follow the target.</div>
         </div>
         <div class="pill-row panel-head__tools">
           <span class="pill" id="weightReadout">Weights: -</span>
@@ -137,31 +135,6 @@ canvas{display:none}
         <div class="plane-grid"></div>
         <div class="plane-triangle" id="planeTriangle"></div>
         <div class="plane-target" id="planeTarget" title="Target"></div>
-      </div>
-      <div class="target-nudge-panel">
-      <div class="small">Target nudge</div>
-      <div class="target-nudge-grid" id="targetNudgeControls">
-        <div class="relative-control">
-          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="-1" data-target-nudge-step="coarse" title="Move target X left by the coarse step">-</button>
-          <label>X coarse<input id="targetStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
-          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="1" data-target-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
-        </div>
-        <div class="relative-control">
-          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="-1" data-target-nudge-step="fine" title="Move target X left by the fine step">-</button>
-          <label>X fine<input id="targetStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
-          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="1" data-target-nudge-step="fine" title="Move target X right by the fine step">+</button>
-        </div>
-        <div class="relative-control">
-          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="-1" data-target-nudge-step="coarse" title="Move target Y down by the coarse step">-</button>
-          <label>Y coarse<input id="targetStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
-          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="1" data-target-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
-        </div>
-        <div class="relative-control">
-          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="-1" data-target-nudge-step="fine" title="Move target Y down by the fine step">-</button>
-          <label>Y fine<input id="targetStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
-          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="1" data-target-nudge-step="fine" title="Move target Y up by the fine step">+</button>
-        </div>
-      </div>
       </div>
     </section>
 
@@ -188,7 +161,7 @@ canvas{display:none}
         <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
         <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
         <button id="addCalibrationPoint" type="button">Add point at target</button>
-        <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
+        <button id="resetCalibration" type="button" class="warn">Reset plane and calibration</button>
       </div>
     </div>
   </div>
@@ -1458,19 +1431,6 @@ function queueRoomPlaneRender(){
   });
 }
 
-function targetNudgeStep(axis,kind){
-  const id='targetStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
-  return Math.max(0.001,Number(document.getElementById(id)?.value)||0);
-}
-
-function nudgeTarget(axis,dir,kind){
-  const target=currentTarget();
-  const step=targetNudgeStep(axis,kind);
-  target[axis]+=dir*step;
-  setTarget(target);
-  setStatus('Target '+axis.toUpperCase()+' '+fmt(target[axis],3)+' · live output updating');
-}
-
 function selectedFixtureIndexes(){
   ensureFixtureSelection();
   return fixtures
@@ -1645,10 +1605,11 @@ function screenToRoom(event,rect,bounds){
 function drawLine(host,a,b){
   const line=document.createElement('div');
   line.className='plane-line';
-  const dx=b.x-a.x,dy=b.y-a.y;
+  const dx=(b.x-a.x)*Math.max(1,host.clientWidth)/100;
+  const dy=(b.y-a.y)*Math.max(1,host.clientHeight)/100;
   line.style.left=a.x+'%';
   line.style.top=a.y+'%';
-  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'px';
   line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
   host.appendChild(line);
 }
@@ -1794,19 +1755,26 @@ async function runTargetAutoApply(){
 }
 
 function resetAllCalibration(){
+  const resetPoints=defaultPoints();
+  points.splice(0,points.length,...resetPoints);
   fixtures.forEach(f=>{
-    points.forEach(point=>{
-      if(!f.cal)f.cal={};
-      const existing=f.cal[point.id]||{pan:0,tilt:0};
+    const existingCalibration=f.cal&&typeof f.cal==='object'?f.cal:{};
+    f.cal={};
+    resetPoints.forEach(point=>{
+      const existing=existingCalibration[point.id]||{pan:0,tilt:0};
       f.cal[point.id]={pan:Number(existing.pan)||0,tilt:Number(existing.tilt)||0,calibrated:false};
     });
   });
+  document.getElementById('targetX').value='2.5';
+  document.getElementById('targetY').value='1.5';
+  document.getElementById('planeName').value='Default plane';
+  planeView={auto:true,centerX:0,centerY:0,zoom:1};
   activePlaneId='';
-  renderFixtureRows();
+  editingFixtureIndex=null;
+  syncTables();
   renderPlaneSelect();
-  render();
   scheduleRoomPlaneAutosave({preserveSavedPlanes:true});
-  setStatus('Calibration reset and saved plane deselected. Store at least three non-collinear points for each fixture before using plane output.');
+  setStatus('Working room plane and calibration reset to default A/B/C points. Saved planes were preserved.');
 }
 
 function syncTables(){
@@ -2162,14 +2130,6 @@ function setRoomGroupXY(event,pad){
   sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
   updateRoomGroupControlDisplay(c);
 }
-document.getElementById('targetNudgeControls').addEventListener('click',event=>{
-  const button=event.target.closest('[data-target-nudge-axis]');
-  if(!button)return;
-  const axis=button.dataset.targetNudgeAxis;
-  const dir=Number(button.dataset.targetNudgeDir)||0;
-  const kind=button.dataset.targetNudgeStep||'coarse';
-  if((axis==='x'||axis==='y')&&dir)nudgeTarget(axis,dir,kind);
-});
 document.getElementById('zoomInPlane').onclick=()=>zoomPlaneView(1.25);
 document.getElementById('zoomOutPlane').onclick=()=>zoomPlaneView(1/1.25);
 document.getElementById('resetPlaneView').onclick=()=>{planeView={auto:true,centerX:0,centerY:0,zoom:1};setPlanePanMode(false);render();scheduleRoomPlaneAutosave();setStatus('Plane view reset');};
@@ -2311,6 +2271,12 @@ planePad.addEventListener('wheel',event=>{
   event.preventDefault();
   zoomPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});
+if(window.ResizeObserver){
+  const planePadResizeObserver=new ResizeObserver(()=>queueRoomPlaneRender());
+  planePadResizeObserver.observe(planePad);
+}else{
+  window.addEventListener('resize',queueRoomPlaneRender);
+}
 DmxCommon.loadUiState('roomPlane').then(state=>{
   roomGroupRelativeStepStore.load(state.groupEditRelativeSteps);
   roomFixtureRelativeStepStore.load(state.fixtureEditRelativeSteps);
