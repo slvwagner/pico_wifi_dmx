@@ -714,6 +714,15 @@ test.describe('Code safety regression rules', () => {
     expect(hardwareRequests).toEqual([]);
   });
 
+  test('Effects overview capture waits for deterministic data without restoring UI state', () => {
+    const motion = read('web/dmx_motion.html');
+    const overviewCapture = read('scripts/capture_manual_page_overviews.ps1');
+
+    expect(motion).toContain('window.motionDocshotReady=Promise.allSettled');
+    expect(motion).toContain('if(!motionDocshotOverview){\n  (async()=>{');
+    expect(overviewCapture).toContain('if(window.motionDocshotReady)await window.motionDocshotReady;');
+  });
+
   test('manual build scripts use responsibility-based names', () => {
     const expected = [
       'scripts/build_user_manual.ps1',

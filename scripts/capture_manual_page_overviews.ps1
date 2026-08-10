@@ -116,6 +116,7 @@ function Save-PageScreenshot {
         $overview = Invoke-OverviewPageScript @"
 (async()=>{
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  if(window.motionDocshotReady)await window.motionDocshotReady;
   const rail=document.querySelector('.toolbox-rail');
   const railToggle=rail?.querySelector('.toolbox-rail-toggle');
   if(rail?.classList.contains('collapsed')&&railToggle)railToggle.click();

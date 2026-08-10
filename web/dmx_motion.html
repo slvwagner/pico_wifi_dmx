@@ -3131,28 +3131,31 @@ const motionPlanesToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'motionPlanesBoxPos',
   uiStateCollapsedKey:'motionPlanesBoxCollapsed'
 });
-loadMotionScenesServer();
-loadMotionPalettesServer();
+const motionSceneLoadPromise=loadMotionScenesServer();
+const motionPaletteLoadPromise=loadMotionPalettesServer();
+window.motionDocshotReady=Promise.allSettled([motionSceneLoadPromise,motionPaletteLoadPromise]);
 if(!motionDocshotOverview)motionPlanesMatrix.load();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('motion',key,val);
 }
-(async()=>{
-  try{
-    const st=await DmxCommon.loadUiState('motion');
-    motionGroupRelativeStepStore.load(st.groupEditRelativeSteps);
-    if(st.sceneBoxCollapsed!==undefined){
-      const c=!!st.sceneBoxCollapsed;
-      localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
-      motionSceneToolbox.setCollapsed(c,false);
-    }
-    if(st.sceneBoxPos){
-      localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
-      motionSceneToolbox.applyPosition(st.sceneBoxPos);
-    }
-  }catch(_){}
-})();
+if(!motionDocshotOverview){
+  (async()=>{
+    try{
+      const st=await DmxCommon.loadUiState('motion');
+      motionGroupRelativeStepStore.load(st.groupEditRelativeSteps);
+      if(st.sceneBoxCollapsed!==undefined){
+        const c=!!st.sceneBoxCollapsed;
+        localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+        motionSceneToolbox.setCollapsed(c,false);
+      }
+      if(st.sceneBoxPos){
+        localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
+        motionSceneToolbox.applyPosition(st.sceneBoxPos);
+      }
+    }catch(_){}
+  })();
+}
 
 // After setup loads (and baseUrl is restored from localStorage), auto-poll once
 setTimeout(()=>{ if(!motionDocshotOverview&&baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
