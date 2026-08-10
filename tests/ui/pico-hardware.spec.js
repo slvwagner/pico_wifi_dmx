@@ -415,18 +415,20 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     test.skip(channels.length < 2, 'Two configured DMX test channels are required for Pan/Tilt Pulse');
     const panChannel = Number(channels[0]);
     const tiltChannel = Number(channels[1]);
-    const target = type => [
+    const target = (type, positionOffset, direction) => [
       'FX 1',
       `TYPE ${type}`,
       'BPM 60',
       'AMP1 0.25',
       'AMP2 0.25',
+      `PULSE_OFFSET ${positionOffset}`,
+      `PULSE_DIRECTION ${direction}`,
       'SPREAD 0',
       `TARGET pantilt8 1 ${panChannel} 0 ${tiltChannel} 0 0 0 0`,
       'END'
     ].join('\n');
-    const samplePulse = async type => {
-      await postText(request, '/motion/load/' + slot, target(type));
+    const samplePulse = async (type, positionOffset, direction) => {
+      await postText(request, '/motion/load/' + slot, target(type, positionOffset, direction));
       await getJson(request, '/motion/start/' + slot);
       await sleep(150);
       const high = await getJson(request, '/dmx/output.json');
@@ -444,15 +446,15 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await getJson(request, '/dmx/clear');
     await postText(request, '/dmx/b', `${panChannel}:128,${tiltChannel}:128`);
     try {
-      const panPulse = await samplePulse(6);
-      expect(panPulse.high.pan).toBeGreaterThan(128);
+      const panPulse = await samplePulse(6, 0, -1);
+      expect(Math.abs(panPulse.high.pan - 128)).toBeLessThanOrEqual(1);
       expect(panPulse.low.pan).toBeLessThan(128);
       expect(panPulse.high.tilt).toBe(128);
       expect(panPulse.low.tilt).toBe(128);
 
-      const tiltPulse = await samplePulse(7);
-      expect(tiltPulse.high.tilt).toBeGreaterThan(128);
-      expect(tiltPulse.low.tilt).toBeLessThan(128);
+      const tiltPulse = await samplePulse(7, .25, 1);
+      expect(tiltPulse.high.tilt).toBeGreaterThan(tiltPulse.low.tilt);
+      expect(tiltPulse.low.tilt).toBeGreaterThan(128);
       expect(tiltPulse.high.pan).toBe(128);
       expect(tiltPulse.low.pan).toBe(128);
     } finally {

@@ -880,7 +880,24 @@ test.describe('Effects established rules', () => {
           amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
         };
       };
-      return { panPulse: sample('panPulse'), tiltPulse: sample('tiltPulse') };
+      effect.value = 'panPulse';
+      effect.dispatchEvent(new Event('change'));
+      document.getElementById('pulsePositionOffset').value = -25;
+      document.getElementById('pulseDirection').value = -100;
+      const shaped = {
+        negative: pulsePositionValue(-1, -1, -.25),
+        positive: pulsePositionValue(1, -1, -.25),
+        midpoint: pulsePositionValue(1, -.5, 0),
+        offsetLine: serializeMotionForPico().split('\n').find(line => line.startsWith('PULSE_OFFSET ')),
+        directionLine: serializeMotionForPico().split('\n').find(line => line.startsWith('PULSE_DIRECTION ')),
+        params: motionData().params,
+        recipeParams: currentMotionEffectRecipe().params,
+        controlsVisible: getComputedStyle(document.getElementById('pulseShapeFields')).display !== 'none'
+      };
+      effect.value = 'panSwing';
+      effect.dispatchEvent(new Event('change'));
+      shaped.hiddenForSine = getComputedStyle(document.getElementById('pulseShapeFields')).display === 'none';
+      return { panPulse: sample('panPulse'), tiltPulse: sample('tiltPulse'), shaped };
     });
 
     expect(result.panPulse).toMatchObject({
@@ -897,6 +914,17 @@ test.describe('Effects established rules', () => {
       amp1: 'AMP1 0.000000'
     });
     expect(result.tiltPulse.amp2).not.toBe('AMP2 0.000000');
+    expect(result.shaped).toMatchObject({
+      negative: -1.25,
+      positive: -0.25,
+      midpoint: 0.5,
+      offsetLine: 'PULSE_OFFSET -0.250000',
+      directionLine: 'PULSE_DIRECTION -1.000000',
+      controlsVisible: true,
+      hiddenForSine: true,
+      params: { pulsePositionOffset: -25, pulseDirection: -100 },
+      recipeParams: { pulsePositionOffset: -25, pulseDirection: -100 }
+    });
   });
 
   test('scalar targets show one amplitude slider and force hidden tilt amplitude to zero', async ({ page }) => {

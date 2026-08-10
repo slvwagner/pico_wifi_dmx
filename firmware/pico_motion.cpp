@@ -20,6 +20,8 @@ typedef struct {
     float         bpm;
     float         amp1;
     float         amp2;
+    float         pulse_offset;
+    float         pulse_direction;
     float         spread_deg;
     uint32_t      start_us;
     uint32_t      paused_elapsed_us;
@@ -32,7 +34,7 @@ typedef struct {
 
 typedef struct {
     mfx_type_t    type;
-    float         bpm, amp1, amp2, spread_deg, elapsed_s;
+    float         bpm, amp1, amp2, pulse_offset, pulse_direction, spread_deg, elapsed_s;
     int           enabled_count;
     uint16_t      target_count;
     mfx_target_t  targets[MFX_MAX_TARGETS];
@@ -119,6 +121,10 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
             tmp.amp1 = strtof(line + 5, NULL);
         } else if (strncmp(line, "AMP2 ", 5) == 0) {
             tmp.amp2 = strtof(line + 5, NULL);
+        } else if (strncmp(line, "PULSE_OFFSET ", 13) == 0) {
+            tmp.pulse_offset = strtof(line + 13, NULL);
+        } else if (strncmp(line, "PULSE_DIRECTION ", 16) == 0) {
+            tmp.pulse_direction = strtof(line + 16, NULL);
         } else if (strncmp(line, "SPREAD ", 7) == 0) {
             tmp.spread_deg = strtof(line + 7, NULL);
         } else if (strncmp(line, "TARGET ", 7) == 0 && tmp.target_count < MFX_MAX_TARGETS) {
@@ -151,6 +157,10 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
     if (tmp.target_count == 0) return false;
     if (tmp.bpm < 0.1f) tmp.bpm = 0.1f;
     if (tmp.bpm > 600.0f) tmp.bpm = 600.0f;
+    if (tmp.pulse_offset < -1.0f) tmp.pulse_offset = -1.0f;
+    if (tmp.pulse_offset > 1.0f) tmp.pulse_offset = 1.0f;
+    if (tmp.pulse_direction < -1.0f) tmp.pulse_direction = -1.0f;
+    if (tmp.pulse_direction > 1.0f) tmp.pulse_direction = 1.0f;
     tmp.loaded = true;
 
     mutex_enter_blocking(&mfx_lock);
@@ -279,6 +289,17 @@ static void effect_offset(float t, mfx_type_t type, float *a, float *b)
     }
 }
 
+static bool effect_is_position_pulse(mfx_type_t type)
+{
+    return type == MFX_PAN_PULSE || type == MFX_TILT_PULSE;
+}
+
+static float pulse_directional_value(float value, float direction)
+{
+    if (value < 0.0f) return -(1.0f - (direction > 0.0f ? direction : 0.0f));
+    return 1.0f + (direction < 0.0f ? direction : 0.0f);
+}
+
 static inline void scratch8(uint16_t ch, uint8_t v, uint8_t *scratch, bool *touched)
 {
     if (ch < 1 || ch > 512) return;
@@ -350,6 +371,8 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         sn->bpm = sd->bpm;
         sn->amp1 = sd->amp1;
         sn->amp2 = sd->amp2;
+        sn->pulse_offset = sd->pulse_offset;
+        sn->pulse_direction = sd->pulse_direction;
         sn->spread_deg = sd->spread_deg;
         sn->elapsed_s = elapsed_s;
         sn->target_count = sd->target_count;
@@ -374,6 +397,10 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             float phase = t->phase_offset_deg * MFX_PI / 180.0f + auto_phase;
             float off1, off2;
             effect_offset(angle + phase, sn->type, &off1, &off2);
+            if (effect_is_position_pulse(sn->type)) {
+                off1 = pulse_directional_value(off1, sn->pulse_direction) * sn->amp1 + sn->pulse_offset;
+                off2 = pulse_directional_value(off2, sn->pulse_direction) * sn->amp2 + sn->pulse_offset;
+            }
             float half = t->max_val / 2.0f;
 
             if (target_is_pantilt(t)) {
@@ -383,13 +410,15 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
                                                     : (float)dmx_engine_get_base_channel(t->ch1);
                     float dir = t->reverse1 ? -1.0f : 1.0f;
-                    write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half * dir, scratch, touched);
+                    float amount = effect_is_position_pulse(sn->type) ? off1 : off1 * sn->amp1;
+                    write_target_value(t, t->ch1, t->fine1, base + amount * half * dir, scratch, touched);
                 }
                 if (moves_2) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch2, t->fine2)
                                                     : (float)dmx_engine_get_base_channel(t->ch2);
                     float dir = t->reverse2 ? -1.0f : 1.0f;
-                    write_target_value(t, t->ch2, t->fine2, base + off2 * sn->amp2 * half * dir, scratch, touched);
+                    float amount = effect_is_position_pulse(sn->type) ? off2 : off2 * sn->amp2;
+                    write_target_value(t, t->ch2, t->fine2, base + amount * half * dir, scratch, touched);
                 }
             } else {
                 float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)

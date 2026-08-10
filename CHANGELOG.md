@@ -36,6 +36,10 @@ Changed:
 - Added Pan Pulse and Tilt Pulse effects for Pan/Tilt targets. Existing Pan
   Swing and Tilt Swing effects are now labelled Pan Sine Wave and Tilt Sine
   Wave while retaining their saved-effect and Pico-slot compatibility.
+- Added continuous position-offset and direction controls to Pan Pulse and Tilt
+  Pulse. Direction ranges from negative-only through the existing symmetric
+  pulse to positive-only, while position offset shifts both pulse levels around
+  the current Pan/Tilt center. Both values are saved and uploaded to Pico slots.
 
 Fixed:
 

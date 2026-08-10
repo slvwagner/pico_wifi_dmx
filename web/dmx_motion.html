@@ -208,6 +208,15 @@ main{max-width:none;width:100%;margin:0}
     <label id="tiltAmpLabel">Tilt amp
       <span class="motion-effect-slider"><input id="tiltAmp" type="range" min="0" max="100" value="15"><span><span id="tiltAmpVal">15</span>%</span></span>
     </label>
+    <div id="pulseShapeFields" hidden>
+      <label>Position offset
+        <span class="motion-effect-slider"><input id="pulsePositionOffset" type="range" min="-100" max="100" value="0"><span><span id="pulsePositionOffsetVal">0</span>%</span></span>
+      </label>
+      <label>Direction
+        <span class="motion-effect-slider"><input id="pulseDirection" type="range" min="-100" max="100" value="0"><span id="pulseDirectionVal">Symmetric</span></span>
+      </label>
+      <div class="small">Negative-only at -100%, symmetric at 0%, positive-only at +100%.</div>
+    </div>
     <label>Phase spread
       <span class="motion-effect-slider"><input id="phaseSpread" type="range" min="0" max="360" value="0"><span><span id="phaseSpreadVal">0</span>°</span></span>
     </label>
@@ -522,6 +531,23 @@ function effectAxisMode(){
   if(type==='tiltSwing'||type==='tiltPulse')return'tilt';
   return'both';
 }
+function isPositionPulse(type=document.getElementById('effectType')?.value||''){
+  return type==='panPulse'||type==='tiltPulse';
+}
+function pulseDirectionalValue(value,direction){
+  const d=clamp(direction,-1,1);
+  return value<0?-(1-Math.max(d,0)):(1+Math.min(d,0));
+}
+function pulsePositionValue(value,direction,positionOffset,amplitude=1){
+  return pulseDirectionalValue(value,direction)*amplitude+positionOffset;
+}
+function pulseDirectionLabel(value){
+  const n=Math.round(clamp(value,-100,100));
+  if(n===-100)return'Negative only';
+  if(n===0)return'Symmetric';
+  if(n===100)return'Positive only';
+  return(n>0?'+':'')+n+'%';
+}
 function axisModeShowsPan(mode){
   return mode==='both'||mode==='pan';
 }
@@ -537,6 +563,7 @@ function updateEffectParameterUi(){
   const tiltLabel=document.getElementById('tiltAmpLabel');
   const tilt=document.getElementById('tiltAmp');
   const tiltVal=document.getElementById('tiltAmpVal');
+  const pulseFields=document.getElementById('pulseShapeFields');
   if(axisModeShowsPan(lastEffectAxisMode)&&!axisModeShowsPan(mode)&&pan){
     lastPanTiltPanAmp=clamp(pan.value,0,100);
   }
@@ -570,6 +597,7 @@ function updateEffectParameterUi(){
   }
   lastEffectParameterFamily=family;
   lastEffectAxisMode=mode;
+  if(pulseFields)pulseFields.hidden=!isPositionPulse();
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -1156,6 +1184,8 @@ function drawPathPreview(){
   const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
   const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const pulseOffset=clamp(document.getElementById('pulsePositionOffset').value,-100,100)/100;
+  const pulseDirection=clamp(document.getElementById('pulseDirection').value,-100,100)/100;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
 
   pathCtx.clearRect(0,0,w,h);
@@ -1191,16 +1221,20 @@ function drawPathPreview(){
     for(let s=0;s<=STEPS;s++){
       const t=s/STEPS*Math.PI*2+phase;
       const off=effectOffset(t,type);
-      const px=(0.5+off.pan*pAmp*0.46)*w;
-      const py=(0.5-off.tilt*tAmp*0.46)*h;
+      const panPosition=isPositionPulse(type)&&mode!=='tilt'?pulsePositionValue(off.pan,pulseDirection,pulseOffset,pAmp):off.pan*pAmp;
+      const tiltPosition=isPositionPulse(type)&&mode!=='pan'?pulsePositionValue(off.tilt,pulseDirection,pulseOffset,tAmp):off.tilt*tAmp;
+      const px=(0.5+panPosition*0.46)*w;
+      const py=(0.5-tiltPosition*0.46)*h;
       s===0?pathCtx.moveTo(px,py):pathCtx.lineTo(px,py);
     }
     pathCtx.stroke();pathCtx.globalAlpha=1;
 
     // start dot
     const s0=effectOffset(phase,type);
-    const sx=(0.5+s0.pan*pAmp*0.46)*w;
-    const sy=(0.5-s0.tilt*tAmp*0.46)*h;
+    const startPan=isPositionPulse(type)&&mode!=='tilt'?pulsePositionValue(s0.pan,pulseDirection,pulseOffset,pAmp):s0.pan*pAmp;
+    const startTilt=isPositionPulse(type)&&mode!=='pan'?pulsePositionValue(s0.tilt,pulseDirection,pulseOffset,tAmp):s0.tilt*tAmp;
+    const sx=(0.5+startPan*0.46)*w;
+    const sy=(0.5-startTilt*0.46)*h;
     pathCtx.fillStyle=color;
     pathCtx.beginPath();pathCtx.arc(sx,sy,4,0,Math.PI*2);pathCtx.fill();
 
@@ -1381,6 +1415,8 @@ function tick(){
   const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
   const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const pulseOffset=clamp(document.getElementById('pulsePositionOffset').value,-100,100)/100;
+  const pulseDirection=clamp(document.getElementById('pulseDirection').value,-100,100)/100;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
   const batchMap={};
 
@@ -1389,11 +1425,15 @@ function tick(){
     const f=mf.fixture;
     const autoPhase=motionAutoPhase(spread,i,enabled.length);
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
-    const off=effectOffset(angle+phase,type);
+    const rawOff=effectOffset(angle+phase,type);
+    const off=isPositionPulse(type)?{
+      pan:mode==='tilt'?0:pulsePositionValue(rawOff.pan,pulseDirection,pulseOffset,pAmp),
+      tilt:mode==='pan'?0:pulsePositionValue(rawOff.tilt,pulseDirection,pulseOffset,tAmp)
+    }:rawOff;
     const max=mf.kind==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const half=max/2;
     if(mf.kind!=='panTilt'){
-      const newVal=clamp(mf.baseValue+off.pan*pAmp*half,0,max);
+      const newVal=clamp(mf.baseValue+off.pan*(isPositionPulse(type)?1:pAmp)*half,0,max);
       sendMotionTargetValue(mf,newVal,batchMap);
       const idx=motionFixtures.indexOf(mf);
       const bar=document.getElementById('bar'+idx);
@@ -1402,8 +1442,8 @@ function tick(){
       if(posEl)posEl.textContent=Math.round(newVal)+' / '+max;
       return;
     }
-    const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
-    const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
+    const newPan=clamp(mf.basePan+off.pan*(isPositionPulse(type)?1:pAmp)*half,0,max);
+    const newTilt=clamp(mf.baseTilt+off.tilt*(isPositionPulse(type)?1:tAmp)*half,0,max);
     addPanTiltToBatch(f,c,{pan:newPan,tilt:newTilt},batchMap);
 
     // update mini XY pad
@@ -1460,6 +1500,15 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
     saveMotionWorkingState();
   };
 });
+['pulsePositionOffset','pulseDirection'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.oninput=()=>{
+    const value=clamp(el.value,-100,100);
+    document.getElementById(id+'Val').textContent=id==='pulseDirection'?pulseDirectionLabel(value):value;
+    drawPathPreview();
+    saveMotionWorkingState();
+  };
+});
 ['bpm','updateRate','motionLoopCount'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',saveMotionWorkingState);
@@ -1481,6 +1530,8 @@ function serializeMotionForPico(outputId=null){
   const amp1=mode==='tilt'?0:parseFloat(document.getElementById('panAmp').value)/100;
   const amp2=(mode==='scalar'||mode==='pan')?0:parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
+  const pulseOffset=parseFloat(document.getElementById('pulsePositionOffset').value)/100;
+  const pulseDirection=parseFloat(document.getElementById('pulseDirection').value)/100;
   const playMode=normalizedMotionMode(document.getElementById('picoMotionMode').value);
   const loopCount=normalizedMotionLoopCount(document.getElementById('picoMotionLoopCount').value);
   const lines=[
@@ -1491,6 +1542,8 @@ function serializeMotionForPico(outputId=null){
     'BPM '+bpm.toFixed(4),
     'AMP1 '+amp1.toFixed(6),
     'AMP2 '+amp2.toFixed(6),
+    'PULSE_OFFSET '+pulseOffset.toFixed(6),
+    'PULSE_DIRECTION '+pulseDirection.toFixed(6),
     'SPREAD '+spread.toFixed(4),
   ];
   const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
@@ -1891,6 +1944,8 @@ function motionData(){
       bpm:+document.getElementById('bpm').value,
       panAmp:+document.getElementById('panAmp').value,
       tiltAmp:+document.getElementById('tiltAmp').value,
+      pulsePositionOffset:+document.getElementById('pulsePositionOffset').value,
+      pulseDirection:+document.getElementById('pulseDirection').value,
       phaseSpread:+document.getElementById('phaseSpread').value,
       updateRate:+document.getElementById('updateRate').value,
       playMode:normalizedMotionMode(document.getElementById('motionPlayMode').value),
@@ -1933,6 +1988,12 @@ function applyMotionData(data,{includeEffects=true,saveWorkingState:saveState=tr
     if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
     if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
     if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+    const pulsePositionOffset=p.pulsePositionOffset===undefined?0:clamp(p.pulsePositionOffset,-100,100);
+    const pulseDirection=p.pulseDirection===undefined?0:clamp(p.pulseDirection,-100,100);
+    document.getElementById('pulsePositionOffset').value=pulsePositionOffset;
+    document.getElementById('pulsePositionOffsetVal').textContent=pulsePositionOffset;
+    document.getElementById('pulseDirection').value=pulseDirection;
+    document.getElementById('pulseDirectionVal').textContent=pulseDirectionLabel(pulseDirection);
     if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
     if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
     if(p.playMode!==undefined)document.getElementById('motionPlayMode').value=normalizedMotionMode(p.playMode);
@@ -2094,6 +2155,8 @@ function currentMotionEffectRecipe(){
       bpm:+document.getElementById('bpm').value,
       panAmp:+document.getElementById('panAmp').value,
       tiltAmp:+document.getElementById('tiltAmp').value,
+      pulsePositionOffset:+document.getElementById('pulsePositionOffset').value,
+      pulseDirection:+document.getElementById('pulseDirection').value,
       phaseSpread:+document.getElementById('phaseSpread').value,
       updateRate:+document.getElementById('updateRate').value,
       playMode:normalizedMotionMode(document.getElementById('motionPlayMode').value),
@@ -2231,6 +2294,12 @@ function recallMotionEffect(effect){
   if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
   if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
   if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+  const pulsePositionOffset=p.pulsePositionOffset===undefined?0:clamp(p.pulsePositionOffset,-100,100);
+  const pulseDirection=p.pulseDirection===undefined?0:clamp(p.pulseDirection,-100,100);
+  document.getElementById('pulsePositionOffset').value=pulsePositionOffset;
+  document.getElementById('pulsePositionOffsetVal').textContent=pulsePositionOffset;
+  document.getElementById('pulseDirection').value=pulseDirection;
+  document.getElementById('pulseDirectionVal').textContent=pulseDirectionLabel(pulseDirection);
   if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
   if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
   if(p.playMode!==undefined)document.getElementById('motionPlayMode').value=normalizedMotionMode(p.playMode);
