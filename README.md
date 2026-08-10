@@ -66,7 +66,7 @@ Core features:
 
 ### Programming and visualization
 
-- **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
+- **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types. Optional **Merge Controls** mode combines matching 8-bit/16-bit functions and RGB/RGBW/RGBWA/CMY/CMYK color controls while retaining each fixture's native channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
 - **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Controller and Show Run recall pictures across the fixtures' assigned DMX Outputs. Chaser can capture pictures as animated steps, preview them on the primary output, and split an autonomous upload into linked Pico payloads.
@@ -1374,6 +1374,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 - Create a group and assign any subset of patched fixtures to it.
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
 - The **Group Edit** modal can recall **Default** or **Blackout** for every selected fixture at once, using each fixture profile's own stored default/blackout values. On Controller, Chaser, Effects, and Room Plane, either recall first stops chaser and effect playback on every Pico assigned to the selected fixtures, then applies the values after all stop requests succeed. Show Run deliberately leaves playback running for live operation.
+- Controller and Show Run Group Edit use exact profile-control matching by default. Enable **Merge Controls** inside the modal to combine matching 8-bit and 16-bit functions such as Dimmer, Focus, Zoom, Iris, Frost, or color temperature. Pan/Tilt resolution is converted automatically. RGB, RGBW, RGBWA, CMY, and CMYK use one RGB editor; white, amber, and key channels remain unchanged. A duplicate function inside one fixture is excluded because it cannot be selected unambiguously, and wheel controls retain exact option-table matching.
 - Groups can be edited with **Edit Tile** for name and visual appearance, or deleted from the Saved Groups panel.
 - Groups are included in the complete **Export Show** / **Import Show** backup from the Fixture Controller.
 

@@ -1808,6 +1808,73 @@
     return{coarse:(n>>8)&255,fine:n&255};
   }
 
+  function fixtureGroupEditIsScalar(control){
+    return control?.type==='slider8'||control?.type==='slider16';
+  }
+
+  function fixtureGroupEditIsColor(control){
+    return['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control?.type);
+  }
+
+  function fixtureGroupEditNormalizedLabel(control){
+    return String(control?.scope||control?.label||control?.name||'Control').trim().toLowerCase()
+      .replace(/\bcolour\b/g,'color')
+      .replace(/\bdimming\b|\bdimmer\b/g,'intensity')
+      .replace(/\bcct\b/g,'color temperature')
+      .replace(/\s+/g,' ');
+  }
+
+  function fixtureGroupEditCompatibilityKey(control){
+    if(fixtureGroupEditIsScalar(control))return'compatible:scalar:'+fixtureGroupEditNormalizedLabel(control);
+    if(control?.type==='panTilt8'||control?.type==='panTilt16')return'compatible:panTilt';
+    if(fixtureGroupEditIsColor(control))return'compatible:color';
+    return'';
+  }
+
+  function fixtureGroupEditValueMax(control){
+    return control?.type==='slider16'||control?.type==='panTilt16'?65535:255;
+  }
+
+  function fixtureGroupEditRepresentative(control,mergeCompatible=false){
+    return mergeCompatible&&fixtureGroupEditCompatibilityKey(control)==='compatible:color'?{...control,type:'rgb',label:'RGB'}:control;
+  }
+
+  function fixtureGroupEditPreferControl(current,candidate){
+    return fixtureGroupEditValueMax(candidate)>fixtureGroupEditValueMax(current)?candidate:current;
+  }
+
+  function fixtureGroupEditColorAsRgb(value,control){
+    if(!value||typeof value!=='object')return{a:0,b:0,c:0};
+    if(control?.type==='cmy'||control?.type==='cmyk')return{a:255-clampInt(value.a??0,0,255),b:255-clampInt(value.b??0,0,255),c:255-clampInt(value.c??0,0,255)};
+    return{a:clampInt(value.a??0,0,255),b:clampInt(value.b??0,0,255),c:clampInt(value.c??0,0,255)};
+  }
+
+  function fixtureGroupEditCloneValue(value){
+    if(!value||typeof value!=='object')return value;
+    return Array.isArray(value)?value.map(fixtureGroupEditCloneValue):Object.fromEntries(Object.entries(value).map(([key,item])=>[key,fixtureGroupEditCloneValue(item)]));
+  }
+
+  function fixtureGroupEditConvertValue(value,fromControl,toControl,currentTargetValue=null){
+    const fromMax=fixtureGroupEditValueMax(fromControl),toMax=fixtureGroupEditValueMax(toControl);
+    if(fixtureGroupEditIsScalar(fromControl)&&fixtureGroupEditIsScalar(toControl)&&typeof value==='number')return clampInt(Math.round(value/fromMax*toMax),0,toMax);
+    const fromPosition=fromControl?.type==='panTilt8'||fromControl?.type==='panTilt16';
+    const toPosition=toControl?.type==='panTilt8'||toControl?.type==='panTilt16';
+    if(fromPosition&&toPosition&&value&&typeof value==='object')return{pan:clampInt(Math.round(Number(value.pan||0)/fromMax*toMax),0,toMax),tilt:clampInt(Math.round(Number(value.tilt||0)/fromMax*toMax),0,toMax)};
+    if(fixtureGroupEditIsColor(fromControl)&&fixtureGroupEditIsColor(toControl)&&value&&typeof value==='object'){
+      const current=currentTargetValue&&typeof currentTargetValue==='object'?currentTargetValue:{};
+      const rgb=fixtureGroupEditColorAsRgb(value,fromControl);
+      return toControl.type==='cmy'||toControl.type==='cmyk'?{...current,a:255-rgb.a,b:255-rgb.b,c:255-rgb.c}:{...current,...rgb};
+    }
+    return fixtureGroupEditCloneValue(value);
+  }
+
+  function fixtureGroupEditConvertDelta(delta,fromControl,toControl,part='value'){
+    const scaled=Math.round(Number(delta||0)/fixtureGroupEditValueMax(fromControl)*fixtureGroupEditValueMax(toControl));
+    const fromSubtractive=fixtureGroupEditIsColor(fromControl)&&(fromControl.type==='cmy'||fromControl.type==='cmyk');
+    const toSubtractive=fixtureGroupEditIsColor(toControl)&&(toControl.type==='cmy'||toControl.type==='cmyk');
+    return['a','b','c'].includes(part)&&fromSubtractive!==toSubtractive?-scaled:scaled;
+  }
+
   function createGroupEditRelativeStepStore(options={}){
     const page=String(options.page||'').trim();
     const stateKey=String(options.stateKey||'groupEditRelativeSteps');
@@ -4595,6 +4662,15 @@
     wheelOptionRangeText,
     wheelRangeSliderHtml,
     fixtureGroupEditParts,
+    fixtureGroupEditIsScalar,
+    fixtureGroupEditIsColor,
+    fixtureGroupEditNormalizedLabel,
+    fixtureGroupEditCompatibilityKey,
+    fixtureGroupEditValueMax,
+    fixtureGroupEditRepresentative,
+    fixtureGroupEditPreferControl,
+    fixtureGroupEditConvertValue,
+    fixtureGroupEditConvertDelta,
     createGroupEditRelativeStepStore,
     fixtureGroupEditControlHtml,
     updateFixtureGroupEditWheelRangeHost,

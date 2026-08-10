@@ -673,6 +673,10 @@ On the Fixture Controller, **Group Edit** lives in the **Groups** toolbox. It re
 
 The Group Edit modal shows controls that exist in the current edit scope. It can be used for one fixture or many fixtures where the page supports single-fixture editing. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
 
+Exact profile-control matching is active when the modal opens. If differently defined fixtures expose the same physical function at different resolutions or use different color models, press **Merge Controls** inside the modal. The active button combines matching 8-bit and 16-bit functions such as Dimmer, Focus, Zoom, Iris, Frost, and color temperature and converts the high-resolution editor value to each fixture's native DMX range. Pan/Tilt values are likewise converted between 8-bit and 16-bit fixtures.
+
+Merged color editing provides one RGB control for RGB, RGBW, RGBWA, CMY, and CMYK fixtures. The Controller converts RGB values to the subtractive CMY channels where required and preserves fixture-specific white, amber, and key channels. Press **Merge Controls** again to restore exact matching. Wheel controls are never merged through this mode because their option tables and DMX ranges must match exactly. If one fixture contains two controls with the same merge identity, that ambiguous fixture/function is excluded instead of choosing an arbitrary channel.
+
 The selected **Source** fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture's current matching control values and shows those values in the sliders, wheel buttons, color controls, XY pads, and relative nudge controls. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.
 
 The source selection is automatic. Loading a saved group makes the first fixture stored in that group the Source. With manual fixture selection, the clicked/selected fixture becomes the Source; if that fixture is removed from the selection, the page picks the next selected fixture that can provide the control.
@@ -693,7 +697,9 @@ Keep these rules as the contract:
 
 - Mixed fixture types are allowed.
 - A control is editable only when the page can match it by control identity, such as type and label.
+- Controller and Show Run can optionally merge matching 8-bit/16-bit scalar controls, Pan/Tilt resolutions, and supported additive/subtractive color models. Exact matching remains the default.
 - Wheel / indexed controls are stricter: same-named wheels are kept separate when their option lists differ, so a MAC Gobo wheel and a Scanner Gobo wheel are not accidentally edited as one control.
+- Ambiguous duplicate merge candidates in one fixture are excluded rather than applied to an arbitrary channel.
 - The modal shows the matching fixture/profile scope for each control.
 - Opening the modal reads the Source fixture values into the modal but does not apply or send anything yet.
 - Editing a control writes only to fixtures that actually have the matching control.
@@ -1547,6 +1553,8 @@ Group selection is an operator filter only. It does not edit the saved group def
 While **Edit** is active, the pencil on a saved group tile also includes its MIDI mapping. A mapped hardware button selects or deselects that group through the same path as clicking the tile.
 
 The **Group Edit** button opens a Controller-style Group Edit modal for the current Show target. The modal shows matching controls from the selected group or fixture target and sends live-value changes through the same Show Run output path as the other operator controls. Use it for quick grouped dimmer, color, wheel, or pan/tilt adjustments from the run page without opening the full Controller.
+
+Show Run also starts with exact control matching. Use **Merge Controls** inside its Group Edit modal for the same 8-bit/16-bit, Pan/Tilt, and RGB/RGBW/RGBWA/CMY/CMYK conversion available on the Controller. This changes only how the current modal matches and scales controls; it does not change fixture profiles or saved show data. Fixture-specific white, amber, and key channels are retained, ambiguous duplicate functions are skipped, and wheels continue to require exact matching.
 
 Relative nudge step sizes in this modal are autosaved to the Show Run UI state on the XAMPP server. Separate Pan/Tilt coarse and fine values are restored when the modal or page is reopened and remain independent from the step sizes used on the setup and playback-editing pages.
 

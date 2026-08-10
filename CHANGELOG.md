@@ -4,6 +4,15 @@
 
 Changed:
 
+- Added an optional **Merge Controls** mode inside the Controller and Show
+  Group Edit modals. Exact profile matching remains the default; when enabled,
+  matching 8-bit and 16-bit controls such as Dimmer, Focus, Zoom, Iris, Frost,
+  and color temperature share one high-resolution editor and are converted to
+  each fixture's native DMX resolution. Pan/Tilt resolutions are merged as
+  well. RGB, RGBW, RGBWA, CMY, and CMYK controls share a common RGB editor with
+  additive/subtractive conversion while fixture-specific white, amber, and key
+  channels remain unchanged. Ambiguous duplicate functions within one fixture
+  are excluded from merging.
 - Removed the dedicated Room Plane target-nudge section. Operators can still
   position the target by dragging it or entering Target X/Y directly.
 - Expanded Room Plane **Reset calibration** into **Reset plane and

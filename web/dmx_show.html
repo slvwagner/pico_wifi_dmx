@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-20">
-<script src="assets/dmx-common.js?v=1.2.1-22"></script>
+<script src="assets/dmx-common.js?v=1.2.1-23"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -179,6 +179,9 @@ body.layout-editing .master-edit-actions{display:flex}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
+.show-group-edit-mode{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.show-group-edit-mode button{width:100%}
+.show-group-edit-mode button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#103b30;color:var(--accent);font-weight:700}
 body.layout-editing .card-delete.slot-del{display:flex;background:rgba(60,27,27,.94);border:1px solid #ff7a7a;color:#ffd4d4;opacity:1}
 body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
@@ -497,6 +500,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <button id="showGroupModalClose" type="button" aria-label="Close">x</button>
 <h2 id="showGroupModalTitle">Group Edit</h2>
 </div>
+<div class="show-group-edit-mode">
+<button id="showMergeGroupControls" type="button" aria-pressed="false" title="Merge compatible color modes and matching 8-bit/16-bit controls">Merge Controls</button>
+<span id="showMergeGroupControlsHint" class="small">Exact profile control matching is active.</span>
+</div>
 <div id="showGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
 <button id="showGroupDefaultBtn" type="button" title="Recall configured default values for the current Show target">Default</button>
@@ -613,6 +620,7 @@ let chaserSelectedSlot=0;
 let motionSelectedSlot=0;
 const selectedGroupIds=new Set();
 const selectedFixtureIds=new Set();
+let showMergeCompatibleGroupControls=false;
 const masterFactors={grand:1,target:1};
 let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
 const layoutKey=name=>'dmxShowRun.'+name;
@@ -791,12 +799,26 @@ function showGroupEditFixtureRows(){
   const ids=activeTargetFixtureIds();
   return fixtures.filter(f=>ids.has(String(f.id))).map(f=>({fixture:f,profile:fixtureProfile(f)})).filter(row=>row.profile);
 }
-function showGroupControlIdentity(c){
+function showExactGroupControlIdentity(c){
   const label=String(c.scope||c.label||c.name||c.type||'Control').trim().toLowerCase();
   if(c.type==='panTilt16'||c.type==='panTilt8')return 'panTilt';
   if(c.type==='matrixRgb')return '';
   const parts=scalarControlParts(c).map(part=>part.part+':'+part.max).join('|');
   return (c.type||'slider8')+':'+label+':'+parts;
+}
+function showCompatibleGroupControlIdentity(c){return DmxCommon.fixtureGroupEditCompatibilityKey(c);}
+function showGroupControlIdentity(c){
+  const compatible=showCompatibleGroupControlIdentity(c);
+  return showMergeCompatibleGroupControls&&compatible?compatible:showExactGroupControlIdentity(c);
+}
+function showPreferGroupControl(current,candidate){return DmxCommon.fixtureGroupEditPreferControl(current,candidate);}
+function showGroupRepresentative(c){return DmxCommon.fixtureGroupEditRepresentative(c,showMergeCompatibleGroupControls);}
+function convertShowGroupControlValue(value,fromControl,toControl,currentTargetValue=null){
+  const current=currentTargetValue??defaultValueForControl(toControl);
+  return DmxCommon.fixtureGroupEditConvertValue(value,fromControl,toControl,current);
+}
+function convertShowGroupControlDelta(delta,fromControl,toControl,part){
+  return DmxCommon.fixtureGroupEditConvertDelta(delta,fromControl,toControl,part);
 }
 function showGroupControlLabel(c){
   if(c.type==='panTilt16'||c.type==='panTilt8')return 'Pan / Tilt';
@@ -806,14 +828,23 @@ function showGroupEditControls(){
   const rows=showGroupEditFixtureRows();
   const map=new Map();
   rows.forEach(row=>{
+    const fixtureControls=new Map();
     (row.profile.controls||[]).forEach(control=>{
       if(control.type==='matrixRgb')return;
       const parts=scalarControlParts(control);
       if(!parts.length)return;
       const key=showGroupControlIdentity(control);
       if(!key)return;
-      if(!map.has(key))map.set(key,{key,control,targets:[]});
-      map.get(key).targets.push({fixture:row.fixture,control});
+      if(!fixtureControls.has(key))fixtureControls.set(key,[]);
+      fixtureControls.get(key).push(control);
+    });
+    fixtureControls.forEach((matches,key)=>{
+      if(showMergeCompatibleGroupControls&&matches.length!==1)return;
+      matches.forEach(control=>{
+        if(!map.has(key))map.set(key,{key,control:showGroupRepresentative(control),targets:[]});
+        else map.get(key).control=showGroupRepresentative(showPreferGroupControl(map.get(key).control,control));
+        map.get(key).targets.push({fixture:row.fixture,control});
+      });
     });
   });
   return [...map.values()];
@@ -837,7 +868,7 @@ function showGroupControlHtml(row){
   const c=row.control;
   const sourceName=target?.fixture?.name||'Source';
   const key=esc(row.key);
-  const value=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
+  const value=target?convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,c):defaultValueForControl(c);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key:row.key,value,label:showGroupControlLabel(c),scopeText:row.targets.length+' matching fixture'+(row.targets.length===1?'':'s')+' · source '+sourceName,escape:esc,
     relativeStepValue:(part,kind,step,max)=>showGroupRelativeStepStore.value(row.key,part,kind,step,max),
@@ -864,19 +895,20 @@ function refreshShowGroupControlRow(rowKey,part){
   const row=showGroupEditControls().find(item=>item.key===rowKey);
   const target=showGroupSourceTarget(row);
   if(!row||!target)return;
-  const value=getControlPartValue(target.fixture,target.control,part);
+  const representativeValue=convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,row.control);
+  const value=part==='value'&&typeof representativeValue==='number'?representativeValue:(representativeValue?.[part]??0);
   document.querySelectorAll(`[data-show-group-slider="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"],[data-show-group-number="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"]`).forEach(input=>{input.value=value;});
   document.querySelectorAll(`[data-show-group-readout="${CSS.escape(rowKey+':'+part)}"]`).forEach(el=>{el.textContent=value;});
   if(part==='pan'||part==='tilt'){
-    const pan=getControlPartValue(target.fixture,target.control,'pan');
-    const tilt=getControlPartValue(target.fixture,target.control,'tilt');
-    const max=target.control.type==='panTilt8'?255:65535;
+    const pan=representativeValue.pan??0;
+    const tilt=representativeValue.tilt??0;
+    const max=row.control.type==='panTilt8'?255:65535;
     document.querySelectorAll(`[data-show-group-xy="${CSS.escape(rowKey)}"] .xy-dot`).forEach(dot=>{dot.style.left=(pan/max*100)+'%';dot.style.top=(100-tilt/max*100)+'%';});
     document.querySelectorAll(`[data-show-group-xy-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Pan '+pan+' · Tilt '+tilt;});
   }
   if(['a','b','c','w','amber','k'].includes(part)){
-    const valueObject=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-    const color=(target.control.type==='rgb'||target.control.type==='rgbw'||target.control.type==='rgbwa')?rgbHex(valueObject):(target.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
+    const valueObject=representativeValue;
+    const color=(row.control.type==='rgb'||row.control.type==='rgbw'||row.control.type==='rgbwa')?rgbHex(valueObject):(row.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
     document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
   }
   if(part==='value'&&target.control.type==='wheel'){
@@ -888,7 +920,7 @@ function refreshShowGroupControlRow(rowKey,part){
       button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
     });
   }
-  if(part==='value'&&target.control.type==='slider16'){
+  if(part==='value'&&row.control.type==='slider16'){
     const b=bytes16(value);
     document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(input=>{input.value=b.coarse;});
     document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(input=>{input.value=b.fine;});
@@ -910,7 +942,24 @@ function openShowGroupEditModal(){
   if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
   document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
   document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  updateShowMergeGroupControls();
   DmxCommon.showModal('showGroupModal');
+}
+function updateShowMergeGroupControls(){
+  const button=document.getElementById('showMergeGroupControls');
+  button.classList.toggle('active',showMergeCompatibleGroupControls);
+  button.setAttribute('aria-pressed',showMergeCompatibleGroupControls?'true':'false');
+  button.title=showMergeCompatibleGroupControls?'Use exact profile control matching':'Merge compatible color modes and matching 8-bit/16-bit controls';
+  document.getElementById('showMergeGroupControlsHint').textContent=showMergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls are merged.':'Exact profile control matching is active.';
+}
+function toggleShowMergeGroupControls(){
+  showMergeCompatibleGroupControls=!showMergeCompatibleGroupControls;
+  const controls=showGroupEditControls();
+  const targets=showGroupEditFixtureRows();
+  document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
+  document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  updateShowMergeGroupControls();
+  setStatus(showMergeCompatibleGroupControls?'Compatible color modes and matching 8-bit/16-bit controls will be merged in Show Group Edit.':'Show Group Edit restored exact profile control matching.');
 }
 function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
 async function recallShowGroupFixtureValues(which){
@@ -4186,6 +4235,7 @@ bindMidiCards();
 bindMasterCard();
 document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();updateShowGroupEditButton();setStatus('Show target reset to all fixtures');};
 document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
+document.getElementById('showMergeGroupControls').onclick=toggleShowMergeGroupControls;
 document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupDefaultBtn').onclick=()=>recallShowGroupFixtureValues('defaultValue').catch(err=>setStatus(err.message,true));
@@ -4208,8 +4258,8 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     if(!next)return;
     row.targets.forEach(target=>{
       const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-      const merged={...(typeof current==='object'?current:{}),...next};
-      setValue(target.fixture,target.control,merged);
+      const representative=convertShowGroupControlValue(current,target.control,row.control);
+      setValue(target.fixture,target.control,convertShowGroupControlValue({...representative,...next},row.control,target.control,current));
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
@@ -4221,10 +4271,13 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     const row=showGroupEditControls().find(item=>item.key===key);
     const target=showGroupSourceTarget(row);
     if(!row||!target||row.control.type!=='slider16')return;
-    const b=bytes16(getControlPartValue(target.fixture,target.control,'value'));
+    const b=bytes16(convertShowGroupControlValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)),target.control,row.control));
     b[byteInput.dataset.bytePart]=clamp(byteInput.value,0,255);
     const value=(b.coarse<<8)|b.fine;
-    row.targets.forEach(item=>setControlPartValue(item.fixture,item.control,'value',value));
+    row.targets.forEach(item=>{
+      const current=getValue(item.fixture,item.control,defaultValueForControl(item.control));
+      setValue(item.fixture,item.control,convertShowGroupControlValue(value,row.control,item.control,current));
+    });
     refreshShowGroupControlRow(key,'value');
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
     return;
@@ -4237,7 +4290,12 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
   const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
   if(!row||!partInfo)return;
   const value=clamp(input.value,0,partInfo.max);
-  row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,part,value));
+  row.targets.forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    const representative=convertShowGroupControlValue(current,target.control,row.control);
+    const next=typeof representative==='object'?{...representative,[part]:value}:value;
+    setValue(target.fixture,target.control,convertShowGroupControlValue(next,row.control,target.control,current));
+  });
   refreshShowGroupControlRow(key,part);
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
 });
@@ -4248,7 +4306,10 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
     const row=showGroupEditControls().find(item=>item.key===key);
     if(!row)return;
     const value=row.control.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      setValue(target.fixture,target.control,convertShowGroupControlValue(value,row.control,target.control,current));
+    });
     refreshShowGroupControlRow(key,'pan');
     refreshShowGroupControlRow(key,'tilt');
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' centered')).catch(err=>setStatus(err.message,true));
@@ -4269,7 +4330,8 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
     if(!next)return;
     row.targets.forEach(target=>{
       const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
-      setValue(target.fixture,target.control,{...(typeof current==='object'?current:{}),...next});
+      const representative=convertShowGroupControlValue(current,target.control,row.control);
+      setValue(target.fixture,target.control,convertShowGroupControlValue({...representative,...next},row.control,target.control,current));
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color')).catch(err=>setStatus(err.message,true));
@@ -4298,8 +4360,8 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
   const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
   const dir=parseInt(btn.dataset.dir,10)||1;
   row.targets.forEach(target=>{
-    const next=getControlPartValue(target.fixture,target.control,part)+dir*step;
-    setControlPartValue(target.fixture,target.control,part,next);
+    const currentPart=getControlPartValue(target.fixture,target.control,part);
+    setControlPartValue(target.fixture,target.control,part,currentPart+convertShowGroupControlDelta(dir*step,row.control,target.control,part));
   });
   refreshShowGroupControlRow(key,part);
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' nudged')).catch(err=>setStatus(err.message,true));
@@ -4313,7 +4375,10 @@ function setShowGroupXY(event,pad){
   const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
   const max=row.control.type==='panTilt8'?255:65535;
   const value={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
-  row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+  row.targets.forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    setValue(target.fixture,target.control,convertShowGroupControlValue(value,row.control,target.control,current));
+  });
   refreshShowGroupControlRow(key,'pan');
   refreshShowGroupControlRow(key,'tilt');
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
