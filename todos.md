@@ -1,7 +1,5 @@
-# New features
 
-## Names and icons for Pico slots
+# changes
 
-It is currently difficult to identify what is stored in a Pico slot. Extend the
-Chaser and Effects Pico slot tiles to show the saved name and icon. Show the same
-information on the Show Run page, where operators need to identify slots quickly.
+## edit button and collaps function missing in the showpage side bar
+Move the show page edit button to the side bar, include in the side bare a collaps function. Use the same visual language and functionality as in the controller page.

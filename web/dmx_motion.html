@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-25"></script>
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -1605,6 +1605,9 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
     ].filter(Boolean).join(';');
     const typeName=unsupported?'FW old':uncertain?'Fleet unknown':partial?'Mixed occupancy':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
     const linkedPlayback=linkedMotionPlaybackForSlot(s.slot);
+    const playbackLabel=linkedPlayback?.label
+      ? '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;color:inherit;line-height:1.25;margin-bottom:3px">'+escMotionHtml(linkedPlayback.label)+'</div>'
+      : '';
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
       : '';
@@ -1612,8 +1615,10 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       ? '<button type="button" data-delete-motion-slot="'+s.slot+'" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
     d.innerHTML=
+      DmxCommon.slotVisualHtml(linkedPlayback)+
       deleteButton+
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
+      playbackLabel+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':paused?'var(--warn)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+motionSlotModeLine(s)+'</div>':'') +
@@ -1622,6 +1627,8 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
         '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
          '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported||uncertain||partial?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':uncertain?'UNKNOWN':partial?'PARTIAL':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
+    const playbackVisualStyle=DmxCommon.slotVisualStyle(linkedPlayback);
+    if(playbackVisualStyle)d.style.cssText+=';'+playbackVisualStyle;
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       if(uncertain){setPicoMotionStatus('Slot '+s.slot+' cannot be changed because not every configured Pico responded','var(--warn)');return;}
@@ -1764,6 +1771,7 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   setPicoMotionStatus('Checking logical slot '+slot+' on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
     const existing=linkedMotionPlaybackForSlot(slot);
+    const recalled=activeRecalledMotionEffect();
     const upload=allowOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'motion',
       members,
@@ -1771,7 +1779,8 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
       slotCount:PICO_SLOT_COUNT,
       allowOverwrite,
       id:existing?.id,
-      label:'Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot)),
+      label:recalled?.name||('Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot))),
+      visual:recalled?.visual||currentMotionEffectVisualForSave(),
       serverEndpoint:'motion_setup.php'
     });
     let playback;
@@ -2051,6 +2060,7 @@ if(document.getElementById('importMotionSlotsFile'))document.getElementById('imp
 
 // ---- saved effects toolbox (effect recipe, no center/base values) ----
 let motionEffects=[];
+let activeRecalledMotionEffectSlot=null;
 let motionEffectCols=4,motionEffectRows=4;
 let motionEffectMoveMode=false;
 let motionEffectMoveSelectedSlot=null;
@@ -2065,6 +2075,10 @@ function saveMotionEffectVisualDefault(){
 saveMotionEffectVisualDefault();
 function currentMotionEffectVisualForSave(){
   return DmxCommon.normalizeSlotVisualDefault(motionEffectVisualDefault,'#225a50');
+}
+function activeRecalledMotionEffect(){
+  if(activeRecalledMotionEffectSlot===null)return null;
+  return motionEffects.find(effect=>parseInt(effect.slot,10)===activeRecalledMotionEffectSlot)||null;
 }
 function currentMotionEffectRecipe(){
   return{
@@ -2134,6 +2148,7 @@ function renderMotionEffectMatrix(){
       const e=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
       if(!e||!confirm('Delete effect "'+(e.name||('Effect '+(slot+1)))+'"?'))return;
       motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+      if(activeRecalledMotionEffectSlot===slot)activeRecalledMotionEffectSlot=null;
       renderMotionEffectMatrix();
       saveMotionEffectsServer();
     });
@@ -2175,6 +2190,7 @@ function motionEffectSlotClick(slot){
   if(!name)return;
   motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
   motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:currentMotionEffectVisualForSave()});
+  activeRecalledMotionEffectSlot=slot;
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
   setStatus('Saved effect "'+name+'"');
@@ -2185,6 +2201,8 @@ function moveMotionEffectSlot(fromSlot,toSlot){
   const target=motionEffects.find(fx=>parseInt(fx.slot,10)===toSlot);
   from.slot=toSlot;
   if(target)target.slot=fromSlot;
+  if(activeRecalledMotionEffectSlot===fromSlot)activeRecalledMotionEffectSlot=toSlot;
+  else if(activeRecalledMotionEffectSlot===toSlot)activeRecalledMotionEffectSlot=fromSlot;
   motionEffectMoveSelectedSlot=null;
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
@@ -2194,6 +2212,7 @@ function moveMotionEffectSlot(fromSlot,toSlot){
 function recallMotionEffect(effect){
   const recipe=effect.recipe||effect;
   if(!recipe.targetKey){setStatus('Effect has no target data',true);return;}
+  activeRecalledMotionEffectSlot=Number.isFinite(parseInt(effect.slot,10))?parseInt(effect.slot,10):null;
   const previewWasRunning=running;
   clearMotionGroupSelection();
   selectedMotionTargetKey=recipe.targetKey;

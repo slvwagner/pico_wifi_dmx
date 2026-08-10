@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-25"></script>
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -4169,6 +4169,9 @@ function renderChaserSlotStrip(slots, activeMask) {
     const fadeLine = chaserSlotFadeLine(s);
     const dirLine = chaserSlotDirectionLine(s);
     const linkedPlayback=linkedChaserPlaybackForSlot(s.slot);
+    const playbackLabel=linkedPlayback?.label
+      ? '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;color:inherit;line-height:1.25;margin-bottom:3px">'+DmxCommon.escapeHtml(linkedPlayback.label)+'</div>'
+      : '';
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
       : '';
@@ -4176,8 +4179,10 @@ function renderChaserSlotStrip(slots, activeMask) {
       ? '<button type="button" data-delete-chaser-slot="' + s.slot + '" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
     d.innerHTML =
+      DmxCommon.slotVisualHtml(linkedPlayback) +
       deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
+      playbackLabel +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
       (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLine + '</div>' + (fadeLine?'<div style="font-size:10px;color:var(--muted);margin-top:2px">' + fadeLine + '</div>':'') + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' + linkedLine : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
@@ -4187,6 +4192,8 @@ function renderChaserSlotStrip(slots, activeMask) {
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
         (unsupported ? 'NEEDS FW' : uncertain ? 'UNKNOWN' : partial ? 'PARTIAL' : alive ? 'LIVE' : paused ? 'PAUSED' : loaded ? 'READY' : 'EMPTY') + '</span>' +
       '</div>';
+    const playbackVisualStyle=DmxCommon.slotVisualStyle(linkedPlayback);
+    if(playbackVisualStyle)d.style.cssText+=';'+playbackVisualStyle;
     d.onclick = () => {
       if(unsupported){setPicoStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       if(uncertain){setPicoStatus('Slot '+s.slot+' cannot be changed because not every configured Pico responded','var(--warn)');return;}
@@ -4343,6 +4350,7 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
   setPicoStatus('Checking logical slot '+slot+' on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
     const existing=linkedChaserPlaybackForSlot(slot);
+    const recalled=activeRecalledChase();
     const upload=allowOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'chaser',
       members,
@@ -4350,7 +4358,8 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
       slotCount:PICO_SLOT_COUNT,
       allowOverwrite,
       id:existing?.id,
-      label:'Chase '+(document.getElementById('chaseName')?.value||('slot '+slot)),
+      label:recalled?.name||('Chase slot '+slot),
+      visual:recalled?.visual||currentChaseVisualForSave(),
       serverEndpoint:'chaser_setup.php'
     });
     let playback;

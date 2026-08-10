@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=1.3.0-21">
-<script src="assets/dmx-common.js?v=1.3.0-25"></script>
+<script src="assets/dmx-common.js?v=1.3.0-26"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -140,6 +140,7 @@ body.layout-editing .midi-map-edit{display:inline-flex}
 .playback-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
+.playback-card>h3,.playback-card>.small,.playback-card>.playback-actions{position:relative;z-index:1}
 body.layout-editing .playback-card h3{padding-left:18px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
@@ -3710,6 +3711,7 @@ function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
       slot:i,
       payload:playbackPayload,
       playback,
+      visual:playback?.visual||null,
       loaded:true,
       liveOnly:!!live&&!mirror,
       label:playback?.label||(live?'Pico slot '+i:slotPayloadLabel(playbackPayload,i,'Chaser')),
@@ -3750,6 +3752,7 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
       slot:i,
       payload:playbackPayload,
       playback,
+      visual:playback?.visual||null,
       loaded:true,
       liveOnly:!!live&&!mirror,
       label:playback?.label||(live?'Pico effect '+i:slotPayloadLabel(playbackPayload,i,'Effect')),
@@ -3888,7 +3891,7 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const pauseLabel=item?.paused?'Resume':'Pause';
     const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
     const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}>${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`} style="${slotStyle(item)}">${slotVisual(item)}${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;

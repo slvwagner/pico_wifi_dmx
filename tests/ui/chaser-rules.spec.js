@@ -369,6 +369,27 @@ test.describe('Chaser established rules', () => {
     expect(texts[1]).toContain('Fade 10–60%');
   });
 
+  test('Pico slot tiles show the saved chase name and icon', async ({ page }) => {
+    const visual = { type: 'visual', color: '#71368a', image: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E' };
+    await page.evaluate(savedVisual => {
+      linkedChaserPlaybacks = [{
+        id: 'named-chase',
+        logicalSlot: 2,
+        label: 'Purple Sweep',
+        visual: savedVisual,
+        members: [{ outputId: 'primary', slot: 2, payload: 'STEP 500 0\nCH 1 255\nEND' }]
+      }];
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      const slots = Array.from({ length: 3 }, (_, slot) => ({ slot, loaded: false, active: false, paused: false }));
+      slots[2] = { slot: 2, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 1, speed_mult: 1 };
+      renderChaserSlotStrip(slots, 0);
+    }, visual);
+
+    const tile = page.locator('#chaserSlotStrip > div').nth(2);
+    await expect(tile).toContainText('Purple Sweep');
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
   test('uploads one linked chase payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
@@ -404,6 +425,8 @@ test.describe('Chaser established rules', () => {
       baseUrlEl.value = 'http://front-pico.test';
       steps = [makeStep('Both universes', { '101:11': 75, '102:21': 125 })];
       participating = Object.fromEntries(Object.keys(participating).map(key => [key, key === '101:11' || key === '102:21']));
+      savedChases = [{ slot: 1, name: 'Purple Sweep', visual: { type: 'visual', color: '#71368a', image: '' } }];
+      setActiveRecalledChaseSlot(1);
       drawParticipation();
     });
 
@@ -423,6 +446,8 @@ test.describe('Chaser established rules', () => {
       { outputId: 'front', slot: 3 },
       { outputId: 'rear', slot: 3 }
     ]);
+    expect(savedPlayback.label).toBe('Purple Sweep');
+    expect(savedPlayback.visual).toEqual({ type: 'visual', color: '#71368a', image: '' });
 
     picoCalls.length = 0;
     await page.locator('#btnPicoPlaySlot').click();

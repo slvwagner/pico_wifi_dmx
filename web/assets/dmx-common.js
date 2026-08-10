@@ -231,6 +231,7 @@
         kind,
         logicalSlot:preferredSlot,
         label:String(options.label||((kind==='motion'?'Effect':'Chase')+' slot '+preferredSlot)),
+        visual:normalizeSlotVisual(options.visual),
         createdAt:new Date().toISOString(),
         members:snapshots.map(member=>({
           outputId:String(member.output.id),

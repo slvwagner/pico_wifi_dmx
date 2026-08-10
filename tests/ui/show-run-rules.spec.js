@@ -1640,6 +1640,34 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
   });
 
+  test('shows saved Pico playback names and icons on Show Run', async ({ page }) => {
+    const icon = 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: ['STEP 500 0\nCH 1 255\nEND'],
+      mirroredMotionSlots: ['FX 1\nBPM 60\nTARGET scalar8 1 1 0 255\nEND'],
+      chaserPlaybacks: [{
+        id: 'chase-0', label: 'Purple Sweep', visual: { type: 'visual', color: '#71368a', image: icon },
+        members: [{ outputId: 'primary', slot: 0, payload: 'STEP 500 0\nCH 1 255\nEND' }]
+      }],
+      motionPlaybacks: [{
+        id: 'effect-0', label: 'Blue Orbit', visual: { type: 'visual', color: '#1d6b8f', image: icon },
+        members: [{ outputId: 'primary', slot: 0, payload: 'FX 1\nBPM 60\nTARGET scalar8 1 1 0 255\nEND' }]
+      }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const chase = page.locator('#chaserSlots .playback-card').first();
+    const effect = page.locator('#motionSlots .playback-card').first();
+    await expect(chase).toContainText('Purple Sweep');
+    await expect(effect).toContainText('Blue Orbit');
+    await expect(chase.locator('.palette-visual')).toHaveCount(1);
+    await expect(effect.locator('.palette-visual')).toHaveCount(1);
+  });
+
   test('shows primary show output health instead of a Pico URL editor', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

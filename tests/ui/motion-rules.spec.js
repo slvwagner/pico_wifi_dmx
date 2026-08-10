@@ -147,6 +147,26 @@ test.describe('Effects established rules', () => {
     expect(texts[1]).toContain('Mode Loop N (3x)');
   });
 
+  test('Pico Effect slot tiles show the saved effect name and icon', async ({ page }) => {
+    const visual = { type: 'visual', color: '#1d6b8f', image: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E' };
+    await page.evaluate(savedVisual => {
+      linkedMotionPlaybacks = [{
+        id: 'named-effect',
+        logicalSlot: 3,
+        label: 'Blue Orbit',
+        visual: savedVisual,
+        members: [{ outputId: 'primary', slot: 3, payload: 'FX 1\nEND' }]
+      }];
+      const slots = Array.from({ length: 4 }, (_, slot) => ({ slot, loaded: false, active: false, paused: false }));
+      slots[3] = { slot: 3, loaded: true, active: false, paused: false, type: 1, bpm: 90, mode: 1, loop_count: 1, target_count: 2 };
+      renderMotionSlotStrip(slots, 0, 0);
+    }, visual);
+
+    const tile = page.locator('#motionSlotStrip > div').nth(3);
+    await expect(tile).toContainText('Blue Orbit');
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
   test('uploads one linked effect payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
@@ -184,6 +204,8 @@ test.describe('Effects established rules', () => {
       selectedMotionTargetKey = motionControlKey(dimmers[0].control);
       motionFixtures.forEach(mf => mf.enabled = dimmers.includes(mf));
       document.getElementById('motionControlFilter').value = selectedMotionTargetKey;
+      motionEffects = [{ slot: 2, name: 'Blue Orbit', visual: { type: 'visual', color: '#1d6b8f', image: '' } }];
+      activeRecalledMotionEffectSlot = 2;
     });
 
     await page.evaluate(() => uploadCurrentMotionToSlot(4, false));
@@ -202,6 +224,8 @@ test.describe('Effects established rules', () => {
       { outputId: 'front', slot: 4 },
       { outputId: 'rear', slot: 4 }
     ]);
+    expect(savedPlayback.label).toBe('Blue Orbit');
+    expect(savedPlayback.visual).toEqual({ type: 'visual', color: '#1d6b8f', image: '' });
 
     picoCalls.length = 0;
     await page.locator('#btnPicoMotionStartSlot').click();

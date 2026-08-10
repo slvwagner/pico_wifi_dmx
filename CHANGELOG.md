@@ -4,6 +4,10 @@
 
 Changed:
 
+- Pico Chaser and Effects playback manifests now retain the saved tile name,
+  color, and icon. Their Pico slot strips and the Show Run playback cards show
+  the same identification, while older slots without visual metadata continue
+  to use their existing generic labels.
 - Added **Single**, **Loop**, and **Loop N** playback modes to browser and
   autonomous Pico Effects. The configurable Loop N count is stored with saved
   Effects and uploaded slot data, and Pico slot tiles report their configured
