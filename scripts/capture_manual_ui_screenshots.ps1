@@ -1031,7 +1031,10 @@ try {
   planeCols=2;planeRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['master','group','fixture','scene','palette','matrix','plane','chaser','motion','live','midi'];
+  cardOrder=['group','fixture','scene','palette','matrix','plane','chaser','midi'];
+  sidebarRows=3;
+  sidebarOrder=['master','motion','live'];
+  if(typeof setSidebarWidth==='function')setSidebarWidth(420);
   cardLayouts={};
   hiddenTileModalDismissed=true;
   ['group','fixture','scene','palette','matrix','plane','chaser','motion'].forEach(kind=>{
@@ -1064,6 +1067,7 @@ try {
 })()
 "@
     Save-PageOverviewScreenshot "show-run.png"
+    Save-ElementScreenshot "#showSidebar" "show-run-sidebar.png" -WithoutScrolling
     Save-ElementScreenshot "#cardMaster" "show-run-card-master.png" -WithoutScrolling
     Save-ElementScreenshot "#cardGroup" "show-run-card-groups.png" -WithoutScrolling
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png" -WithoutScrolling

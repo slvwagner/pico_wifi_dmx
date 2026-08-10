@@ -1492,7 +1492,11 @@ Use Show Run to recall prepared groups, fixtures, scenes, palettes, Pixel Matric
 
 #### Show Run Tools and Toolboxes
 
-Show Run has no programming toolbox rail. Its movable cards are the operator tools: **Master**, **Groups**, **Fixtures**, **Scenes**, **Palettes**, **Pixel Matrices**, **Planes**, **Pico Chaser**, **Pico Effects**, **MIDI Controller**, and **Live Controls**. Layout editing decides which cards are visible and where they appear; normal operation uses the cards only to recall and adjust the prepared show.
+Show Run's movable cards are the operator tools: **Master**, **Groups**, **Fixtures**, **Scenes**, **Palettes**, **Pixel Matrices**, **Planes**, **Pico Chaser**, **Pico Effects**, **MIDI Controller**, and **Live Controls**. Layout editing decides which cards are visible and whether they appear in the main page or the Show sidebar; normal operation uses the cards only to recall and adjust the prepared show.
+
+The fixed Show sidebar uses the same visual language and saved width as the Controller toolbox rail. It scrolls independently from the main Show page, so frequently used cards remain available while the main cards are scrolled. On a narrow portrait display, including an iPad, it becomes a separately scrolling rail at the bottom of the screen.
+
+![Show Run sidebar](screenshots/show-run-sidebar.png)
 
 Open it from the **Show** navigation link or directly:
 
@@ -1663,6 +1667,8 @@ Mappings are stored with the server-side Show Run UI state and are included in s
 The sticky title bar has **Edit** on the right. Layout and MIDI mapping tools are hidden during normal operation. Click **Edit** to configure the Show page, then click **Done** to return to the cleaner operator view.
 
 In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Empty card positions show a `+` tile; click it to open **Add Card**, choose the card type, then add it at that matrix position. If the matrix is full, Show Run still shows one extra `+` tile at the next position so another card can be added. After a card is added, Show Run reports the matrix position where it was placed. Every card type can be added more than once, so you can keep separate palette, scene, playback, or Live Controls cards with different tile layouts. Each card has a small top-right `x` while layout editing is active. That `x` removes the card from the Show Run page only; it does not delete the saved scenes, palettes, groups, chases, effects, or fixture data behind it.
+
+Use **Sidebar ->** on a card to move it into the fixed rail and **<- Main** to return it to the page matrix. Choose between 1 and 12 sidebar rows. If reducing the row count would displace cards, Show Run moves them back into available main-page positions; it refuses the change when the main matrix has insufficient space. Drag the sidebar divider on a PC, or use its keyboard arrows, to change the shared toolbox width. The sidebar remains visible in **Edit** mode while empty so cards can be added, and hides in normal operation when it contains no cards.
 
 ![Show Run Add Card](screenshots/show-run-add-card.png)
 

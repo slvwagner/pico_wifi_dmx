@@ -192,7 +192,10 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, exists: true, state: { showRun: { ...defaultShowRunState, ...(calls.showRunState || {}) } } })
+      body: JSON.stringify({ ok: true, exists: true, state: {
+        showRun: { ...defaultShowRunState, ...(calls.showRunState || {}) },
+        toolboxes: calls.toolboxState || {}
+      } })
     });
   });
 
@@ -2408,6 +2411,81 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('provides a resizable single-column sidebar with configurable card rows', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 2,
+        cardRows: 5,
+        cardOrder: ['group', 'scene', 'palette', 'plane', 'chaser', 'live', 'midi', 'fixture', null, null],
+        sidebarRows: 3,
+        sidebarOrder: ['master', 'motion', null],
+        sidebarWidth: 420
+      },
+      toolboxState: { toolboxRailWidth: 420 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const sidebar = page.locator('#showSidebar');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveCSS('position', 'fixed');
+    await expect(sidebar).toHaveCSS('z-index', '180');
+    await expect(sidebar).toHaveCSS('padding', '20px 16px 20px 12px');
+    await expect(sidebar).toHaveCSS('box-shadow', /rgba\(0, 0, 0, 0\.38\) -12px 0px 30px/);
+    await expect(sidebar).toHaveCSS('background-image', /linear-gradient/);
+    await expect(page.locator('#sidebarCardGrid')).toHaveCSS('overflow-y', 'auto');
+    expect(await page.locator('#sidebarCardGrid').evaluate(el => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length)).toBe(1);
+    await expect(page.locator('body')).toHaveClass(/show-sidebar-active/);
+    const independentScroll = await page.evaluate(() => {
+      const rail = document.querySelector('#sidebarCardGrid');
+      const beforeWindow = window.scrollY;
+      rail.scrollTop = Math.min(120, Math.max(0, rail.scrollHeight - rail.clientHeight));
+      return {
+        overflow: rail.scrollHeight > rail.clientHeight,
+        railScroll: rail.scrollTop,
+        windowUnchanged: window.scrollY === beforeWindow
+      };
+    });
+    expect(independentScroll).toEqual({ overflow: true, railScroll: 120, windowUnchanged: true });
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(3);
+    await expect(page.locator('#sidebarCardGrid > :nth-child(1) h2')).toHaveText('Master');
+    await expect(page.locator('#sidebarCardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid #cardMaster')).toHaveCount(0);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#sidebarRows').selectOption('4');
+    await page.locator('#cardGroup .card-area-move').click();
+    await expect(page.locator('#sidebarCardGrid > :nth-child(3) h2')).toHaveText('Groups');
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(4);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.sidebarOrder') || '[]').slice(0, 3)))
+      .toEqual(['master', 'motion', 'group']);
+
+    await page.locator('#sidebarRows').selectOption('2');
+    await expect(page.locator('#cardGrid #cardGroup')).toBeVisible();
+    await expect(page.locator('#sidebarCardGrid > *')).toHaveCount(2);
+    await page.locator('#sidebarRows').selectOption('3');
+    await page.locator('#cardGroup .card-area-move').click();
+    await expect(page.locator('#sidebarCardGrid > :nth-child(3) h2')).toHaveText('Groups');
+
+    const resizer = page.locator('#showSidebarResizer');
+    const box = await resizer.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box.x + box.width / 2, box.y + 80);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 60, box.y + 80);
+    await page.mouse.up();
+    expect(Number(await page.evaluate(() => localStorage.getItem('dmxShowRun.sidebarWidth')))).toBeGreaterThan(420);
+    await page.locator('#sidebarCardGrid [data-show-card="group"] .card-area-move').click();
+    await expect(page.locator('#cardGrid #cardGroup')).toBeVisible();
+    await expect(page.locator('#sidebarCardGrid [data-show-card="group"]')).toHaveCount(0);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.sidebarOrder)).toBe(true);
+    expect(calls.uiStatePosts.some(post => post.page === 'toolboxes' && post.state.toolboxRailWidth)).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('shows only the configured number of card matrix slots', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -2867,7 +2945,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
     await page.locator('#cardLive').scrollIntoViewIfNeeded();
-    const source = await page.locator('#cardLive .panel-head').boundingBox();
+    const source = await page.locator('#cardLive .panel-head h2').boundingBox();
     expect(source).not.toBeNull();
 
     await page.mouse.move(source.x + source.width / 2, source.y + Math.min(80, source.height / 2));

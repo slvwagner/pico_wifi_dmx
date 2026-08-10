@@ -16,6 +16,11 @@ Changed:
   as Chaser slots, including pause, resume, and pause/resume toggle. Effects
   mappings now support all 64 slots and show the slot mode, finite-loop
   progress, BPM, target count, and playback state read back from the Pico.
+- Added a configurable Show Run sidebar for operator-critical cards. It uses
+  the same fixed, independently scrolling visual rail and shared width as the
+  Controller toolboxes, keeps cards in a single column, supports 1–12 visible
+  rows, and lets cards move between the sidebar and main matrix in Edit mode.
+  Sidebar rows and card order are stored with the existing Show Run UI state.
 
 ## 1.2.1 - Unreleased
 

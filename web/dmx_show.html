@@ -59,9 +59,30 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .header-toolbar input[type=url],.header-toolbar input:not([type]){min-width:160px;width:180px;padding:7px 8px}
 .grid{display:grid;gap:10px;width:100%;justify-items:stretch;align-items:stretch}
 .card-grid{display:grid;gap:14px;width:100%;justify-items:stretch;align-items:stretch}
+.card-grid>.panel,.sidebar-card-grid>.panel{scroll-margin-top:150px}
 .card-grid.card-move-mode .panel{position:relative}
 .card-grid.card-move-mode .panel-head{cursor:grab}
 .card-grid.card-move-mode .panel-head:active{cursor:grabbing}
+.show-card-workspace{display:block;min-width:0}
+body.show-sidebar-active>header,body.show-sidebar-active>main{width:calc(100% - var(--toolbox-rail-width,max(380px,33vw)))}
+.show-sidebar{position:fixed;z-index:180;top:0;right:0;bottom:0;width:var(--toolbox-rail-width,max(380px,33vw));height:100vh;min-width:0;border-left:1px solid var(--line);background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));box-shadow:-12px 0 30px rgba(0,0,0,.38);padding:20px 16px 20px 12px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;align-content:start;overflow:hidden;overscroll-behavior:contain;touch-action:pan-y;direction:ltr}
+.show-sidebar[hidden]{display:none}
+.show-sidebar-head{position:relative;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;padding:0 4px 2px;background:#0a0d10;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.show-sidebar-head h2{font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;margin:0}
+.show-sidebar-controls{display:none;align-items:center;gap:6px}
+body.layout-editing .show-sidebar-controls{display:flex}
+.show-sidebar-controls label{display:flex;align-items:center;gap:5px}
+.show-sidebar-controls select{width:68px;min-height:44px;padding:6px 7px}
+.sidebar-card-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;min-height:0;align-content:start;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch}
+.sidebar-card-grid.card-move-mode .panel{position:relative}
+.sidebar-card-grid.card-move-mode .panel-head{cursor:grab}
+.sidebar-card-grid.card-move-mode .panel-head:active{cursor:grabbing}
+.show-sidebar-resizer{position:fixed;z-index:250;top:0;bottom:0;right:calc(var(--toolbox-rail-width,max(380px,33vw)) - 24px);width:24px;cursor:ew-resize;touch-action:none;background:transparent}
+.show-sidebar-resizer::after{content:"";position:absolute;top:0;bottom:0;left:7px;width:8px;background:rgba(139,154,166,.5)}
+.show-sidebar-resizer:hover::after,body.show-sidebar-resizing .show-sidebar-resizer::after,body.toolbox-rail-resizing .show-sidebar-resizer::after{background:var(--accent)}
+body.show-sidebar-resizing{cursor:ew-resize;user-select:none}
+.card-area-move{display:none;position:absolute;top:6px;right:36px;z-index:5;min-height:24px;height:24px;padding:0 8px;font-size:11px;background:#103b30;border-color:#2f9e7d;color:#bff7df}
+body.layout-editing .card-area-move{display:inline-flex;align-items:center;justify-content:center}
 .card-empty{min-height:120px;border:1px dashed var(--line);border-radius:8px;background:rgba(255,255,255,.025);display:grid;place-items:end start;padding:10px;color:var(--muted);position:relative}
 body.layout-editing .card-empty{cursor:pointer}
 body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -186,7 +207,9 @@ body.layout-editing .card-delete.slot-del{display:flex;background:rgba(60,27,27,
 body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
 .hidden-tile-row .small{min-width:0}
-@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
+@media(pointer:coarse) and (min-width:901px){.show-sidebar{height:100dvh}}
+@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}body.show-sidebar-active>header,body.show-sidebar-active>main{width:100%}body.show-sidebar-active>main{padding-bottom:45vh}.show-sidebar{top:auto;left:0;width:100%;height:42vh;border-left:0;border-top:1px solid var(--line)}.show-sidebar-resizer{display:none}}
+@media(max-width:640px){body.show-sidebar-active>main{padding-bottom:51vh}.show-sidebar{height:48vh}}
 </style>
 </head>
 <body>
@@ -216,6 +239,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <div id="showCardLayoutControls" class="matrix-tools"></div>
   </section>
 
+  <div id="showCardWorkspace" class="show-card-workspace sidebar-hidden">
   <div id="cardGrid" class="card-grid">
   <section class="panel" id="cardMaster" data-show-card="master">
     <div class="panel-head">
@@ -440,6 +464,17 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div id="liveControlGrid" class="live-control-grid"></div>
     </section>
   </div>
+  <aside id="showSidebar" class="show-sidebar toolbox-rail" aria-label="Configurable show sidebar" hidden>
+    <div id="showSidebarResizer" class="show-sidebar-resizer toolbox-rail-resizer" role="separator" aria-label="Resize show sidebar" aria-orientation="vertical" tabindex="0"></div>
+    <div class="show-sidebar-head toolbox-rail-header">
+      <h2 class="toolbox-rail-title">Show Sidebar</h2>
+      <div class="show-sidebar-controls">
+        <label>Rows<select id="sidebarRows"></select></label>
+      </div>
+    </div>
+    <div id="sidebarCardGrid" class="sidebar-card-grid toolbox-rail-scroll"></div>
+  </aside>
+  </div>
 </main>
 
 <div id="showPlaneModal" class="modal-overlay show-plane-modal section-control-modal" style="display:none">
@@ -616,7 +651,7 @@ let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],pixelMatrices=[],pla
 let dmxOutputs=[];
 let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,matrixCols=4,matrixRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
-let cardCols=2,cardRows=5;
+let cardCols=2,cardRows=5,sidebarRows=3,sidebarWidth=380;
 let chaserSlots=[],motionSlots=[];
 let chaserSelectedSlot=0;
 let motionSelectedSlot=0;
@@ -627,6 +662,7 @@ const masterFactors={grand:1,target:1};
 let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
+const SHARED_TOOLBOX_WIDTH_KEY='toolboxRailWidth';
 let showUiState={};
 const SHOW_GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
 const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
@@ -642,11 +678,13 @@ const cardIds=['group','scene','palette','plane','chaser','motion','live','midi'
 const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',matrix:'Pixel Matrices',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
+let sidebarOrder=[];
 let cardMoveMode=false;
 let layoutEditing=false;
 let hiddenTileModalDismissed=false;
 let liveControls=[];
 let addCardTargetIndex=null;
+let addCardTargetArea='main';
 let showLoadPromise=null;
 let lastShowLoadAt=0;
 let autoShowRefreshTimer=null;
@@ -1007,6 +1045,8 @@ function savedNumber(key,fallback,min,max){
 function applySavedLayout(){
   cardCols=savedNumber('cardCols',cardCols,1,5);
   cardRows=savedNumber('cardRows',cardRows,1,5);
+  sidebarRows=savedNumber('sidebarRows',sidebarRows,1,12);
+  sidebarWidth=savedNumber('sidebarWidth',sidebarWidth,280,720);
   groupCols=savedNumber('groupCols',groupCols,1,8);
   groupRows=savedNumber('groupRows',groupRows,1,12);
   fixtureCols=savedNumber('fixtureCols',fixtureCols,1,32);
@@ -1028,9 +1068,15 @@ function saveCardLayout(){
   localStorage.setItem(layoutKey('cardCols'),cardCols);
   localStorage.setItem(layoutKey('cardRows'),cardRows);
   localStorage.setItem(layoutKey('cardOrder'),JSON.stringify(cardOrder));
+  localStorage.setItem(layoutKey('sidebarRows'),sidebarRows);
+  localStorage.setItem(layoutKey('sidebarWidth'),sidebarWidth);
+  localStorage.setItem(layoutKey('sidebarOrder'),JSON.stringify(sidebarOrder));
   saveShowUiStateValue('cardCols',cardCols);
   saveShowUiStateValue('cardRows',cardRows);
   saveShowUiStateValue('cardOrder',cardOrder);
+  saveShowUiStateValue('sidebarRows',sidebarRows);
+  saveShowUiStateValue('sidebarWidth',sidebarWidth);
+  saveShowUiStateValue('sidebarOrder',sidebarOrder);
 }
 function cardType(entry){
   if(entry===null||entry===undefined||entry==='')return '';
@@ -1046,7 +1092,7 @@ function liveCardId(entry){
 function uniqueCardKey(type,seed=''){
   const base=type+'_'+(seed||Date.now());
   let id=base, n=1;
-  const used=new Set(cardOrder.map(entry=>String(entry)));
+  const used=new Set([...cardOrder,...sidebarOrder].map(entry=>String(entry)));
   while(used.has(cardKey(type,id)))id=base+'_'+(n++);
   return cardKey(type,id);
 }
@@ -1159,17 +1205,31 @@ function saveTargetMasters(){
   localStorage.setItem(layoutKey('targetMasters'),JSON.stringify(targetMasters));
   saveShowUiStateValue('targetMasters',targetMasters);
 }
+function savedCardOrder(key){
+  const sourceValue=savedValue(key);
+  try{return Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){return[];}
+}
 function reconcileCardOrder(){
-  let saved=[];
-  const sourceValue=savedValue('cardOrder');
+  const saved=savedCardOrder('cardOrder');
+  const savedSidebar=savedCardOrder('sidebarOrder');
   const hasServerCardOrder=hasServerUiStateValue('cardOrder');
-  try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
   const defaults=defaultCardIds();
   const total=Math.max(defaults.length,cardCols*cardRows,source.length);
   const shouldInsertDefaults=!source.length;
   const next=[];
   const usedRepeatKeys=new Set();
+  const sidebarSource=Array.isArray(sidebarOrder)&&sidebarOrder.length?sidebarOrder:savedSidebar;
+  const nextSidebar=[];
+  sidebarSource.slice(0,sidebarRows).forEach(key=>{
+    if(key===null||key===undefined||key===''){nextSidebar.push(null);return;}
+    const type=cardType(key);
+    const normalized=String(key);
+    if(!cardIds.includes(type)||usedRepeatKeys.has(normalized)){nextSidebar.push(null);return;}
+    usedRepeatKeys.add(normalized);
+    nextSidebar.push(normalized);
+  });
+  while(nextSidebar.length<sidebarRows)nextSidebar.push(null);
   source.slice(0,total).forEach(key=>{
     if(key===null||key===undefined||key===''){next.push(null);return;}
     const type=cardType(key);
@@ -1197,29 +1257,65 @@ function reconcileCardOrder(){
   while(next.length<total)next.push(null);
   cardOrder=next.slice(0,total);
   if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=defaults.concat(Array(Math.max(0,total-defaults.length)).fill(null));
+  sidebarOrder=nextSidebar;
 }
 function syncCardInputs(){
   const colsInput=document.getElementById('cardCols');
   const rowsInput=document.getElementById('cardRows');
   if(colsInput){colsInput.min=1;colsInput.value=cardCols;}
   if(rowsInput){rowsInput.min=1;rowsInput.value=cardRows;}
+  const sidebarRowsInput=document.getElementById('sidebarRows');
+  if(sidebarRowsInput)sidebarRowsInput.value=sidebarRows;
 }
 function normalizeCardGrid(priority='cols'){
   const next=normalizeMatrix(cardCols,cardRows,0,5,5,priority);
   cardCols=next.cols;cardRows=next.rows;
   syncCardInputs();
 }
-function moveCard(from,to){
+function cardAreaOrder(area){return area==='sidebar'?sidebarOrder:cardOrder;}
+function claimMainCardSlot(){
+  const maxCards=cardCols*5;
+  while(cardOrder.length<maxCards)cardOrder.push(null);
+  const index=cardOrder.slice(0,maxCards).indexOf(null);
+  if(index<0)return -1;
+  cardRows=Math.max(cardRows,Math.ceil((index+1)/cardCols));
+  syncCardInputs();
+  return index;
+}
+function moveCard(from,to,area='main'){
+  const order=cardAreaOrder(area);
   from=parseInt(from,10);to=parseInt(to,10);
   if(!Number.isFinite(from)||!Number.isFinite(to)||from===to)return false;
-  if(!cardOrder[from])return false;
-  const moving=cardOrder[from];
-  const target=cardOrder[to]||null;
-  cardOrder[to]=moving;
-  cardOrder[from]=target;
+  if(!order[from])return false;
+  const moving=order[from];
+  const target=order[to]||null;
+  order[to]=moving;
+  order[from]=target;
   saveCardLayout();
   renderCardGrid();
-  setStatus('Moved card to position '+(to+1));
+  setStatus('Moved card to '+(area==='sidebar'?'sidebar ':'matrix ')+'position '+(to+1));
+  return true;
+}
+function moveCardToOtherArea(area,index){
+  const source=cardAreaOrder(area);
+  const targetArea=area==='sidebar'?'main':'sidebar';
+  const target=cardAreaOrder(targetArea);
+  const entry=source[index];
+  if(!entry)return false;
+  let targetIndex=targetArea==='main'?claimMainCardSlot():target.indexOf(null);
+  if(targetArea==='sidebar'&&(targetIndex<0||targetIndex>=sidebarRows)){
+    setStatus('The Show Sidebar is full. Increase its Rows setting first.',true);
+    return false;
+  }
+  if(targetIndex<0){
+    setStatus('The main card matrix is full. Increase its Rows or Cols setting first.',true);
+    return false;
+  }
+  target[targetIndex]=entry;
+  source[index]=null;
+  saveCardLayout();
+  renderCardGrid();
+  setStatus('Moved '+(cardLabels[cardType(entry)]||'card')+' to the '+(targetArea==='sidebar'?'Show Sidebar':'main matrix'));
   return true;
 }
 function createLiveCard(entry){
@@ -1288,8 +1384,25 @@ function ensureCardDeleteButton(node){
   node.appendChild(btn);
   return btn;
 }
-function deleteCardAt(index){
-  const entry=cardOrder[index];
+function ensureCardAreaMoveButton(node,area,index){
+  if(!node)return null;
+  let btn=node.querySelector(':scope > .card-area-move');
+  if(!btn){
+    btn=document.createElement('button');
+    btn.type='button';
+    btn.className='card-area-move';
+    node.appendChild(btn);
+  }
+  const toSidebar=area!=='sidebar';
+  btn.textContent=toSidebar?'Sidebar →':'← Main';
+  btn.title=toSidebar?'Move this card to the Show Sidebar':'Move this card to the main matrix';
+  btn.setAttribute('aria-label',btn.title);
+  btn.onclick=e=>{e.stopPropagation();moveCardToOtherArea(area,index);};
+  return btn;
+}
+function deleteCardAt(index,area='main'){
+  const order=cardAreaOrder(area);
+  const entry=order[index];
   const type=cardType(entry);
   if(!entry)return;
   if(type==='live'){
@@ -1298,7 +1411,7 @@ function deleteCardAt(index){
     liveControls=liveControls.filter(item=>item.cardId!==cardId);
     saveLiveControls();
   }
-  cardOrder[index]=null;
+  order[index]=null;
   saveCardLayout();
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Removed '+(cardLabels[type]||'card')+' card');
@@ -1308,19 +1421,24 @@ function addShowCard(){
   const type=select?.value||'live';
   if(!cardIds.includes(type))return;
   const visibleCardCount=Math.max(1,cardCols*cardRows);
-  const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(Boolean));
+  const visibleTypes=new Set([...cardOrder.slice(0,visibleCardCount),...sidebarOrder.slice(0,sidebarRows)].map(cardType).filter(Boolean));
   const entry=repeatableCardIds.includes(type)&&visibleTypes.has(type)?uniqueCardKey(type):type;
-  let index=Number.isFinite(addCardTargetIndex)&&cardOrder[addCardTargetIndex]==null?addCardTargetIndex:cardOrder.indexOf(null);
+  const order=cardAreaOrder(addCardTargetArea);
+  let index=Number.isFinite(addCardTargetIndex)&&order[addCardTargetIndex]==null?addCardTargetIndex:order.indexOf(null);
   if(index<0){
-    cardOrder.push(entry);
-    index=cardOrder.length-1;
+    if(addCardTargetArea==='sidebar'){
+      setStatus('The Show Sidebar is full. Increase its Rows setting first.',true);
+      return;
+    }
+    order.push(entry);
+    index=order.length-1;
     normalizeCardGrid('rows');
   }else{
-    cardOrder[index]=entry;
+    order[index]=entry;
   }
   saveCardLayout();
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
-  setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
+  setStatus('Added '+(cardLabels[type]||type)+(addCardTargetArea==='sidebar'?' to sidebar':' at')+' position '+(index+1));
   closeAddCardModal();
 }
 function updateAddCardOptions(){
@@ -1333,16 +1451,18 @@ function updateAddCardOptions(){
   const button=document.getElementById('addShowCard');
   if(button)button.textContent=addCardButtonLabel(select.value);
 }
-function openAddCardModal(index){
+function openAddCardModal(index,area='main'){
   addCardTargetIndex=parseInt(index,10);
+  addCardTargetArea=area==='sidebar'?'sidebar':'main';
   updateAddCardOptions();
   const hint=document.getElementById('addCardPositionHint');
-  if(hint)hint.textContent='Add a card at matrix position '+(addCardTargetIndex+1)+'.';
+  if(hint)hint.textContent='Add a card at '+(addCardTargetArea==='sidebar'?'sidebar ':'matrix ')+'position '+(addCardTargetIndex+1)+'.';
   DmxCommon.showModal('addCardModal');
 }
 function closeAddCardModal(){
   DmxCommon.hideModal('addCardModal');
   addCardTargetIndex=null;
+  addCardTargetArea='main';
 }
 function bindSceneGridRecall(grid,layoutId='scene'){
   grid.querySelectorAll('[data-scene-key]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -1426,22 +1546,12 @@ function renderRepeatedCards(){
     }
   });
 }
-function renderCardGrid(){
-  normalizeCardGrid('cols');
-  reconcileCardOrder();
-  updateAddCardOptions();
-  const grid=document.getElementById('cardGrid');
-  grid.style.gridTemplateColumns='repeat('+cardCols+',minmax(0,1fr))';
+function renderCardArea(grid,area,cols,rows){
+  const order=cardAreaOrder(area);
+  grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
   grid.classList.toggle('card-move-mode',cardMoveMode);
-  grid.querySelectorAll('.card-empty').forEach(el=>el.remove());
-  grid.querySelectorAll('.live-card').forEach(el=>el.remove());
-  repeatableCardIds.filter(type=>type!=='live').forEach(type=>grid.querySelectorAll(`[data-show-card="${type}"][data-repeat-card="true"]`).forEach(el=>el.remove()));
-  cardIds.filter(type=>type!=='live').forEach(type=>{
-    const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
-    if(node)hiddenCardBin.appendChild(node);
-  });
-  const visibleCardCount=Math.max(1,cardCols*cardRows);
-  cardOrder.slice(0,visibleCardCount).forEach((key,index)=>{
+  const visibleCardCount=Math.max(1,cols*rows);
+  order.slice(0,visibleCardCount).forEach((key,index)=>{
     let node=null;
     if(key){
       node=cardNodeFor(key);
@@ -1449,8 +1559,10 @@ function renderCardGrid(){
         const head=node.querySelector(':scope > .panel-head');
         if(head)head.title=cardMoveMode?'Drag card header to move this card':'';
         const del=ensureCardDeleteButton(node);
-        if(del)del.onclick=e=>{e.stopPropagation();deleteCardAt(index);};
+        if(del)del.onclick=e=>{e.stopPropagation();deleteCardAt(index,area);};
+        ensureCardAreaMoveButton(node,area,index);
         node.dataset.showCardIndex=index;
+        node.dataset.showCardArea=area;
         node.dataset.showCardKey=String(key);
         node.classList.remove('active');
         node.onclick=null;
@@ -1459,17 +1571,19 @@ function renderCardGrid(){
       node=document.createElement('div');
       node.className='card-empty';
       node.dataset.showCardIndex=index;
+      node.dataset.showCardArea=area;
       if(layoutEditing){
-        node.innerHTML='<button type="button" class="card-add-tile" data-add-card-position="'+index+'" title="Add card at position '+(index+1)+'"><strong>+</strong><span>Add card<br>Position '+(index+1)+'</span></button>';
+        const positionAttr=area==='sidebar'?'data-add-sidebar-card-position':'data-add-card-position';
+        node.innerHTML='<button type="button" class="card-add-tile" '+positionAttr+'="'+index+'" data-add-card-area="'+area+'" title="Add card at position '+(index+1)+'"><strong>+</strong><span>Add card<br>Position '+(index+1)+'</span></button>';
       }else{
         node.textContent='Card position '+(index+1);
       }
     }
     if(node)grid.appendChild(node);
   });
-  grid.querySelectorAll('[data-add-card-position]').forEach(btn=>btn.addEventListener('click',e=>{
+  grid.querySelectorAll('[data-add-card-position],[data-add-sidebar-card-position]').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
-    openAddCardModal(parseInt(btn.dataset.addCardPosition,10));
+    openAddCardModal(parseInt(btn.dataset.addCardPosition??btn.dataset.addSidebarCardPosition,10),btn.dataset.addCardArea);
   }));
   DmxCommon.initTileMoveGrid({
     grid,
@@ -1477,9 +1591,32 @@ function renderCardGrid(){
     itemSelector:'[data-show-card-index]',
     handleSelector:'.panel-head',
     getIndex:el=>parseInt(el.dataset.showCardIndex,10),
-    canDrag:idx=>!!cardOrder[idx],
-    onMove:(from,to)=>moveCard(from,to)
+    canDrag:idx=>!!order[idx],
+    onMove:(from,to)=>moveCard(from,to,area)
   });
+}
+function renderCardGrid(){
+  normalizeCardGrid('cols');
+  reconcileCardOrder();
+  updateAddCardOptions();
+  const grid=document.getElementById('cardGrid');
+  const sidebar=document.getElementById('showSidebar');
+  const sidebarGrid=document.getElementById('sidebarCardGrid');
+  document.querySelectorAll('#cardGrid .card-empty,#sidebarCardGrid .card-empty').forEach(el=>el.remove());
+  document.querySelectorAll('#cardGrid .live-card,#sidebarCardGrid .live-card').forEach(el=>el.remove());
+  repeatableCardIds.filter(type=>type!=='live').forEach(type=>document.querySelectorAll(`#cardGrid [data-show-card="${type}"][data-repeat-card="true"],#sidebarCardGrid [data-show-card="${type}"][data-repeat-card="true"]`).forEach(el=>el.remove()));
+  cardIds.filter(type=>type!=='live').forEach(type=>{
+    const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
+    if(node)hiddenCardBin.appendChild(node);
+  });
+  renderCardArea(grid,'main',cardCols,cardRows);
+  const sidebarHasCards=sidebarOrder.slice(0,sidebarRows).some(Boolean);
+  const sidebarVisible=layoutEditing||sidebarHasCards;
+  sidebar.hidden=!sidebarVisible;
+  document.body.classList.toggle('show-sidebar-active',sidebarVisible);
+  document.getElementById('showCardWorkspace').classList.toggle('sidebar-hidden',!sidebarVisible);
+  setSidebarWidth(sidebarWidth);
+  if(sidebarVisible)renderCardArea(sidebarGrid,'sidebar',1,sidebarRows);
   saveCardLayout();
   renderRepeatedCards();
   renderLiveControls();
@@ -1886,6 +2023,91 @@ function bindCardInputs(){
     normalizeCardGrid('rows');
     renderCardGrid();
   });
+  const sidebarRowsInput=document.getElementById('sidebarRows');
+  if(sidebarRowsInput)sidebarRowsInput.addEventListener('input',()=>{
+    const nextRows=Math.max(1,Math.min(12,parseInt(sidebarRowsInput.value,10)||1));
+    const displaced=nextRows<sidebarRows?sidebarOrder.slice(nextRows).filter(Boolean):[];
+    const freeMainCards=cardOrder.slice(0,cardCols*5).filter(entry=>!entry).length+Math.max(0,cardCols*5-cardOrder.length);
+    if(displaced.length>freeMainCards){
+      sidebarRowsInput.value=sidebarRows;
+      setStatus('The main card matrix has no room for the removed sidebar rows.',true);
+      return;
+    }
+    if(nextRows<sidebarRows){
+      displaced.forEach(entry=>{
+        const target=claimMainCardSlot();
+        cardOrder[target]=entry;
+      });
+    }
+    sidebarRows=nextRows;
+    sidebarOrder=sidebarOrder.slice(0,sidebarRows);
+    while(sidebarOrder.length<sidebarRows)sidebarOrder.push(null);
+    normalizeCardGrid('rows');
+    renderCardGrid();
+  });
+}
+function clampSidebarWidth(value){
+  const min=300;
+  const max=Math.max(min,Math.min(Math.round(window.innerWidth*2/3),window.innerWidth-360));
+  return Math.max(min,Math.min(max,parseInt(value,10)||Math.max(380,Math.round(window.innerWidth/3))));
+}
+function setSidebarWidth(value,{save=false}={}){
+  sidebarWidth=clampSidebarWidth(value);
+  document.documentElement.style.setProperty('--toolbox-rail-width',sidebarWidth+'px');
+  window.dispatchEvent(new CustomEvent('toolboxrailresize',{detail:{width:sidebarWidth}}));
+  const handle=document.getElementById('showSidebarResizer');
+  if(handle)handle.setAttribute('aria-valuenow',String(sidebarWidth));
+  if(save){
+    localStorage.setItem(SHARED_TOOLBOX_WIDTH_KEY,String(sidebarWidth));
+    DmxCommon.saveUiState('toolboxes',SHARED_TOOLBOX_WIDTH_KEY,sidebarWidth);
+    saveCardLayout();
+  }
+}
+function initShowSidebar(){
+  const rows=document.getElementById('sidebarRows');
+  if(rows){
+    rows.innerHTML=Array.from({length:12},(_,index)=>`<option value="${index+1}">${index+1}</option>`).join('');
+    rows.value=sidebarRows;
+  }
+  const handle=document.getElementById('showSidebarResizer');
+  if(!handle)return;
+  handle.setAttribute('aria-valuemin','300');
+  handle.setAttribute('aria-valuemax',String(Math.max(300,Math.min(Math.round(window.innerWidth*2/3),window.innerWidth-360))));
+  let pointerId=null;
+  const finish=e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    pointerId=null;
+    document.body.classList.remove('show-sidebar-resizing');
+    document.body.classList.remove('toolbox-rail-resizing');
+    try{handle.releasePointerCapture(e.pointerId);}catch(_){ }
+    setSidebarWidth(window.innerWidth-e.clientX,{save:true});
+  };
+  handle.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    pointerId=e.pointerId;
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add('show-sidebar-resizing');
+    document.body.classList.add('toolbox-rail-resizing');
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    setSidebarWidth(window.innerWidth-e.clientX);
+  });
+  handle.addEventListener('pointerup',finish);
+  handle.addEventListener('pointercancel',e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    pointerId=null;
+    document.body.classList.remove('show-sidebar-resizing');
+    document.body.classList.remove('toolbox-rail-resizing');
+    setSidebarWidth(sidebarWidth,{save:true});
+  });
+  handle.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight'].includes(e.key))return;
+    e.preventDefault();
+    setSidebarWidth(sidebarWidth+(e.key==='ArrowLeft'?20:-20),{save:true});
+  });
+  window.addEventListener('resize',()=>setSidebarWidth(sidebarWidth));
 }
 function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
   const colsInput=document.getElementById(kind+'Cols');
@@ -4170,7 +4392,7 @@ async function loadShow(options={}){
   const isAuto=options.reason==='auto';
   if(!isAuto)setStatus('Loading show...');
   hiddenTileModalDismissed=false;
-  const [fixtureData,groupData,sceneData,paletteData,planeData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
+  const [fixtureData,groupData,sceneData,paletteData,planeData,chaserData,motionData,liveData,serverShowUiState,sharedToolboxUiState]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
     loadJson('group_setup.php',{groups:[]}),
     loadJson('scene_setup.php',{scenes:[],slotCols:4,slotRows:4}),
@@ -4179,7 +4401,8 @@ async function loadShow(options={}){
     loadJson('chaser_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('motion_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('fixture_setup.php?livevalues',{exists:false,values:{}}),
-    DmxCommon.loadUiState(SHOW_UI_STATE_PAGE)
+    DmxCommon.loadUiState(SHOW_UI_STATE_PAGE),
+    DmxCommon.loadUiState('toolboxes')
   ]);
   showUiState=serverShowUiState&&typeof serverShowUiState==='object'?serverShowUiState:{};
   showGroupRelativeStepStore.load(showUiState[SHOW_GROUP_RELATIVE_STEPS_KEY]);
@@ -4203,6 +4426,8 @@ async function loadShow(options={}){
   planeCols=Math.max(1,Math.min(32,parseInt(planeData.planeCols??planeData.setup?.planeCols??planeCols,10)||3));
   planeRows=Math.max(1,Math.min(32,parseInt(planeData.planeRows??planeData.setup?.planeRows??planeRows,10)||3));
   applySavedLayout();
+  const sharedSidebarWidth=parseInt(sharedToolboxUiState?.[SHARED_TOOLBOX_WIDTH_KEY]??localStorage.getItem(SHARED_TOOLBOX_WIDTH_KEY),10);
+  if(Number.isFinite(sharedSidebarWidth))sidebarWidth=sharedSidebarWidth;
   loadCardLayouts();
   loadLiveControls();
   loadTargetMasters();
@@ -4482,6 +4707,7 @@ document.getElementById('midiMappingClose').onclick=closeMidiMappingEditor;
 document.getElementById('midiMappingClose2').onclick=closeMidiMappingEditor;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
+initShowSidebar();
 bindCardInputs();
 bindMatrixInputs('group',normalizeGroupGrid,renderGroups,8,12);
 bindMatrixInputs('fixture',normalizeFixtureGrid,renderFixtures,32,32);
