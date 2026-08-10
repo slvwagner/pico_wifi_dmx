@@ -25,6 +25,36 @@ async function postText(request, path, body) {
   return response.json();
 }
 
+function gpioConfigText(config) {
+  const lines = ['ENABLE ' + (config?.enabled === false ? '0' : '1')];
+  for (const mapping of config?.mappings || []) {
+    const parts = [
+      'MAP',
+      mapping.pin,
+      mapping.pull || 'pullup',
+      mapping.trigger || 'falling',
+      mapping.action,
+      mapping.slot || 0,
+      mapping.debounce_ms || 30
+    ];
+    if (mapping.action === 'chaser_tap' || mapping.action === 'motion_tap') {
+      parts.push(mapping.beat_div || 1);
+    }
+    lines.push(parts.join(' '));
+  }
+  for (const mapping of config?.adc_mappings || []) {
+    lines.push([
+      'ADC',
+      mapping.pin,
+      mapping.action,
+      mapping.slot || 0,
+      mapping.min_x100,
+      mapping.max_x100
+    ].join(' '));
+  }
+  return lines.join('\n') + '\n';
+}
+
 async function waitForSlot(request, kind, slot, predicate) {
   const path = kind === 'chaser' ? '/chaser/slots' : '/motion/slots';
   let last = null;
@@ -166,6 +196,37 @@ function paletteRecallBody(seed, channelCount = 512) {
 }
 
 describeHardware('Real Pico endpoint and slot behavior', () => {
+  test('GPIO firmware accepts Effects pause controls and all 64 Effects slots', async ({ request }) => {
+    const original = await getJson(request, '/gpio/config');
+    expect(original.ok).toBe(true);
+
+    try {
+      const configured = await postText(request, '/gpio/config', [
+        'ENABLE 0',
+        'MAP 16 pullup falling motion_pause 40 30',
+        'MAP 17 pullup falling motion_resume 40 30',
+        'MAP 18 pullup falling motion_pause_toggle 63 30',
+        ''
+      ].join('\n'));
+      expect(configured.ok).toBe(true);
+
+      const readback = await getJson(request, '/gpio/config');
+      expect(readback.enabled).toBe(false);
+      expect(readback.mappings).toEqual([
+        expect.objectContaining({ pin: 16, action: 'motion_pause', slot: 40 }),
+        expect.objectContaining({ pin: 17, action: 'motion_resume', slot: 40 }),
+        expect.objectContaining({ pin: 18, action: 'motion_pause_toggle', slot: 63 })
+      ]);
+    } finally {
+      const restored = await postText(request, '/gpio/config', gpioConfigText(original));
+      expect(restored.ok).toBe(true);
+      const restoredReadback = await getJson(request, '/gpio/config');
+      expect(restoredReadback.enabled).toBe(original.enabled);
+      expect(restoredReadback.mappings).toEqual(original.mappings);
+      expect(restoredReadback.adc_mappings).toEqual(original.adc_mappings);
+    }
+  });
+
   test('DMX output endpoint reports live buffer and reflects batch writes', async ({ request }) => {
     const channels = hardware.dmxTestChannels || [1, 2];
     const [a, b] = channels;

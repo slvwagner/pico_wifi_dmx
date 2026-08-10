@@ -12,6 +12,10 @@ Changed:
 - Added phase-preserving pause and resume to browser Effects playback. Finite
   Single and Loop N playback now stops automatically after the selected number
   of complete BPM-timed effect cycles.
+- Updated GPIO Control to give Effects slots the same physical-button controls
+  as Chaser slots, including pause, resume, and pause/resume toggle. Effects
+  mappings now support all 64 slots and show the slot mode, finite-loop
+  progress, BPM, target count, and playback state read back from the Pico.
 
 ## 1.2.1 - Unreleased
 

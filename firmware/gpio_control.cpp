@@ -64,6 +64,9 @@ static const char *action_name(gpio_action_t action)
     case GPIO_ACTION_MOTION_STOP:   return "motion_stop";
     case GPIO_ACTION_MOTION_TOGGLE: return "motion_toggle";
     case GPIO_ACTION_MOTION_TAP:    return "motion_tap";
+    case GPIO_ACTION_MOTION_PAUSE:  return "motion_pause";
+    case GPIO_ACTION_MOTION_RESUME: return "motion_resume";
+    case GPIO_ACTION_MOTION_PAUSE_TOGGLE: return "motion_pause_toggle";
     default:                        return "none";
     }
 }
@@ -175,6 +178,18 @@ static bool parse_action(const char *s, gpio_action_t *out)
         *out = GPIO_ACTION_MOTION_TAP;
         return true;
     }
+    if (strcmp(s, "motion_pause") == 0) {
+        *out = GPIO_ACTION_MOTION_PAUSE;
+        return true;
+    }
+    if (strcmp(s, "motion_resume") == 0) {
+        *out = GPIO_ACTION_MOTION_RESUME;
+        return true;
+    }
+    if (strcmp(s, "motion_pause_toggle") == 0) {
+        *out = GPIO_ACTION_MOTION_PAUSE_TOGGLE;
+        return true;
+    }
     return false;
 }
 
@@ -284,6 +299,15 @@ static void run_action(gpio_action_t action, uint8_t slot)
             if (slot_active_motion(slot)) mfx_stop_slot(slot);
             else mfx_start(slot);
         }
+        break;
+    case GPIO_ACTION_MOTION_PAUSE:
+        if (slot < MFX_MAX_SLOTS) mfx_pause(slot);
+        break;
+    case GPIO_ACTION_MOTION_RESUME:
+        if (slot < MFX_MAX_SLOTS) mfx_resume(slot);
+        break;
+    case GPIO_ACTION_MOTION_PAUSE_TOGGLE:
+        if (slot < MFX_MAX_SLOTS) mfx_pause_toggle(slot);
         break;
     case GPIO_ACTION_MOTION_TAP:
         break;
@@ -467,7 +491,8 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
             return false;
         }
-        if ((m.action == GPIO_ACTION_MOTION_START || m.action == GPIO_ACTION_MOTION_STOP || m.action == GPIO_ACTION_MOTION_TOGGLE) &&
+        if ((m.action == GPIO_ACTION_MOTION_START || m.action == GPIO_ACTION_MOTION_STOP || m.action == GPIO_ACTION_MOTION_TOGGLE ||
+             m.action == GPIO_ACTION_MOTION_PAUSE || m.action == GPIO_ACTION_MOTION_RESUME || m.action == GPIO_ACTION_MOTION_PAUSE_TOGGLE) &&
             m.slot >= MFX_MAX_SLOTS) {
             snprintf(err, err_len, "Motion slot %u out of range", m.slot);
             return false;

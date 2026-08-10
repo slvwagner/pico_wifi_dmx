@@ -1,8 +1,8 @@
 # New Features
 
 ## 01
-New feature:
-I need a need Effect play modes.
-Similar to chaser I want to be able to Loop (standard), single, Loop N 
-I also need a way to pause  a effect and resume wher paused.
-And it must be possible to do that alos on the firmware so the pico play back must be enhanced too. 
+
+In the Show page I would like to have a sidebar with adjustable width, as we
+have for the toolboxes. I would like to be able to configure the cards that go
+in there. Instead of a matrix layout, I only want a single column for the cards,
+but the number of card rows shall be configurable in editing mode.

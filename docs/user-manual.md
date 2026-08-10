@@ -1142,13 +1142,15 @@ GPIO Control does not use the shared toolbox rail. Its equivalent tools are the 
 
 GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.
 
-Use **DMX Output** to select the Pico/universe whose physical GPIO pins you want to configure. The list comes from Controller → **DMX Outputs**. Every output keeps an independent enabled state, digital mapping list, and ADC mapping list, because the pins belong to that specific Pico. Switching outputs changes the editor, status readback, chaser-slot information, and the target of **Push to Pico** / **Read from Pico**.
+Use **DMX Output** to select the Pico/universe whose physical GPIO pins you want to configure. The list comes from Controller → **DMX Outputs**. Every output keeps an independent enabled state, digital mapping list, and ADC mapping list, because the pins belong to that specific Pico. Switching outputs changes the editor, status readback, Chaser and Effects slot information, and the target of **Push to Pico** / **Read from Pico**.
 
 The GPIO editor loads all per-output mapping setups from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the complete multi-output setup back to the server, so a PC and iPad should show the same mappings after reload. Existing single-Pico GPIO files are migrated into the first configured output.
 
 **GPIO polling enabled** is stored independently for each output and becomes the Pico configuration's master enable flag when you click **Push to Pico**. Editing the server copy does not change the physical Pico until it is pushed. The live Status panel polls the selected Pico for pin state and event counters once per second.
 
 Chaser GPIO actions do not define their own playmode. They start, stop, pause, resume, toggle, or tap the selected Pico's physical chaser slot. The playmode belongs to that slot, so the button follows whatever was uploaded from the Chaser page: **Single**, **Loop**, **Loop N**, or **Ping Pong**, plus forward/reverse direction. For the selected DMX Output, the GPIO page reads the Pico's chaser slot status and shows the slot mode, direction, loop state, step count, and live/ready state beside chaser mappings and chaser speed ADC mappings.
+
+Effects GPIO actions work the same way. They use the mode stored in the selected physical Effects slot rather than defining another mode in the GPIO mapping. The page reads the Pico's Effects slot status and shows **Single**, **Loop**, or **Loop N**, finite-loop progress, BPM, target count, and live/paused/ready state beside Effects digital mappings and Effects BPM ADC mappings. Chaser slot numbers range from 0 to 31; Effects slot numbers range from 0 to 63.
 
 Digital GPIO pins can trigger:
 
@@ -1157,7 +1159,7 @@ Digital GPIO pins can trigger:
 - Stop all
 - Chaser play, stop, toggle, pause, resume, pause toggle
 - Chaser tap tempo
-- Effects start, stop, toggle
+- Effects start, stop, toggle, pause, resume, pause toggle
 - Effects tap tempo
 
 ADC pins can control:
@@ -1184,7 +1186,7 @@ For each digital mapping:
 
 - **Pull-up** is normally used for a dry-contact button wired from the protected input to ground; **Pull-down** expects the active contact toward the input's high level.
 - **Falling**, **Rising**, or **Both** chooses which electrical transition triggers the action.
-- **Slot** is enabled only for Chaser or Effects actions and addresses the physical slot on the selected Pico.
+- **Slot** is enabled only for Chaser or Effects actions and addresses the physical slot on the selected Pico. Chaser accepts slots 0–31 and Effects accepts slots 0–63.
 - **Debounce ms** ignores additional transitions for 5–1000 ms after a trigger, preventing one mechanical press from producing several actions.
 - Tap-tempo actions additionally show **Beat**, which applies the selected beat divider to the measured tap interval.
 
