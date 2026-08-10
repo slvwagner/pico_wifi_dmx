@@ -279,7 +279,10 @@ if (-not $SkipTests) {
         # dedicated serial step prevents unrelated UI workers from disturbing
         # playback state and timing measurements on the physical Pico.
         $env:DMX_RUN_HARDWARE_TESTS = "false"
-        Invoke-Native "UI regression tests" { npm run test:ui }
+        # UI specs share the isolated XAMPP JSON stores and intentionally write
+        # test setup. Keep the release gate serial so one spec cannot replace
+        # another spec's fixtures or Show layout while assertions are running.
+        Invoke-Native "UI regression tests" { npm run test:ui -- --workers=1 }
     }
 
     if ($RunHardwareTests) {

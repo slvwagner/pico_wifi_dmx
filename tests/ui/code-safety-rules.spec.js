@@ -490,6 +490,7 @@ test.describe('Code safety regression rules', () => {
     expect(uiSuite).toBeGreaterThan(-1);
     expect(hardwareSuite).toBeGreaterThan(uiSuite);
     expect(releaseScript.slice(uiSuite, hardwareSuite)).toContain('$env:DMX_RUN_HARDWARE_TESTS = "false"');
+    expect(releaseScript.slice(uiSuite, hardwareSuite)).toContain('npm run test:ui -- --workers=1');
     expect(releaseScript.slice(hardwareSuite)).toContain('npm run test:pico');
   });
 

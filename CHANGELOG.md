@@ -50,6 +50,9 @@ Fixed:
   state and asynchronous scene/palette loads. Repeated release captures now
   wait for stable documentation data and no longer schedule a delayed panel
   collapse before creating the fully expanded Effects overview.
+- Fixed release UI tests racing through shared isolated XAMPP data by running
+  that destructive suite serially, and taught the shared-width check to account
+  for Show Run's dedicated sidebar rail.
 - Fixed Show Run keeping Pico Effects tiles in the **Stop** state after a
   Single or Loop N effect completed autonomously. While playback is active or
   paused, Show Run now follows the live state of every linked Pico slot and
