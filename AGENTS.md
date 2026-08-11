@@ -31,7 +31,7 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 1. For a bug fix, first add a regression test and confirm that it fails in the isolated environment.
 2. Use `/dmx-test/` or the repository-local PHP development server for every automated test.
 3. Before browser automation, inspect the resolved base URL and stop if its path is `/dmx/`.
-4. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost//dmx-test/`.
+4. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost/dmx-test/`.
 5. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
 6. Verify the user's environment only through manual browser use or read-only HTTP GET requests. Never use a test suite as deployment verification.
 7. Generate documentation and screenshots with `scripts/build_user_manual.ps1 -LocalOnly` and deterministic repository data, or another explicitly isolated playground.
@@ -42,7 +42,7 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 ### New feature
 
 1. Implement the feature.
-2. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost//dmx-test/`.
+2. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost/dmx-test/`.
 3. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
 4. Only create manuals and screenshots if the user asks for them.
 5. Ask the user to confirm the next commit.
